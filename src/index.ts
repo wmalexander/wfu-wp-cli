@@ -6,6 +6,8 @@ import { syncS3Command } from './commands/syncs3';
 import { listIpsCommand } from './commands/listips';
 import { sshAwsCommand } from './commands/sshaws';
 import { removeHostKeyCommand } from './commands/removehostkey';
+import { spoofCommand } from './commands/spoof';
+import { unspoofCommand } from './commands/unspoof';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -25,6 +27,8 @@ program.addCommand(syncS3Command);
 program.addCommand(listIpsCommand);
 program.addCommand(sshAwsCommand);
 program.addCommand(removeHostKeyCommand);
+program.addCommand(spoofCommand);
+program.addCommand(unspoofCommand);
 
 program
   .command('help')
@@ -36,6 +40,8 @@ program
     console.log(chalk.green('  listips') + '     - List EC2 instance IP addresses for an environment');
     console.log(chalk.green('  sshaws') + '      - SSH into EC2 instances for an environment');
     console.log(chalk.green('  removehostkey') + ' - Remove SSH host keys for EC2 instances in an environment');
+    console.log(chalk.green('  spoof') + '       - Spoof DNS for a WFU subdomain by adding to /etc/hosts');
+    console.log(chalk.green('  unspoof') + '     - Remove WFU DNS spoofing entries from /etc/hosts');
     console.log('\nUse "wfuwp <command> --help" for more information about a command.');
   });
 

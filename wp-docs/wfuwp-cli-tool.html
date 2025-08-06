@@ -176,6 +176,58 @@
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">spoof - DNS Spoofing for Testing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Spoof DNS for a WFU subdomain by adding entries to /etc/hosts. This allows you to test sites before DNS changes take effect.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Usage:</strong> <code>sudo wfuwp spoof &lt;subdomain&gt; [options]</code></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Examples:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Spoof main domain: <code>sudo wfuwp spoof shoes</code> (creates shoes.wfu.edu)</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Spoof dev environment: <code>sudo wfuwp spoof tennis --env dev</code> (creates tennis.dev.wfu.edu)</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Spoof any subdomain: <code>sudo wfuwp spoof mysite</code> (creates mysite.wfu.edu)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">unspoof - Remove DNS Spoofing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Remove all WFU DNS spoofing entries from /etc/hosts to restore normal DNS resolution.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Usage:</strong> <code>sudo wfuwp unspoof</code></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Examples:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Remove all spoofed entries: <code>sudo wfuwp unspoof</code></li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
 <!-- wp:heading -->
 <h2 class="wp-block-heading">Safety Features</h2>
 <!-- /wp:heading -->
@@ -249,6 +301,14 @@
 
 <!-- wp:list-item -->
 <li><code>wfuwp removehostkey --help</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><code>wfuwp spoof --help</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><code>wfuwp unspoof --help</code></li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -284,6 +344,21 @@ wfuwp removehostkey uat
 
 # 3. Test SSH connection
 wfuwp sshaws uat --dry-run</code></pre>
+<!-- /wp:code -->
+
+<!-- wp:paragraph -->
+<p><strong>Testing a site before DNS changes:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># 1. Spoof DNS for testing
+sudo wfuwp spoof newsite
+
+# 2. Test your site at newsite.wfu.edu
+# (Visit the site in your browser to verify it works)
+
+# 3. Remove spoofing when done
+sudo wfuwp unspoof</code></pre>
 <!-- /wp:code -->
 
 <!-- wp:heading -->

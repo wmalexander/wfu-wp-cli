@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2025-08-06
+
+### Added
+- `spoof` command for DNS spoofing by adding entries to /etc/hosts
+- `unspoof` command for removing DNS spoofing entries from /etc/hosts
+- Support for environment-specific subdomains (e.g., --env dev for *.dev.wfu.edu)
+- Automatic IP resolution from news.wfu.edu for spoofing
+- Safe hosts file management with markers for easy cleanup
+- Sudo privilege checking and user-friendly error messages
+- Comprehensive help text and usage examples for DNS spoofing commands
+- Unit tests for spoof and unspoof commands
+- Updated documentation with DNS spoofing workflow examples
+
+### Features
+- Automatic detection and removal of existing WFU spoofing entries
+- Support for custom domain patterns (subdomain.wfu.edu, subdomain.env.wfu.edu)
+- Clear feedback about what domains are being spoofed and their target IPs
+- Integration with existing CLI help system and error handling patterns
+
 ## [0.2.2] - 2025-08-06
 
 ### Added
@@ -45,5 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Jest for testing
 - GitHub Actions for automated testing and releases
 
-[Unreleased]: https://github.com/alexandw/wfu-wp-cli/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/alexandw/wfu-wp-cli/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/alexandw/wfu-wp-cli/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/alexandw/wfu-wp-cli/compare/v0.1.0...v0.2.2
 [0.1.0]: https://github.com/alexandw/wfu-wp-cli/releases/tag/v0.1.0
