@@ -59,8 +59,8 @@ wfuwp syncs3 <site-id> <from-env> <to-env> [options]
 
 **Arguments:**
 - `site-id`: Numeric site identifier (e.g., 43)
-- `from-env`: Source environment (`dev`, `stg`, `prop`, `pprd`, `prod`)
-- `to-env`: Destination environment (`dev`, `stg`, `prop`, `pprd`, `prod`)
+- `from-env`: Source environment (`dev`, `uat`, `pprd`, `prod`)
+- `to-env`: Destination environment (`dev`, `uat`, `pprd`, `prod`)
 
 **Options:**
 - `-d, --dry-run`: Preview what would be synced without making changes
@@ -72,16 +72,16 @@ wfuwp syncs3 <site-id> <from-env> <to-env> [options]
 
 ```bash
 # Basic sync with confirmation
-wfuwp syncs3 43 prop pprd
+wfuwp syncs3 43 uat pprd
 
 # Dry run to preview changes
-wfuwp syncs3 43 prop pprd --dry-run
+wfuwp syncs3 43 uat pprd --dry-run
 
 # Force sync without confirmation
-wfuwp syncs3 43 prop pprd --force
+wfuwp syncs3 43 uat pprd --force
 
 # Show detailed output with all file transfers
-wfuwp syncs3 43 prop pprd --verbose
+wfuwp syncs3 43 uat pprd --verbose
 ```
 
 ## Safety Features
@@ -115,7 +115,7 @@ wfuwp syncs3 43 prop pprd --verbose
 - Ensure you're using a numeric site ID (e.g., 43, not "abc")
 
 **"Invalid source/destination environment"**
-- Use only valid environment names: `dev`, `stg`, `prop`, `pprd`, `prod`
+- Use only valid environment names: `dev`, `uat`, `pprd`, `prod`
 
 **"Source and destination environments cannot be the same"**
 - Ensure you're specifying different environments for source and destination

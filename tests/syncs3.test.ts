@@ -31,12 +31,12 @@ describe('wfuwp syncs3 command', () => {
 
   it('should reject same source and destination environments', () => {
     expect(() => {
-      execSync(`node ${CLI_PATH} syncs3 43 prop prop`, { stdio: 'pipe' });
+      execSync(`node ${CLI_PATH} syncs3 43 uat uat`, { stdio: 'pipe' });
     }).toThrow();
   });
 
   it('should accept valid environments', () => {
-    const validEnvs = ['dev', 'stg', 'prop', 'pprd', 'prod'];
+    const validEnvs = ['dev', 'uat', 'pprd', 'prod'];
     validEnvs.forEach(env => {
       const result = execSync(`node ${CLI_PATH} syncs3 --help`, { encoding: 'utf8' });
       expect(result).toContain(env);

@@ -3,7 +3,7 @@ import { execSync } from 'child_process';
 import chalk from 'chalk';
 import * as readline from 'readline';
 
-const VALID_ENVIRONMENTS = ['dev', 'stg', 'prop', 'pprd', 'prod'];
+const VALID_ENVIRONMENTS = ['dev', 'uat', 'pprd', 'prod'];
 
 interface SyncOptions {
   dryRun?: boolean;
@@ -178,9 +178,9 @@ export const syncS3Command = new Command('syncs3')
     'after',
     `
 Examples:
-  $ wfuwp syncs3 43 prop pprd        # Sync site 43 from prop to pprd
-  $ wfuwp syncs3 43 prop pprd -d     # Dry run to preview changes
-  $ wfuwp syncs3 43 prop pprd -f     # Force sync without confirmation
-  $ wfuwp syncs3 43 prop pprd -v     # Show detailed output with all file transfers
+  $ wfuwp syncs3 43 uat pprd         # Sync site 43 from uat to pprd
+  $ wfuwp syncs3 43 uat pprd -d      # Dry run to preview changes
+  $ wfuwp syncs3 43 uat pprd -f      # Force sync without confirmation
+  $ wfuwp syncs3 43 uat pprd -v      # Show detailed output with all file transfers
 `
   );
