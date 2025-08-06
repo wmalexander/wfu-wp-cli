@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-08-06
+
+### Fixed
+- Fixed IP address parsing in spoof command when news.wfu.edu is a CNAME pointing to Elastic Beanstalk environment
+- Now correctly handles host command output with multiple IP addresses and extracts the first available IP
+
 ## [0.3.0] - 2025-08-06
 
 ### Added
@@ -64,7 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Jest for testing
 - GitHub Actions for automated testing and releases
 
-[Unreleased]: https://github.com/alexandw/wfu-wp-cli/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/alexandw/wfu-wp-cli/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/alexandw/wfu-wp-cli/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/alexandw/wfu-wp-cli/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/alexandw/wfu-wp-cli/compare/v0.1.0...v0.2.2
 [0.1.0]: https://github.com/alexandw/wfu-wp-cli/releases/tag/v0.1.0
