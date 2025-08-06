@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.3] - 2025-08-06
+## [0.3.0] - 2025-08-06
 
 ### Added
 - `spoof` command for DNS spoofing by adding entries to /etc/hosts
@@ -64,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Jest for testing
 - GitHub Actions for automated testing and releases
 
-[Unreleased]: https://github.com/alexandw/wfu-wp-cli/compare/v0.2.3...HEAD
-[0.2.3]: https://github.com/alexandw/wfu-wp-cli/compare/v0.2.2...v0.2.3
+[Unreleased]: https://github.com/alexandw/wfu-wp-cli/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/alexandw/wfu-wp-cli/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/alexandw/wfu-wp-cli/compare/v0.1.0...v0.2.2
 [0.1.0]: https://github.com/alexandw/wfu-wp-cli/releases/tag/v0.1.0
