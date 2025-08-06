@@ -36,20 +36,22 @@ function writeHostsFile(content: string): void {
   try {
     writeFileSync(HOSTS_FILE, content, 'utf8');
   } catch (error) {
-    throw new Error(`Failed to write hosts file: ${error}. Make sure you run this command with sudo.`);
+    throw new Error(
+      `Failed to write hosts file: ${error}. Make sure you run this command with sudo.`
+    );
   }
 }
 
 function removeExistingWfuEntries(hostsContent: string): string {
   const startIndex = hostsContent.indexOf(MARKER_START);
   const endIndex = hostsContent.indexOf(MARKER_END);
-  
+
   if (startIndex !== -1 && endIndex !== -1) {
     const before = hostsContent.substring(0, startIndex);
     const after = hostsContent.substring(endIndex + MARKER_END.length);
     return before + after.replace(/^\n/, '');
   }
-  
+
   return hostsContent;
 }
 
@@ -61,36 +63,51 @@ function createDomainName(subdomain: string, options: SpoofOptions): string {
   return `${subdomain}.${env}.wfu.edu`;
 }
 
-async function spoofDomain(subdomain: string, options: SpoofOptions): Promise<void> {
+async function spoofDomain(
+  subdomain: string,
+  options: SpoofOptions
+): Promise<void> {
   const targetDomain = createDomainName(subdomain, options);
-  
+
   console.log(chalk.blue(`Getting IP address for news.wfu.edu...`));
   const ipAddress = getNewsWfuEduIp();
   console.log(chalk.green(`Found IP: ${ipAddress}`));
-  
+
   console.log(chalk.blue(`Updating hosts file to spoof ${targetDomain}...`));
-  
+
   let hostsContent = readHostsFile();
   hostsContent = removeExistingWfuEntries(hostsContent);
-  
+
   const spoofEntry = `\n${MARKER_START}\n${ipAddress} ${targetDomain}\n${MARKER_END}\n`;
-  
+
   if (!hostsContent.endsWith('\n')) {
     hostsContent += '\n';
   }
-  
+
   hostsContent += spoofEntry;
-  
+
   writeHostsFile(hostsContent);
-  
-  console.log(chalk.green(`Successfully spoofed ${targetDomain} -> ${ipAddress}`));
-  console.log(chalk.yellow(`Remember to run 'sudo wfuwp unspoof' when you're done testing!`));
+
+  console.log(
+    chalk.green(`Successfully spoofed ${targetDomain} -> ${ipAddress}`)
+  );
+  console.log(
+    chalk.yellow(
+      `Remember to run 'sudo wfuwp unspoof' when you're done testing!`
+    )
+  );
 }
 
 export const spoofCommand = new Command('spoof')
   .description('Spoof DNS for a WFU subdomain by adding an entry to /etc/hosts')
-  .argument('<subdomain>', 'The subdomain to spoof (e.g., "shoes" for shoes.wfu.edu)')
-  .option('--env <environment>', 'Environment subdomain (e.g., "dev" for shoes.dev.wfu.edu)')
+  .argument(
+    '<subdomain>',
+    'The subdomain to spoof (e.g., "shoes" for shoes.wfu.edu)'
+  )
+  .option(
+    '--env <environment>',
+    'Environment subdomain (e.g., "dev" for shoes.dev.wfu.edu)'
+  )
   .action(async (subdomain: string, options: SpoofOptions) => {
     try {
       if (process.getuid && process.getuid() !== 0) {
@@ -98,7 +115,7 @@ export const spoofCommand = new Command('spoof')
         console.error(chalk.yellow('Example: sudo wfuwp spoof shoes'));
         process.exit(1);
       }
-      
+
       await spoofDomain(subdomain, options);
     } catch (error) {
       console.error(chalk.red(`Error: ${error}`));

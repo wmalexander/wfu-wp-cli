@@ -36,13 +36,33 @@ program
   .action(() => {
     console.log(chalk.blue.bold('WFU WordPress CLI Tool'));
     console.log('\nAvailable commands:');
-    console.log(chalk.green('  syncs3') + '      - Sync WordPress sites between S3 environments');
-    console.log(chalk.green('  listips') + '     - List EC2 instance IP addresses for an environment');
-    console.log(chalk.green('  sshaws') + '      - SSH into EC2 instances for an environment');
-    console.log(chalk.green('  removehostkey') + ' - Remove SSH host keys for EC2 instances in an environment');
-    console.log(chalk.green('  spoof') + '       - Spoof DNS for a WFU subdomain by adding to /etc/hosts');
-    console.log(chalk.green('  unspoof') + '     - Remove WFU DNS spoofing entries from /etc/hosts');
-    console.log('\nUse "wfuwp <command> --help" for more information about a command.');
+    console.log(
+      chalk.green('  syncs3') +
+        '      - Sync WordPress sites between S3 environments'
+    );
+    console.log(
+      chalk.green('  listips') +
+        '     - List EC2 instance IP addresses for an environment'
+    );
+    console.log(
+      chalk.green('  sshaws') +
+        '      - SSH into EC2 instances for an environment'
+    );
+    console.log(
+      chalk.green('  removehostkey') +
+        ' - Remove SSH host keys for EC2 instances in an environment'
+    );
+    console.log(
+      chalk.green('  spoof') +
+        '       - Spoof DNS for a WFU subdomain by adding to /etc/hosts'
+    );
+    console.log(
+      chalk.green('  unspoof') +
+        '     - Remove WFU DNS spoofing entries from /etc/hosts'
+    );
+    console.log(
+      '\nUse "wfuwp <command> --help" for more information about a command.'
+    );
   });
 
 program.on('command:*', () => {
@@ -56,3 +76,4 @@ if (process.argv.length <= 2) {
 }
 
 program.parse(process.argv);
+
