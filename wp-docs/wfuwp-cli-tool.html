@@ -1,0 +1,110 @@
+<!-- wp:paragraph -->
+<p>We have a new CLI tool to make syncing WordPress sites between S3 environments much easier and safer. Instead of manually running AWS CLI commands, you can now use a simple, validated command with built-in safety features.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Installation</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Just run this one command:<br /><code>npm install -g wfuwp</code></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Prerequisites:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Node.js (most of you already have this)</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>AWS CLI installed and configured with your WFU credentials</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">How to Use</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The main command is <code>syncs3</code> and it follows this pattern:<br />wfuwp syncs3 [options]</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Environments</strong>: dev, uat, pprd, prod</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Examples</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Basic sync with confirmation prompt<br /><code>wfuwp syncs3 43 uat pprd</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Preview what would be synced (dry run)<br /><code>wfuwp syncs3 43 uat pprd --dry-run</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Show detailed output with all file transfers<br /><code>wfuwp syncs3 43 uat pprd --verbose</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Skip confirmation (useful for scripts)<br /><code>wfuwp syncs3 43 uat pprd --force</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Combine flags<br /><code>wfuwp syncs3 43 uat pprd --verbose --dry-run</code></li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Safety Features</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li><strong>Input validation</strong> - Won’t let you use invalid site IDs or environments</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><strong>Confirmation prompts</strong> - Asks before making changes (unless you use --force)</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><strong>Dry run mode</strong> - Preview changes with --dry-run before running for real</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><strong>AWS CLI checks</strong> - Verifies your AWS setup before attempting sync</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Getting Help</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><code>wfuwp --help</code>                   # General help<br /><code>wfuwp syncs3 --help</code>   # Specific command help<br /><code>wfuwp --version</code>            # Check version</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Troubleshooting</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>If you get  AWS-related errors, make sure your AWS CLI is configured:<br /><code>aws configure list </code>     # Check your AWS setup</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>If your AWS keys have expired, <a href="https://web.dev.wfu.edu/2025/03/regenerating-aws-credentials/">follow this guide to refresh them</a>. </p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>The tool uses the same S3 buckets and permissions you already have - it’s just a safer, easier way to run the sync commands.</p>
+<!-- /wp:paragraph -->
+ 
