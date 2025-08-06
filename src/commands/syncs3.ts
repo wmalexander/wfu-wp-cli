@@ -98,7 +98,7 @@ async function syncS3(
   if (options.dryRun) {
     console.log(chalk.yellow('\n--- DRY RUN MODE ---'));
     try {
-      const dryRunCommand = `aws s3 sync ${sourceBucket} ${destBucket} --dry-run`;
+      const dryRunCommand = `aws s3 sync ${sourceBucket} ${destBucket} --dryrun`;
       console.log(chalk.gray(`Command: ${dryRunCommand}`));
       execSync(dryRunCommand, { stdio: 'inherit' });
     } catch (error) {
