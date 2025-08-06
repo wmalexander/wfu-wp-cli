@@ -204,9 +204,21 @@ wfuwp config get db.host
 wfuwp config reset
 ```
 
-#### `migrate` - Migrate WordPress multisite database between environments
+#### `migrate` - Migrate WordPress multisite database between environments (Phase 1)
 
 Migrates WordPress multisite database content between environments by performing URL and path replacements. Integrates with WP-CLI for reliable database operations.
+
+**⚠️ Current Limitations (Phase 1):**
+- Requires tables to be manually imported into migration database before running
+- Does not handle export/import operations automatically
+- Single database configuration only
+- No S3 archival of SQL dumps
+
+**📋 Phase 2 (Coming Soon):**
+- Complete automated workflow with export/import
+- Multi-environment configuration support
+- Automatic S3 backup archival
+- Full migration orchestration with single command
 
 ```bash
 wfuwp migrate <site-id> --from <source-env> --to <target-env> [options]
@@ -257,6 +269,15 @@ wfuwp migrate 43 --from uat --to pprd --log-dir /custom/logs
 - Database configuration must be set using `wfuwp config` commands
 - WP-CLI must be installed and accessible in PATH
 - Appropriate database access permissions for the configured user
+- **Phase 1**: Tables must be manually imported into migration database before running
+
+**Current Workflow (Phase 1):**
+1. Manually export site tables from source environment
+2. Manually import tables into wp_migration database
+3. Run `wfuwp migrate` command for URL replacements
+4. Manually export transformed tables from wp_migration
+5. Manually backup target environment tables
+6. Manually import transformed tables to target environment
 
 ## Safety Features
 
