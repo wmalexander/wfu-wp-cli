@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-08-06
+
+### Added
+- `removehostkey` command for removing SSH host keys for EC2 instances
+- Support for all environments: dev, uat, pprd, prod
+- Command options: --dry-run, --all, --known-hosts, --yes
+- Safety features: confirmation prompts and validation
+- Integration with existing listips command to fetch EC2 instance IPs
+- Comprehensive help text and usage examples
+- Unit tests for the new command
+
+### Features
+- Removes host keys for both private and public IPs
+- Custom known_hosts file path support
+- Dry-run mode for previewing changes
+- Skip confirmation prompt option (-y, --yes)
+- Error handling and user feedback
+
 ## [0.1.0] - 2025-08-06
 
 ### Added

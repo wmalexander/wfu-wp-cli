@@ -5,6 +5,7 @@ import chalk from 'chalk';
 import { syncS3Command } from './commands/syncs3';
 import { listIpsCommand } from './commands/listips';
 import { sshAwsCommand } from './commands/sshaws';
+import { removeHostKeyCommand } from './commands/removehostkey';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -23,6 +24,7 @@ program
 program.addCommand(syncS3Command);
 program.addCommand(listIpsCommand);
 program.addCommand(sshAwsCommand);
+program.addCommand(removeHostKeyCommand);
 
 program
   .command('help')
@@ -30,9 +32,10 @@ program
   .action(() => {
     console.log(chalk.blue.bold('WFU WordPress CLI Tool'));
     console.log('\nAvailable commands:');
-    console.log(chalk.green('  syncs3') + '  - Sync WordPress sites between S3 environments');
-    console.log(chalk.green('  listips') + ' - List EC2 instance IP addresses for an environment');
-    console.log(chalk.green('  sshaws') + '  - SSH into EC2 instances for an environment');
+    console.log(chalk.green('  syncs3') + '      - Sync WordPress sites between S3 environments');
+    console.log(chalk.green('  listips') + '     - List EC2 instance IP addresses for an environment');
+    console.log(chalk.green('  sshaws') + '      - SSH into EC2 instances for an environment');
+    console.log(chalk.green('  removehostkey') + ' - Remove SSH host keys for EC2 instances in an environment');
     console.log('\nUse "wfuwp <command> --help" for more information about a command.');
   });
 
