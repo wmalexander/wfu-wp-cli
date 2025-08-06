@@ -10,7 +10,9 @@
       "Bash(npm run lint)",
       "Bash(npm ls:*)",
       "Bash(npm run format:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }

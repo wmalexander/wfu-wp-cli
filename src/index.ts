@@ -3,13 +3,20 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { syncS3Command } from './commands/syncs3';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 const program = new Command();
+
+// Read version from package.json
+const packageJson = JSON.parse(
+  readFileSync(join(__dirname, '../package.json'), 'utf8')
+);
 
 program
   .name('wfuwp')
   .description('CLI tool for WFU WordPress management tasks')
-  .version('0.1.0');
+  .version(packageJson.version);
 
 program.addCommand(syncS3Command);
 
