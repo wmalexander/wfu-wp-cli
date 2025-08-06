@@ -8,6 +8,7 @@ const VALID_ENVIRONMENTS = ['dev', 'stg', 'prop', 'pprd', 'prod'];
 interface SyncOptions {
   dryRun?: boolean;
   force?: boolean;
+  verbose?: boolean;
 }
 
 function validateEnvironment(env: string): boolean {
@@ -121,10 +122,25 @@ async function syncS3(
   try {
     const syncCommand = `aws s3 sync ${sourceBucket} ${destBucket}`;
     console.log(chalk.blue('\nSyncing...'));
-    console.log(chalk.gray(`Command: ${syncCommand}`));
+    if (options.verbose) {
+      console.log(chalk.gray(`Command: ${syncCommand}`));
+    }
 
-    execSync(syncCommand, { stdio: 'inherit' });
-    console.log(chalk.green.bold('\n✓ Sync completed successfully'));
+    const stdio = options.verbose ? 'inherit' : 'pipe';
+    const result = execSync(syncCommand, { stdio, encoding: 'utf8' });
+    
+    if (!options.verbose && result) {
+      const lines = result.split('\n').filter(line => line.trim());
+      if (lines.length > 0) {
+        console.log(chalk.green(`✓ Synced ${lines.length} files`));
+      } else {
+        console.log(chalk.yellow('✓ No files to sync (already up to date)'));
+      }
+    } else if (options.verbose) {
+      console.log(chalk.green.bold('\n✓ Sync completed successfully'));
+    } else {
+      console.log(chalk.yellow('✓ No files to sync (already up to date)'));
+    }
   } catch (error) {
     console.error(chalk.red('\n✗ Sync failed'));
     process.exit(1);
@@ -147,6 +163,7 @@ export const syncS3Command = new Command('syncs3')
     'Preview what would be synced without making changes'
   )
   .option('-f, --force', 'Skip confirmation prompt')
+  .option('-v, --verbose', 'Show detailed output including all synced files')
   .action(
     async (
       siteId: string,
@@ -164,5 +181,6 @@ Examples:
   $ wfuwp syncs3 43 prop pprd        # Sync site 43 from prop to pprd
   $ wfuwp syncs3 43 prop pprd -d     # Dry run to preview changes
   $ wfuwp syncs3 43 prop pprd -f     # Force sync without confirmation
+  $ wfuwp syncs3 43 prop pprd -v     # Show detailed output with all file transfers
 `
   );

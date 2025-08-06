@@ -65,6 +65,7 @@ wfuwp syncs3 <site-id> <from-env> <to-env> [options]
 **Options:**
 - `-d, --dry-run`: Preview what would be synced without making changes
 - `-f, --force`: Skip confirmation prompt
+- `-v, --verbose`: Show detailed output including all synced files
 - `-h, --help`: Display help for command
 
 **Examples:**
@@ -78,6 +79,9 @@ wfuwp syncs3 43 prop pprd --dry-run
 
 # Force sync without confirmation
 wfuwp syncs3 43 prop pprd --force
+
+# Show detailed output with all file transfers
+wfuwp syncs3 43 prop pprd --verbose
 ```
 
 ## Safety Features
