@@ -14,7 +14,14 @@ interface SpoofOptions {
 function getNewsWfuEduIp(): string {
   try {
     const output = execSync('host news.wfu.edu', { encoding: 'utf8' });
-    const match = output.match(/news\.wfu\.edu has address ([\d.]+)/);
+    // Try to match direct IP first: "news.wfu.edu has address IP"
+    let match = output.match(/news\.wfu\.edu has address ([\d.]+)/);
+    
+    // If not found, try to match CNAME target IP: "target.domain.com has address IP"
+    if (!match) {
+      match = output.match(/has address ([\d.]+)/);
+    }
+    
     if (!match) {
       throw new Error('Could not parse IP address from host command output');
     }
