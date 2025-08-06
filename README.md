@@ -84,6 +84,77 @@ wfuwp syncs3 43 uat pprd --force
 wfuwp syncs3 43 uat pprd --verbose
 ```
 
+#### `listips` - List EC2 instance IP addresses
+
+Lists IP addresses of running EC2 instances for a given environment.
+
+```bash
+wfuwp listips <environment> [options]
+```
+
+**Arguments:**
+- `environment`: Environment name (`dev`, `uat`, `pprd`, `prod`)
+
+**Options:**
+- `--private`: Show private IP addresses (default behavior)
+- `--public`: Show public IP addresses
+- `--json`: Output as JSON for scripting
+- `-h, --help`: Display help for command
+
+**Examples:**
+
+```bash
+# List private IPs (default)
+wfuwp listips uat
+
+# List public IPs
+wfuwp listips prod --public
+
+# Get JSON output for scripting
+wfuwp listips dev --json
+```
+
+#### `sshaws` - SSH into EC2 instances
+
+SSH into EC2 instances for a given environment with flexible authentication.
+
+```bash
+wfuwp sshaws <environment> [options]
+```
+
+**Arguments:**
+- `environment`: Environment name (`dev`, `uat`, `pprd`, `prod`)
+
+**Options:**
+- `--all`: Connect to all instances sequentially (default: first instance only)
+- `--list`: List available instances without connecting
+- `--key <path>`: Path to SSH private key file (optional)
+- `--user <username>`: SSH username (default: ec2-user)
+- `--dry-run`: Show what SSH commands would be executed
+- `-h, --help`: Display help for command
+
+**Examples:**
+
+```bash
+# SSH to first instance (uses system SSH defaults)
+wfuwp sshaws uat
+
+# SSH to all instances sequentially
+wfuwp sshaws prod --all
+
+# List instances without connecting
+wfuwp sshaws dev --list
+
+# Use specific SSH key
+wfuwp sshaws pprd --key ~/.ssh/my-aws-key.pem
+
+# Use different username
+wfuwp sshaws dev --user ubuntu
+
+# Preview SSH commands
+wfuwp sshaws uat --dry-run
+```
+
 ## Safety Features
 
 ### Input Validation
