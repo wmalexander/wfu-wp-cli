@@ -3,12 +3,30 @@ import { homedir } from 'os';
 import { join } from 'path';
 import * as crypto from 'crypto';
 
+interface EnvironmentConfig {
+  host?: string;
+  user?: string;
+  password?: string; // encrypted
+  database?: string;
+}
+
 interface ConfigData {
-  db?: {
+  environments?: {
+    dev?: EnvironmentConfig;
+    uat?: EnvironmentConfig;
+    pprd?: EnvironmentConfig;
+    prod?: EnvironmentConfig;
+  };
+  migration?: {
     host?: string;
     user?: string;
-    password?: string;
-    name?: string;
+    password?: string; // encrypted
+    database?: string;
+  };
+  s3?: {
+    bucket?: string;
+    region?: string;
+    prefix?: string;
   };
 }
 
@@ -70,59 +88,273 @@ export class Config {
     const config = this.loadConfig();
     const keys = key.split('.');
 
-    if (keys.length !== 2 || keys[0] !== 'db') {
+    if (keys.length < 2) {
       throw new Error(
-        'Invalid config key. Use format: db.host, db.user, db.password, or db.name'
+        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, or s3.<key>'
       );
     }
 
-    if (!config.db) {
-      config.db = {};
-    }
+    const section = keys[0];
 
-    const dbKey = keys[1] as keyof NonNullable<ConfigData['db']>;
-    if (!['host', 'user', 'password', 'name'].includes(dbKey)) {
-      throw new Error(
-        'Invalid database config key. Valid keys: host, user, password, name'
-      );
-    }
-
-    if (dbKey === 'password') {
-      config.db[dbKey] = this.encrypt(value);
+    if (section === 'env') {
+      this.setEnvironmentConfig(config, keys, value);
+    } else if (section === 'migration') {
+      this.setMigrationConfig(config, keys, value);
+    } else if (section === 's3') {
+      this.setS3Config(config, keys, value);
     } else {
-      config.db[dbKey] = value;
+      throw new Error(
+        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, or s3.<key>'
+      );
     }
 
     this.saveConfig(config);
+  }
+
+  private static setEnvironmentConfig(
+    config: ConfigData,
+    keys: string[],
+    value: string
+  ): void {
+    if (keys.length !== 3) {
+      throw new Error(
+        'Invalid environment config key. Use format: env.<environment>.<key>'
+      );
+    }
+
+    const environment = keys[1];
+    const envKey = keys[2];
+
+    if (!['dev', 'uat', 'pprd', 'prod'].includes(environment)) {
+      throw new Error(
+        'Invalid environment. Valid environments: dev, uat, pprd, prod'
+      );
+    }
+
+    if (!['host', 'user', 'password', 'database'].includes(envKey)) {
+      throw new Error(
+        'Invalid environment config key. Valid keys: host, user, password, database'
+      );
+    }
+
+    if (!config.environments) {
+      config.environments = {};
+    }
+
+    if (
+      !config.environments[
+        environment as keyof NonNullable<ConfigData['environments']>
+      ]
+    ) {
+      config.environments[
+        environment as keyof NonNullable<ConfigData['environments']>
+      ] = {};
+    }
+
+    const envConfig =
+      config.environments[
+        environment as keyof NonNullable<ConfigData['environments']>
+      ]!;
+
+    if (envKey === 'password') {
+      envConfig[envKey as keyof EnvironmentConfig] = this.encrypt(value);
+    } else {
+      envConfig[envKey as keyof EnvironmentConfig] = value;
+    }
+  }
+
+  private static setMigrationConfig(
+    config: ConfigData,
+    keys: string[],
+    value: string
+  ): void {
+    if (keys.length !== 2) {
+      throw new Error(
+        'Invalid migration config key. Use format: migration.<key>'
+      );
+    }
+
+    const migrationKey = keys[1];
+
+    if (!['host', 'user', 'password', 'database'].includes(migrationKey)) {
+      throw new Error(
+        'Invalid migration config key. Valid keys: host, user, password, database'
+      );
+    }
+
+    if (!config.migration) {
+      config.migration = {};
+    }
+
+    if (migrationKey === 'password') {
+      config.migration[
+        migrationKey as keyof NonNullable<ConfigData['migration']>
+      ] = this.encrypt(value);
+    } else {
+      config.migration[
+        migrationKey as keyof NonNullable<ConfigData['migration']>
+      ] = value;
+    }
+  }
+
+  private static setS3Config(
+    config: ConfigData,
+    keys: string[],
+    value: string
+  ): void {
+    if (keys.length !== 2) {
+      throw new Error('Invalid S3 config key. Use format: s3.<key>');
+    }
+
+    const s3Key = keys[1];
+
+    if (!['bucket', 'region', 'prefix'].includes(s3Key)) {
+      throw new Error(
+        'Invalid S3 config key. Valid keys: bucket, region, prefix'
+      );
+    }
+
+    if (!config.s3) {
+      config.s3 = {};
+    }
+
+    config.s3[s3Key as keyof NonNullable<ConfigData['s3']>] = value;
   }
 
   static get(key: string): string | undefined {
     const config = this.loadConfig();
     const keys = key.split('.');
 
-    if (keys.length !== 2 || keys[0] !== 'db') {
+    if (keys.length < 2) {
       throw new Error(
-        'Invalid config key. Use format: db.host, db.user, db.password, or db.name'
+        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, or s3.<key>'
       );
     }
 
-    const dbKey = keys[1] as keyof NonNullable<ConfigData['db']>;
-    if (!config.db || !config.db[dbKey]) {
+    const section = keys[0];
+
+    if (section === 'env') {
+      return this.getEnvironmentConfigValue(config, keys);
+    } else if (section === 'migration') {
+      return this.getMigrationConfigValue(config, keys);
+    } else if (section === 's3') {
+      return this.getS3ConfigValue(config, keys);
+    } else {
+      throw new Error(
+        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, or s3.<key>'
+      );
+    }
+  }
+
+  private static getEnvironmentConfigValue(
+    config: ConfigData,
+    keys: string[]
+  ): string | undefined {
+    if (keys.length !== 3) {
+      throw new Error(
+        'Invalid environment config key. Use format: env.<environment>.<key>'
+      );
+    }
+
+    const environment = keys[1];
+    const envKey = keys[2];
+
+    if (
+      !config.environments ||
+      !config.environments[
+        environment as keyof NonNullable<ConfigData['environments']>
+      ]
+    ) {
       return undefined;
     }
 
-    if (dbKey === 'password') {
-      return this.decrypt(config.db[dbKey]!);
+    const envConfig =
+      config.environments[
+        environment as keyof NonNullable<ConfigData['environments']>
+      ];
+    const value = envConfig?.[envKey as keyof EnvironmentConfig];
+
+    if (!value) {
+      return undefined;
     }
 
-    return config.db[dbKey];
+    if (envKey === 'password') {
+      return this.decrypt(value);
+    }
+
+    return value;
+  }
+
+  private static getMigrationConfigValue(
+    config: ConfigData,
+    keys: string[]
+  ): string | undefined {
+    if (keys.length !== 2) {
+      throw new Error(
+        'Invalid migration config key. Use format: migration.<key>'
+      );
+    }
+
+    const migrationKey = keys[1];
+
+    if (!config.migration) {
+      return undefined;
+    }
+
+    const value =
+      config.migration[
+        migrationKey as keyof NonNullable<ConfigData['migration']>
+      ];
+
+    if (!value) {
+      return undefined;
+    }
+
+    if (migrationKey === 'password') {
+      return this.decrypt(value);
+    }
+
+    return value;
+  }
+
+  private static getS3ConfigValue(
+    config: ConfigData,
+    keys: string[]
+  ): string | undefined {
+    if (keys.length !== 2) {
+      throw new Error('Invalid S3 config key. Use format: s3.<key>');
+    }
+
+    const s3Key = keys[1];
+
+    if (!config.s3) {
+      return undefined;
+    }
+
+    return config.s3[s3Key as keyof NonNullable<ConfigData['s3']>];
   }
 
   static list(): ConfigData {
     const config = this.loadConfig();
-    if (config.db?.password) {
-      config.db.password = '****';
+
+    // Mask passwords in environments
+    if (config.environments) {
+      Object.keys(config.environments).forEach((env) => {
+        const envConfig =
+          config.environments![
+            env as keyof NonNullable<ConfigData['environments']>
+          ];
+        if (envConfig?.password) {
+          envConfig.password = '****';
+        }
+      });
     }
+
+    // Mask password in migration config
+    if (config.migration?.password) {
+      config.migration.password = '****';
+    }
+
     return config;
   }
 
@@ -133,34 +365,78 @@ export class Config {
     }
   }
 
-  static getDbConfig(): {
-    host?: string;
-    user?: string;
-    password?: string;
-    name?: string;
-  } {
+  static getEnvironmentConfig(environment: string): EnvironmentConfig {
     const config = this.loadConfig();
-    if (!config.db) {
+    if (
+      !config.environments ||
+      !config.environments[
+        environment as keyof NonNullable<ConfigData['environments']>
+      ]
+    ) {
+      return {};
+    }
+
+    const envConfig =
+      config.environments[
+        environment as keyof NonNullable<ConfigData['environments']>
+      ];
+    return {
+      host: envConfig?.host,
+      user: envConfig?.user,
+      password: envConfig?.password
+        ? this.decrypt(envConfig.password)
+        : undefined,
+      database: envConfig?.database,
+    };
+  }
+
+  static getMigrationDbConfig(): EnvironmentConfig {
+    const config = this.loadConfig();
+    if (!config.migration) {
       return {};
     }
 
     return {
-      host: config.db.host,
-      user: config.db.user,
-      password: config.db.password
-        ? this.decrypt(config.db.password)
+      host: config.migration.host,
+      user: config.migration.user,
+      password: config.migration.password
+        ? this.decrypt(config.migration.password)
         : undefined,
-      name: config.db.name,
+      database: config.migration.database,
     };
   }
 
-  static hasRequiredDbConfig(): boolean {
-    const dbConfig = this.getDbConfig();
+  static getS3Config(): { bucket?: string; region?: string; prefix?: string } {
+    const config = this.loadConfig();
+    return config.s3 || {};
+  }
+
+  static hasRequiredEnvironmentConfig(environment: string): boolean {
+    const envConfig = this.getEnvironmentConfig(environment);
     return !!(
-      dbConfig.host &&
-      dbConfig.user &&
-      dbConfig.password &&
-      dbConfig.name
+      envConfig.host &&
+      envConfig.user &&
+      envConfig.password &&
+      envConfig.database
     );
+  }
+
+  static hasRequiredMigrationConfig(): boolean {
+    const migrationConfig = this.getMigrationDbConfig();
+    return !!(
+      migrationConfig.host &&
+      migrationConfig.user &&
+      migrationConfig.password &&
+      migrationConfig.database
+    );
+  }
+
+  static hasRequiredS3Config(): boolean {
+    const s3Config = this.getS3Config();
+    return !!s3Config.bucket;
+  }
+
+  static getValidEnvironments(): string[] {
+    return ['dev', 'uat', 'pprd', 'prod'];
   }
 }

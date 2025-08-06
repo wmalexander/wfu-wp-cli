@@ -176,6 +176,160 @@
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">migrate - Complete WordPress Database Migration</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><strong>🚀 NEW: Phase 2 Complete Migration Workflow</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Automated WordPress multisite database migration between environments with optional file synchronization. Handles the entire migration workflow automatically including database export, transformation, backup, import, and S3 archival.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Usage:</strong> <code>wfuwp migrate &lt;site-id&gt; --from &lt;source-env&gt; --to &lt;target-env&gt; [options]</code></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Prerequisites:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>WP-CLI installed and accessible</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Database configuration setup: <code>wfuwp config wizard</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>AWS CLI configured (for S3 archival and file sync)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><strong>Complete Migration Examples:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Basic database migration: <code>wfuwp migrate 43 --from prod --to pprd</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Migration with file sync: <code>wfuwp migrate 43 --from prod --to pprd --sync-s3</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Dry run to preview: <code>wfuwp migrate 43 --from dev --to uat --dry-run</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Force without confirmation: <code>wfuwp migrate 43 --from uat --to pprd --force</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Include main site tables: <code>wfuwp migrate 1 --from prod --to pprd --homepage</code></li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><strong>Migration Workflow (9 Steps):</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>✅ Export site tables from source environment</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>✅ Import to temporary migration database</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>✅ Run URL and S3 path transformations</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>✅ Backup existing target environment tables</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>✅ Export transformed tables from migration database</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>✅ Import to target environment</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>✅ Sync WordPress files (if <code>--sync-s3</code> flag used)</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>✅ Archive all SQL files to S3 with metadata</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>✅ Clean up migration database and temporary files</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><strong>Key Options:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li><code>--sync-s3</code> - Include WordPress file synchronization</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><code>--dry-run</code> - Preview all operations without making changes</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><code>--skip-backup</code> - Skip target environment backup (dangerous)</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><code>--skip-s3</code> - Skip S3 archival of SQL files</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><code>--simple</code> - Use Phase 1 behavior (search-replace only)</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><code>--verbose</code> - Show detailed progress and WP-CLI output</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><strong>Configuration Management:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Interactive setup: <code>wfuwp config wizard</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Manual config: <code>wfuwp config set env.prod.host prod-db.wfu.edu</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Verify setup: <code>wfuwp config verify</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>View configuration: <code>wfuwp config list</code></li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
 <!-- wp:heading -->
 <h2 class="wp-block-heading">Safety Features</h2>
 <!-- /wp:heading -->
