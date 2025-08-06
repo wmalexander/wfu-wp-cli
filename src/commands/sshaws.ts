@@ -79,11 +79,15 @@ function buildSshCommand(
 ): { command: string; args: string[] } {
   const args = [];
   
-  if (keyPath) {
-    if (!existsSync(keyPath)) {
-      throw new Error(`SSH key file not found: ${keyPath}`);
+  // Use WFU_AIT as default key if no key specified and it exists
+  const defaultKeyPath = `${process.env.HOME}/.ssh/WFU_AIT`;
+  const finalKeyPath = keyPath || (existsSync(defaultKeyPath) ? defaultKeyPath : undefined);
+  
+  if (finalKeyPath) {
+    if (!existsSync(finalKeyPath)) {
+      throw new Error(`SSH key file not found: ${finalKeyPath}`);
     }
-    args.push('-i', keyPath);
+    args.push('-i', finalKeyPath);
   }
   
   args.push(`${user}@${ip}`);
@@ -238,7 +242,7 @@ export const sshAwsCommand = new Command('sshaws')
   .argument('<environment>', `Environment name (${VALID_ENVIRONMENTS.join('|')})`)
   .option('--all', 'Connect to all instances sequentially (default: first instance only)')
   .option('--list', 'List available instances without connecting')
-  .option('--key <path>', 'Path to SSH private key file')
+  .option('--key <path>', 'Path to SSH private key file (default: ~/.ssh/WFU_AIT if exists)')
   .option('--user <username>', 'SSH username (default: ec2-user)', 'ec2-user')
   .option('--dry-run', 'Show what SSH commands would be executed')
   .action(async (environment: string, options: SshAwsOptions) => {
@@ -256,7 +260,8 @@ Examples:
   $ wfuwp sshaws pprd --dry-run          # Preview SSH commands without connecting
 
 Notes:
-  - Uses system SSH configuration by default (no key required)
+  - Automatically uses ~/.ssh/WFU_AIT key if it exists (WFU default)
+  - Falls back to system SSH configuration if WFU_AIT key not found
   - Connects to private IPs by default, public IPs as fallback
   - Only shows running EC2 instances
 `
