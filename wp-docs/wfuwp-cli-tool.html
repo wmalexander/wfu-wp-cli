@@ -1,5 +1,5 @@
 <!-- wp:paragraph -->
-<p>We have a new CLI tool to make syncing WordPress sites between S3 environments much easier and safer. Instead of manually running AWS CLI commands, you can now use a simple, validated command with built-in safety features.</p>
+<p>The WFU WordPress CLI tool provides a comprehensive set of commands to manage WordPress environments, EC2 instances, and AWS resources. Instead of manually running complex AWS CLI commands, you can now use simple, validated commands with built-in safety features.</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:heading -->
@@ -25,40 +25,150 @@
 <!-- /wp:list -->
 
 <!-- wp:heading -->
-<h2 class="wp-block-heading">How to Use</h2>
+<h2 class="wp-block-heading">Available Commands</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p>The main command is <code>syncs3</code> and it follows this pattern:<br />wfuwp syncs3 [options]</p>
+<p><strong>Environments supported</strong>: dev, uat, pprd, prod</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">syncs3 - Sync WordPress Sites Between S3 Environments</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Safely sync WordPress sites between different S3 environments with validation and confirmation prompts.</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
-<p><strong>Environments</strong>: dev, uat, pprd, prod</p>
+<p><strong>Usage:</strong> <code>wfuwp syncs3 &lt;site-id&gt; &lt;source-env&gt; &lt;target-env&gt; [options]</code></p>
 <!-- /wp:paragraph -->
 
-<!-- wp:heading -->
-<h2 class="wp-block-heading">Examples</h2>
-<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p><strong>Examples:</strong></p>
+<!-- /wp:paragraph -->
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Basic sync with confirmation prompt<br /><code>wfuwp syncs3 43 uat pprd</code></li>
+<li>Basic sync with confirmation: <code>wfuwp syncs3 43 uat pprd</code></li>
 <!-- /wp:list-item -->
 
 <!-- wp:list-item -->
-<li>Preview what would be synced (dry run)<br /><code>wfuwp syncs3 43 uat pprd --dry-run</code></li>
+<li>Preview changes (dry run): <code>wfuwp syncs3 43 uat pprd --dry-run</code></li>
 <!-- /wp:list-item -->
 
 <!-- wp:list-item -->
-<li>Show detailed output with all file transfers<br /><code>wfuwp syncs3 43 uat pprd --verbose</code></li>
+<li>Show detailed output: <code>wfuwp syncs3 43 uat pprd --verbose</code></li>
 <!-- /wp:list-item -->
 
 <!-- wp:list-item -->
-<li>Skip confirmation (useful for scripts)<br /><code>wfuwp syncs3 43 uat pprd --force</code></li>
+<li>Skip confirmation: <code>wfuwp syncs3 43 uat pprd --force</code></li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">listips - List EC2 Instance IP Addresses</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Display IP addresses of running EC2 instances in a specified environment, useful for SSH connections and network troubleshooting.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Usage:</strong> <code>wfuwp listips &lt;environment&gt; [options]</code></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Examples:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>List private IPs: <code>wfuwp listips uat</code></li>
 <!-- /wp:list-item -->
 
 <!-- wp:list-item -->
-<li>Combine flags<br /><code>wfuwp syncs3 43 uat pprd --verbose --dry-run</code></li>
+<li>List public IPs: <code>wfuwp listips uat --public</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Output as JSON: <code>wfuwp listips prod --json</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Show both private and public: <code>wfuwp listips pprd --private --public</code></li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">sshaws - SSH Into EC2 Instances</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Easily SSH into EC2 instances in any environment with automatic key management and connection handling.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Usage:</strong> <code>wfuwp sshaws &lt;environment&gt; [options]</code></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Examples:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Connect to first instance: <code>wfuwp sshaws uat</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Connect to all instances: <code>wfuwp sshaws prod --all</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>List instances without connecting: <code>wfuwp sshaws dev --list</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Use custom SSH key: <code>wfuwp sshaws uat --key ~/.ssh/my_key</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Preview SSH commands: <code>wfuwp sshaws pprd --dry-run</code></li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">removehostkey - Clean Up SSH Host Keys</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Remove SSH host keys for EC2 instances when IP addresses change, preventing "host key verification failed" errors.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Usage:</strong> <code>wfuwp removehostkey &lt;environment&gt; [options]</code></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Examples:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Remove host keys: <code>wfuwp removehostkey uat</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Preview what would be removed: <code>wfuwp removehostkey prod --dry-run</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Skip confirmation: <code>wfuwp removehostkey dev -y</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li>Use custom known_hosts file: <code>wfuwp removehostkey pprd --known-hosts ~/.ssh/custom_hosts</code></li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -68,11 +178,11 @@
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li><strong>Input validation</strong> - Won’t let you use invalid site IDs or environments</li>
+<li><strong>Input validation</strong> - Validates all environment names, site IDs, and file paths</li>
 <!-- /wp:list-item -->
 
 <!-- wp:list-item -->
-<li><strong>Confirmation prompts</strong> - Asks before making changes (unless you use --force)</li>
+<li><strong>Confirmation prompts</strong> - Asks before making changes (can be skipped with --force or --yes)</li>
 <!-- /wp:list-item -->
 
 <!-- wp:list-item -->
@@ -80,7 +190,15 @@
 <!-- /wp:list-item -->
 
 <!-- wp:list-item -->
-<li><strong>AWS CLI checks</strong> - Verifies your AWS setup before attempting sync</li>
+<li><strong>AWS CLI checks</strong> - Verifies your AWS setup before attempting operations</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><strong>File existence validation</strong> - Checks for required files (SSH keys, known_hosts) before proceeding</li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><strong>Error handling</strong> - Clear error messages with suggestions for resolution</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -89,22 +207,81 @@
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p><code>wfuwp --help</code>                   # General help<br /><code>wfuwp syncs3 --help</code>   # Specific command help<br /><code>wfuwp --version</code>            # Check version</p>
+<p><code>wfuwp --help</code>                          # General help and command list<br /><code>wfuwp &lt;command&gt; --help</code>    # Specific command help<br /><code>wfuwp --version</code>                   # Check version</p>
 <!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p><strong>Command-specific help examples:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li><code>wfuwp syncs3 --help</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><code>wfuwp listips --help</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><code>wfuwp sshaws --help</code></li>
+<!-- /wp:list-item -->
+
+<!-- wp:list-item -->
+<li><code>wfuwp removehostkey --help</code></li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">Common Workflows</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><strong>Deploying changes to production:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># 1. List instances to verify environment
+wfuwp listips prod
+
+# 2. Preview the sync operation
+wfuwp syncs3 43 uat prod --dry-run
+
+# 3. Perform the actual sync
+wfuwp syncs3 43 uat prod</code></pre>
+<!-- /wp:code -->
+
+<!-- wp:paragraph -->
+<p><strong>Troubleshooting SSH connections:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># 1. Check instance IPs
+wfuwp listips uat --public
+
+# 2. Clean up old host keys
+wfuwp removehostkey uat
+
+# 3. Test SSH connection
+wfuwp sshaws uat --dry-run</code></pre>
+<!-- /wp:code -->
 
 <!-- wp:heading -->
 <h2 class="wp-block-heading">Troubleshooting</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p>If you get  AWS-related errors, make sure your AWS CLI is configured:<br /><code>aws configure list </code>     # Check your AWS setup</p>
+<p><strong>AWS-related errors:</strong><br />Make sure your AWS CLI is configured: <code>aws configure list</code></p>
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
-<p>If your AWS keys have expired, <a href="https://web.dev.wfu.edu/2025/03/regenerating-aws-credentials/">follow this guide to refresh them</a>. </p>
+<p><strong>SSH connection issues:</strong><br />Clean up old host keys: <code>wfuwp removehostkey &lt;environment&gt;</code><br />Check your SSH key permissions: <code>ls -la ~/.ssh/</code></p>
 <!-- /wp:paragraph -->
 
 <!-- wp:paragraph -->
-<p>The tool uses the same S3 buckets and permissions you already have - it’s just a safer, easier way to run the sync commands.</p>
+<p><strong>Permission errors:</strong><br />If your AWS keys have expired, <a href="https://web.dev.wfu.edu/2025/03/regenerating-aws-credentials/">follow this guide to refresh them</a>.</p>
 <!-- /wp:paragraph -->
- 
+
+<!-- wp:paragraph -->
+<p>The tool uses the same S3 buckets, EC2 instances, and permissions you already have - it's just a safer, easier way to manage your WordPress environments and AWS resources.</p>
+<!-- /wp:paragraph -->
