@@ -1,0 +1,27 @@
+# Source files
+src/
+tests/
+*.test.ts
+*.spec.ts
+
+# Development files
+.github/
+.eslintrc.js
+.prettierrc
+jest.config.js
+tsconfig.json
+
+# Documentation that doesn't need to be in the npm package
+CHANGELOG.md
+docs/
+
+# OS and editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Environment files
+.env*
