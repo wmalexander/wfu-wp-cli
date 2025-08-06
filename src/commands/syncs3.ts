@@ -128,9 +128,9 @@ async function syncS3(
 
     const stdio = options.verbose ? 'inherit' : 'pipe';
     const result = execSync(syncCommand, { stdio, encoding: 'utf8' });
-    
+
     if (!options.verbose && result) {
-      const lines = result.split('\n').filter(line => line.trim());
+      const lines = result.split('\n').filter((line) => line.trim());
       if (lines.length > 0) {
         console.log(chalk.green(`✓ Synced ${lines.length} files`));
       } else {
