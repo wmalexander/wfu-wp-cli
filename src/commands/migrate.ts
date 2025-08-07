@@ -21,6 +21,7 @@ interface MigrateOptions {
   syncS3?: boolean;
   workDir?: string;
   keepFiles?: boolean;
+  timeout?: string;
 }
 
 interface EnvironmentMapping {
@@ -46,6 +47,7 @@ export const migrateCommand = new Command('migrate')
   .option('--work-dir <path>', 'Custom working directory', undefined)
   .option('--keep-files', 'Do not delete local SQL files', false)
   .option('--homepage', 'Include homepage tables (default: exclude)', false)
+  .option('--timeout <minutes>', 'Custom timeout in minutes for large databases (default: 20)', '20')
   .option(
     '--custom-domain <mapping>',
     'Custom domain replacement (format: source:target)'
@@ -241,11 +243,13 @@ async function runCompleteMigration(
     );
 
     if (!options.dryRun) {
+      const timeoutMinutes = parseInt(options.timeout || '20', 10);
       const sourceExport = await DatabaseOperations.exportSiteTables(
         siteId,
         options.from,
         sourceFile,
-        options.verbose
+        options.verbose,
+        timeoutMinutes
       );
       sqlFiles.push(sourceFile);
       console.log(
@@ -261,10 +265,12 @@ async function runCompleteMigration(
     console.log(chalk.blue('Step 2: Importing to migration database...'));
     if (!options.dryRun) {
       await DatabaseOperations.cleanMigrationDatabase();
+      const timeoutMinutes = parseInt(options.timeout || '20', 10);
       const importResult = await DatabaseOperations.importSqlFile(
         sourceFile,
         Config.getMigrationDbConfig(),
-        options.verbose
+        options.verbose,
+        timeoutMinutes
       );
       console.log(
         chalk.green(
@@ -278,7 +284,7 @@ async function runCompleteMigration(
     // Step 3: Run search-replace operations
     console.log(chalk.blue('Step 3: Running URL replacements...'));
     if (!options.dryRun) {
-      await runSearchReplace(siteId, options);
+      await runSqlSearchReplace(siteId, options);
       console.log(chalk.green('✓ Completed URL and S3 replacements'));
     } else {
       console.log(chalk.gray('  Would run search-replace operations'));
@@ -291,11 +297,13 @@ async function runCompleteMigration(
       backupFile = join(workDir, `backup-site${siteId}-${options.to}.sql`);
 
       if (!options.dryRun) {
+        const timeoutMinutes = parseInt(options.timeout || '20', 10);
         const backupExport = await DatabaseOperations.exportSiteTables(
           siteId,
           options.to,
           backupFile,
-          options.verbose
+          options.verbose,
+          timeoutMinutes
         );
         sqlFiles.push(backupFile);
         console.log(
@@ -317,11 +325,13 @@ async function runCompleteMigration(
     const migratedFile = join(workDir, `migrated-site${siteId}.sql`);
 
     if (!options.dryRun) {
+      const timeoutMinutes = parseInt(options.timeout || '20', 10);
       const migratedExport = await DatabaseOperations.exportSiteTables(
         siteId,
         'migration', // Export from migration database
         migratedFile,
-        options.verbose
+        options.verbose,
+        timeoutMinutes
       );
       sqlFiles.push(migratedFile);
       console.log(
@@ -334,10 +344,12 @@ async function runCompleteMigration(
     // Step 6: Import to target environment
     console.log(chalk.blue('Step 6: Importing to target environment...'));
     if (!options.dryRun) {
+      const timeoutMinutes = parseInt(options.timeout || '20', 10);
       const targetImport = await DatabaseOperations.importSqlFile(
         migratedFile,
         Config.getEnvironmentConfig(options.to),
-        options.verbose
+        options.verbose,
+        timeoutMinutes
       );
       console.log(
         chalk.green(
@@ -401,18 +413,85 @@ async function runCompleteMigration(
         };
 
         if (Config.hasS3Config()) {
-          // Archive to S3
-          const s3Result = await S3Operations.archiveToS3(
-            sqlFiles,
-            metadata,
-            options.verbose
-          );
-          console.log(
-            chalk.green(`✓ Archived ${s3Result.files.length} files to S3`)
-          );
-          console.log(
-            chalk.cyan(`   S3 location: s3://${s3Result.bucket}/${s3Result.path}`)
-          );
+          try {
+            // Archive to S3
+            const s3Result = await S3Operations.archiveToS3(
+              sqlFiles,
+              metadata,
+              options.verbose
+            );
+            
+            if (s3Result.files.length > 0) {
+              console.log(
+                chalk.green(`✓ Archived ${s3Result.files.length} files to S3`)
+              );
+              console.log(
+                chalk.cyan(`   S3 location: s3://${s3Result.bucket}/${s3Result.path}`)
+              );
+            } else {
+              console.log(
+                chalk.yellow(`✓ S3 upload failed, falling back to local backup`)
+              );
+              
+              // Fall back to local backup when S3 fails
+              const backupDir = Config.getBackupPath();
+              const timestampDir = join(backupDir, timestamp);
+              
+              if (!existsSync(timestampDir)) {
+                mkdirSync(timestampDir, { recursive: true });
+              }
+              
+              const fs = require('fs');
+              let copiedFiles = 0;
+              
+              for (const [fileName, filePath] of Object.entries(sqlFiles)) {
+                const backupPath = join(timestampDir, fileName);
+                fs.copyFileSync(filePath, backupPath);
+                copiedFiles++;
+              }
+              
+              const metadataPath = join(timestampDir, 'migration-metadata.json');
+              fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+              
+              console.log(
+                chalk.green(`✓ Archived ${copiedFiles} files to local backup`)
+              );
+              console.log(
+                chalk.cyan(`   Local location: ${timestampDir}`)
+              );
+            }
+          } catch (error) {
+            console.log(
+              chalk.yellow(`✓ S3 archival failed, using local backup instead`)
+            );
+            
+            // Fall back to local backup when S3 completely fails
+            const backupDir = Config.getBackupPath();
+            const timestampDir = join(backupDir, timestamp);
+            
+            if (!existsSync(timestampDir)) {
+              mkdirSync(timestampDir, { recursive: true });
+            }
+            
+            const fs = require('fs');
+            let copiedFiles = 0;
+            
+            for (const [fileName, filePath] of Object.entries(sqlFiles)) {
+              const backupPath = join(timestampDir, fileName);
+              fs.copyFileSync(filePath, backupPath);
+              copiedFiles++;
+            }
+            
+            const metadataPath = join(timestampDir, 'migration-metadata.json');
+            fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+            
+            console.log(
+              chalk.green(`✓ Archived ${copiedFiles} files to local backup`)
+            );
+            console.log(
+              chalk.cyan(`   Local location: ${timestampDir}`)
+            );
+          }
         } else {
           // Archive to local backup directory
           const backupDir = Config.getBackupPath();
@@ -643,6 +722,37 @@ async function runPreflightChecks(
   console.log(chalk.green('✓ Pre-flight checks passed'));
 }
 
+async function runSqlSearchReplace(
+  siteId: string,
+  options: MigrateOptions
+): Promise<void> {
+  const environmentMapping = getEnvironmentMapping(options.from, options.to);
+
+  // Combine URL and S3 replacements
+  const allReplacements = [
+    ...environmentMapping.urlReplacements,
+    ...environmentMapping.s3Replacements
+  ];
+
+  // Add custom domain replacement if specified
+  if (options.customDomain) {
+    const [sourceDomain, targetDomain] = options.customDomain.split(':');
+    if (!sourceDomain || !targetDomain) {
+      throw new Error('Custom domain must be in format: source:target');
+    }
+    allReplacements.push({ from: sourceDomain, to: targetDomain });
+  }
+
+  // Run SQL-based search-replace on migration database
+  const { DatabaseOperations } = await import('../utils/database');
+  await DatabaseOperations.sqlSearchReplace(
+    'migration',
+    allReplacements,
+    siteId,
+    options.verbose
+  );
+}
+
 async function runSearchReplace(
   siteId: string,
   options: MigrateOptions
@@ -843,12 +953,14 @@ async function executeWpCliCommand(
 
   try {
     const output = execSync(`docker run --rm \\
+      --memory=4g \\
       -v "${resolve(dirname(options.logFile))}:/logs" \\
       -e WORDPRESS_DB_HOST="${options.dbConfig.host}" \\
       -e WORDPRESS_DB_USER="${options.dbConfig.user}" \\
       -e WORDPRESS_DB_PASSWORD="${options.dbConfig.password}" \\
       -e WORDPRESS_DB_NAME="${options.dbConfig.database}" \\
-      -e WP_CLI_PHP_ARGS="-d memory_limit=2048M" \\
+      -e WP_CLI_PHP_ARGS="-d memory_limit=2048M -d max_execution_time=600" \\
+      -e PHP_MEMORY_LIMIT=2048M \\
       wordpress:cli \\
       bash -c '${bashScript}'`, {
       encoding: 'utf8',

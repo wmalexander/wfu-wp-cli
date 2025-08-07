@@ -43,7 +43,8 @@ export class DatabaseOperations {
     siteId: string,
     environment: string,
     outputPath: string,
-    verbose = false
+    verbose = false,
+    timeoutMinutes = 15
   ): Promise<ExportResult> {
     let envConfig;
 
@@ -106,7 +107,7 @@ export class DatabaseOperations {
         encoding: 'utf8',
         stdio: verbose ? 'inherit' : 'ignore',
         shell: '/bin/bash',
-        timeout: 900000, // 15 minutes
+        timeout: timeoutMinutes * 60 * 1000, // Convert minutes to milliseconds
         env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
       });
 
@@ -136,7 +137,8 @@ export class DatabaseOperations {
       password?: string;
       database?: string;
     },
-    verbose = false
+    verbose = false,
+    timeoutMinutes = 20
   ): Promise<ImportResult> {
     if (!existsSync(sqlFile)) {
       throw new Error(`SQL file not found: ${sqlFile}`);
@@ -171,12 +173,14 @@ export class DatabaseOperations {
         encoding: 'utf8',
         stdio: verbose ? 'inherit' : 'ignore',
         shell: '/bin/bash',
-        timeout: 1200000, // 20 minutes
+        timeout: timeoutMinutes * 60 * 1000, // Convert minutes to milliseconds
         env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
       });
 
-      // Get table count to verify import
-      const tableCount = this.getTableCount(targetConfig);
+      // Count the number of CREATE TABLE statements in the SQL file to get accurate import count
+      const fileContent = require('fs').readFileSync(sqlFile, 'utf8');
+      const createTableMatches = fileContent.match(/CREATE TABLE/gi);
+      const tableCount = createTableMatches ? createTableMatches.length : 0;
 
       return {
         success: true,
@@ -297,29 +301,101 @@ export class DatabaseOperations {
     password?: string;
     database?: string;
   }): number {
-    // Use Docker to get table count
-    const bashScript = [
-      'cd /var/www/html',
-      'wp core download',
-      'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
-      'wp db tables --format=count'
-    ].join(' && ');
-
+    // Use direct MySQL query to get table count (much more efficient than WP-CLI)
     try {
-      const output = execSync(`docker run --rm \\
-        -e WORDPRESS_DB_HOST="${dbConfig.host}" \\
-        -e WORDPRESS_DB_USER="${dbConfig.user}" \\
-        -e WORDPRESS_DB_PASSWORD="${dbConfig.password}" \\
-        -e WORDPRESS_DB_NAME="${dbConfig.database}" \\
-        -e WP_CLI_PHP_ARGS="-d memory_limit=512M" \\
-        wordpress:cli \\
-        bash -c '${bashScript}'`, { 
+      const query = 'SHOW TABLES';
+      const output = execSync(`mysql -h "${dbConfig.host}" -u "${dbConfig.user}" -p"${dbConfig.password}" "${dbConfig.database}" -e "${query}" -s`, {
         encoding: 'utf8',
-        shell: '/bin/bash'
+        env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
       });
-      return parseInt(output.trim(), 10) || 0;
+      
+      const tables = output.trim().split('\n').filter(table => table.length > 0);
+      return tables.length;
     } catch (error) {
       return 0;
+    }
+  }
+
+  static async sqlSearchReplace(
+    environment: string,
+    replacements: Array<{ from: string; to: string }>,
+    siteId: string,
+    verbose = false
+  ): Promise<void> {
+    let envConfig;
+
+    if (environment === 'migration') {
+      envConfig = Config.getMigrationDbConfig();
+      if (!Config.hasRequiredMigrationConfig()) {
+        throw new Error('Migration database is not configured');
+      }
+    } else {
+      envConfig = Config.getEnvironmentConfig(environment);
+      if (!Config.hasRequiredEnvironmentConfig(environment)) {
+        throw new Error(`Environment '${environment}' is not configured`);
+      }
+    }
+
+    // Get all tables for the site
+    const tables = this.getSiteTables(siteId, environment);
+    
+    if (tables.length === 0) {
+      throw new Error(`No tables found for site ${siteId} in ${environment} environment`);
+    }
+
+    if (verbose) {
+      console.log(chalk.gray(`Running SQL search-replace on ${tables.length} tables`));
+    }
+
+    // WordPress fields that commonly contain URLs
+    const urlFields = [
+      'post_content', 'post_excerpt', 'meta_value', 'option_value', 
+      'comment_content', 'description', 'guid'
+    ];
+
+    for (const replacement of replacements) {
+      if (verbose) {
+        console.log(chalk.gray(`Replacing "${replacement.from}" → "${replacement.to}"`));
+      }
+
+      for (const table of tables) {
+        // Get table columns to identify which fields exist
+        const columnsQuery = `DESCRIBE ${table}`;
+        try {
+          const columnsOutput = execSync(`mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${columnsQuery}" -s`, {
+            encoding: 'utf8',
+            env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
+          });
+
+          const columns = columnsOutput
+            .trim()
+            .split('\n')
+            .map(line => line.split('\t')[0])
+            .filter(col => col.length > 0);
+
+          // Update each URL field that exists in this table
+          for (const field of urlFields) {
+            if (columns.includes(field)) {
+              const updateQuery = `UPDATE ${table} SET ${field} = REPLACE(${field}, '${replacement.from}', '${replacement.to}') WHERE ${field} LIKE '%${replacement.from}%'`;
+              
+              execSync(`mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${updateQuery}"`, {
+                encoding: 'utf8',
+                stdio: 'ignore',
+                env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
+              });
+
+              if (verbose) {
+                console.log(chalk.gray(`  Updated ${table}.${field}`));
+              }
+            }
+          }
+        } catch (error) {
+          // Skip tables that can't be processed
+          if (verbose) {
+            console.log(chalk.yellow(`  Skipped ${table}: ${error instanceof Error ? error.message : 'Unknown error'}`));
+          }
+        }
+      }
     }
   }
 
@@ -330,28 +406,25 @@ export class DatabaseOperations {
       return false;
     }
 
-    // Use Docker to run simple connection test
-    const bashScript = [
-      'cd /var/www/html',
-      'wp core download',
-      'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
-      'wp db query "SELECT 1 as connection_test"'
-    ].join(' && ');
-
+    // Use direct MySQL connection test (much more efficient than WP-CLI)
     try {
-      const result = execSync(`docker run --rm \\
-        -e WORDPRESS_DB_HOST="${envConfig.host}" \\
-        -e WORDPRESS_DB_USER="${envConfig.user}" \\
-        -e WORDPRESS_DB_PASSWORD="${envConfig.password}" \\
-        -e WORDPRESS_DB_NAME="${envConfig.database}" \\
-        -e WP_CLI_PHP_ARGS="-d memory_limit=512M" \\
-        wordpress:cli \\
-        bash -c '${bashScript}'`, { 
+      const mysqlCommand = [
+        'mysql',
+        '-h', `"${envConfig.host}"`,
+        '-u', `"${envConfig.user}"`,
+        `-p"${envConfig.password}"`,
+        `"${envConfig.database}"`,
+        '-e', '"SELECT 1 as connection_test"'
+      ].join(' ');
+
+      const result = execSync(mysqlCommand, {
         encoding: 'utf8',
         stdio: 'pipe',
-        shell: '/bin/bash'
+        shell: '/bin/bash',
+        timeout: 10000, // 10 seconds
+        env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
       });
-      // Check if result contains expected output
+      
       return result.includes('connection_test') || result.includes('1');
     } catch (error) {
       return false;
