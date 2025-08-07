@@ -1,5 +1,6 @@
 import { execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
 import chalk from 'chalk';
 import { Config } from './config';
 
@@ -15,14 +16,27 @@ interface ImportResult {
 }
 
 export class DatabaseOperations {
-  static checkWpCliAvailability(): void {
+  static checkDockerAvailability(): void {
     try {
-      execSync('wp --version', { stdio: 'ignore' });
+      execSync('docker --version', { stdio: 'ignore' });
     } catch (error) {
       throw new Error(
-        'WP-CLI is not installed or not in PATH. Please install WP-CLI: https://wp-cli.org/'
+        'Docker is not installed or not running. Please install Docker: https://www.docker.com/get-started'
       );
     }
+    
+    try {
+      execSync('docker info', { stdio: 'ignore' });
+    } catch (error) {
+      throw new Error(
+        'Docker is installed but not running. Please start Docker daemon.'
+      );
+    }
+  }
+
+  // Legacy method - now checks Docker instead of WP-CLI
+  static checkWpCliAvailability(): void {
+    this.checkDockerAvailability();
   }
 
   static async exportSiteTables(
@@ -63,25 +77,39 @@ export class DatabaseOperations {
       );
     }
 
-    const wpCommand = [
-      'wp db export',
-      outputPath,
-      `--tables=${tables.join(',')}`,
-      `--dbhost=${envConfig.host}`,
-      `--dbuser=${envConfig.user}`,
-      `--dbpass=${envConfig.password}`,
-      `--dbname=${envConfig.database}`,
-      '--skip-plugins',
-      '--skip-themes',
-      '--skip-packages',
-      '--path=./wp-cli-env',
-      '--path=./wp-cli-env',
-    ];
+    // Ensure output directory exists
+    const outputDir = dirname(outputPath);
+    if (!existsSync(outputDir)) {
+      mkdirSync(outputDir, { recursive: true });
+    }
+
+    // Use Docker to run WP-CLI export
+    const containerPath = '/workspace/' + outputPath.split('/').pop();
+    const bashScript = [
+      'export WP_CLI_PHP_ARGS="-d memory_limit=1024M"',
+      'cd /var/www/html',
+      'wp core download',
+      'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
+      `wp db export ${containerPath} --tables=${tables.join(',')}`
+    ].join(' && ');
 
     try {
-      execSync(wpCommand.join(' '), {
+      if (verbose) {
+        console.log(chalk.gray('Running Docker WP-CLI export...'));
+      }
+      
+      execSync(`docker run --rm \\
+        --memory=2g \\
+        -v "${process.cwd()}:/workspace" \\
+        -e WORDPRESS_DB_HOST="${envConfig.host}" \\
+        -e WORDPRESS_DB_USER="${envConfig.user}" \\
+        -e WORDPRESS_DB_PASSWORD="${envConfig.password}" \\
+        -e WORDPRESS_DB_NAME="${envConfig.database}" \\
+        wordpress:cli \\
+        bash -c '${bashScript}'`, {
         encoding: 'utf8',
         stdio: verbose ? 'inherit' : 'ignore',
+        shell: '/bin/bash'
       });
 
       if (!existsSync(outputPath)) {
@@ -125,21 +153,31 @@ export class DatabaseOperations {
       throw new Error('Target database configuration is incomplete');
     }
 
-    const wpCommand = [
-      'wp db import',
-      sqlFile,
-      `--dbhost=${targetConfig.host}`,
-      `--dbuser=${targetConfig.user}`,
-      `--dbpass=${targetConfig.password}`,
-      `--dbname=${targetConfig.database}`,
-      '--skip-plugins',
-      '--skip-themes',
-      '--skip-packages',
-      '--path=./wp-cli-env',
+    // Use Docker to run WP-CLI import
+    const containerPath = '/workspace/' + sqlFile.split('/').pop();
+    const dockerCommand = [
+      'docker', 'run', '--rm',
+      '-v', `${process.cwd()}:/workspace`,
+      '-e', `WORDPRESS_DB_HOST=${targetConfig.host}`,
+      '-e', `WORDPRESS_DB_USER=${targetConfig.user}`,
+      '-e', `WORDPRESS_DB_PASSWORD=${targetConfig.password}`,
+      '-e', `WORDPRESS_DB_NAME=${targetConfig.database}`,
+      '-e', 'WP_CLI_PHP_ARGS=-d memory_limit=512M',
+      'wordpress:cli',
+      'bash', '-c', [
+        'cd /var/www/html',
+        'wp core download',
+        'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
+        `wp db import ${containerPath}`
+      ].join(' && ')
     ];
 
     try {
-      execSync(wpCommand.join(' '), {
+      if (verbose) {
+        console.log(chalk.gray('Running Docker WP-CLI import...'));
+      }
+      
+      execSync(dockerCommand.join(' '), {
         encoding: 'utf8',
         stdio: verbose ? 'inherit' : 'ignore',
       });
@@ -174,41 +212,15 @@ export class DatabaseOperations {
     }
 
     try {
-      let wpCommand: string;
-
-      if (siteId === '1') {
-        // Main site - get tables without prefix numbers
-        wpCommand = [
-          'wp db tables',
-          '--all-tables-with-prefix=wp_',
-          `--dbhost=${envConfig.host}`,
-          `--dbuser=${envConfig.user}`,
-          `--dbpass=${envConfig.password}`,
-          `--dbname=${envConfig.database}`,
-          '--format=csv',
-          '--skip-plugins',
-          '--skip-themes',
-          '--skip-packages',
-          '--path=./wp-cli-env',
-        ].join(' ');
-      } else {
-        // Subsite - get tables with site prefix
-        wpCommand = [
-          'wp db tables',
-          `--all-tables-with-prefix=wp_${siteId}_`,
-          `--dbhost=${envConfig.host}`,
-          `--dbuser=${envConfig.user}`,
-          `--dbpass=${envConfig.password}`,
-          `--dbname=${envConfig.database}`,
-          '--format=csv',
-          '--skip-plugins',
-          '--skip-themes',
-          '--skip-packages',
-          '--path=./wp-cli-env',
-        ].join(' ');
-      }
-
-      const output = execSync(wpCommand, { encoding: 'utf8' });
+      const prefix = siteId === '1' ? 'wp_' : `wp_${siteId}_`;
+      
+      // Use direct MySQL query instead of WP-CLI to avoid memory issues
+      const query = `SHOW TABLES LIKE '${prefix}%'`;
+      const output = execSync(`mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${query}" -s`, {
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
+      });
+      
       const tables = output
         .trim()
         .split('\n')
@@ -236,20 +248,25 @@ export class DatabaseOperations {
       );
     }
 
-    const wpCommand = [
-      'wp db reset --yes',
-      `--dbhost=${migrationConfig.host}`,
-      `--dbuser=${migrationConfig.user}`,
-      `--dbpass=${migrationConfig.password}`,
-      `--dbname=${migrationConfig.database}`,
-      '--skip-plugins',
-      '--skip-themes',
-      '--skip-packages',
-      '--path=./wp-cli-env',
+    // Use Docker to clean migration database
+    const dockerCommand = [
+      'docker', 'run', '--rm',
+      '-e', `WORDPRESS_DB_HOST=${migrationConfig.host}`,
+      '-e', `WORDPRESS_DB_USER=${migrationConfig.user}`,
+      '-e', `WORDPRESS_DB_PASSWORD=${migrationConfig.password}`,
+      '-e', `WORDPRESS_DB_NAME=${migrationConfig.database}`,
+      '-e', 'WP_CLI_PHP_ARGS=-d memory_limit=512M',
+      'wordpress:cli',
+      'bash', '-c', [
+        'cd /var/www/html',
+        'wp core download',
+        'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
+        'wp db reset --yes'
+      ].join(' && ')
     ];
 
     try {
-      execSync(wpCommand.join(' '), { encoding: 'utf8', stdio: 'ignore' });
+      execSync(dockerCommand.join(' '), { encoding: 'utf8', stdio: 'ignore' });
     } catch (error) {
       throw new Error(
         `Failed to clean migration database: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -278,21 +295,25 @@ export class DatabaseOperations {
     password?: string;
     database?: string;
   }): number {
-    const wpCommand = [
-      'wp db tables',
-      `--dbhost=${dbConfig.host}`,
-      `--dbuser=${dbConfig.user}`,
-      `--dbpass=${dbConfig.password}`,
-      `--dbname=${dbConfig.database}`,
-      '--format=count',
-      '--skip-plugins',
-      '--skip-themes',
-      '--skip-packages',
-      '--path=./wp-cli-env',
+    // Use Docker to get table count
+    const dockerCommand = [
+      'docker', 'run', '--rm',
+      '-e', `WORDPRESS_DB_HOST=${dbConfig.host}`,
+      '-e', `WORDPRESS_DB_USER=${dbConfig.user}`,
+      '-e', `WORDPRESS_DB_PASSWORD=${dbConfig.password}`,
+      '-e', `WORDPRESS_DB_NAME=${dbConfig.database}`,
+      '-e', 'WP_CLI_PHP_ARGS=-d memory_limit=512M',
+      'wordpress:cli',
+      'bash', '-c', [
+        'cd /var/www/html',
+        'wp core download',
+        'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
+        'wp db tables --format=count'
+      ].join(' && ')
     ];
 
     try {
-      const output = execSync(wpCommand.join(' '), { encoding: 'utf8' });
+      const output = execSync(dockerCommand.join(' '), { encoding: 'utf8' });
       return parseInt(output.trim(), 10) || 0;
     } catch (error) {
       return 0;
@@ -306,22 +327,25 @@ export class DatabaseOperations {
       return false;
     }
 
-    // Use a simple query instead of wp db check to avoid mysqlcheck issues
-    const wpCommand = [
-      'wp db query',
-      '"SELECT 1 as connection_test"',
-      `--dbhost=${envConfig.host}`,
-      `--dbuser=${envConfig.user}`,
-      `--dbpass=${envConfig.password}`,
-      `--dbname=${envConfig.database}`,
-      '--skip-plugins',
-      '--skip-themes',
-      '--skip-packages',
-      '--path=./wp-cli-env',
+    // Use Docker to run simple connection test
+    const dockerCommand = [
+      'docker', 'run', '--rm',
+      '-e', `WORDPRESS_DB_HOST=${envConfig.host}`,
+      '-e', `WORDPRESS_DB_USER=${envConfig.user}`,
+      '-e', `WORDPRESS_DB_PASSWORD=${envConfig.password}`,
+      '-e', `WORDPRESS_DB_NAME=${envConfig.database}`,
+      '-e', 'WP_CLI_PHP_ARGS=-d memory_limit=512M',
+      'wordpress:cli',
+      'bash', '-c', [
+        'cd /var/www/html',
+        'wp core download',
+        'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
+        'wp db query "SELECT 1 as connection_test"'
+      ].join(' && ')
     ];
 
     try {
-      const result = execSync(wpCommand.join(' '), { 
+      const result = execSync(dockerCommand.join(' '), { 
         encoding: 'utf8',
         stdio: 'pipe'
       });

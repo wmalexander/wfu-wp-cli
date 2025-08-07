@@ -28,6 +28,9 @@ interface ConfigData {
     region?: string;
     prefix?: string;
   };
+  backup?: {
+    localPath?: string;
+  };
 }
 
 export class Config {
@@ -102,9 +105,11 @@ export class Config {
       this.setMigrationConfig(config, keys, value);
     } else if (section === 's3') {
       this.setS3Config(config, keys, value);
+    } else if (section === 'backup') {
+      this.setBackupConfig(config, keys, value);
     } else {
       throw new Error(
-        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, or s3.<key>'
+        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, or backup.<key>'
       );
     }
 
@@ -221,6 +226,30 @@ export class Config {
     config.s3[s3Key as keyof NonNullable<ConfigData['s3']>] = value;
   }
 
+  private static setBackupConfig(
+    config: ConfigData,
+    keys: string[],
+    value: string
+  ): void {
+    if (keys.length !== 2) {
+      throw new Error('Invalid backup config key. Use format: backup.<key>');
+    }
+
+    const backupKey = keys[1];
+
+    if (!['localPath'].includes(backupKey)) {
+      throw new Error(
+        'Invalid backup config key. Valid keys: localPath'
+      );
+    }
+
+    if (!config.backup) {
+      config.backup = {};
+    }
+
+    config.backup[backupKey as keyof NonNullable<ConfigData['backup']>] = value;
+  }
+
   static get(key: string): string | undefined {
     const config = this.loadConfig();
     const keys = key.split('.');
@@ -239,9 +268,11 @@ export class Config {
       return this.getMigrationConfigValue(config, keys);
     } else if (section === 's3') {
       return this.getS3ConfigValue(config, keys);
+    } else if (section === 'backup') {
+      return this.getBackupConfigValue(config, keys);
     } else {
       throw new Error(
-        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, or s3.<key>'
+        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, or backup.<key>'
       );
     }
   }
@@ -332,6 +363,23 @@ export class Config {
     }
 
     return config.s3[s3Key as keyof NonNullable<ConfigData['s3']>];
+  }
+
+  private static getBackupConfigValue(
+    config: ConfigData,
+    keys: string[]
+  ): string | undefined {
+    if (keys.length !== 2) {
+      throw new Error('Invalid backup config key. Use format: backup.<key>');
+    }
+
+    const backupKey = keys[1];
+
+    if (!config.backup) {
+      return undefined;
+    }
+
+    return config.backup[backupKey as keyof NonNullable<ConfigData['backup']>];
   }
 
   static list(): ConfigData {
@@ -434,6 +482,20 @@ export class Config {
   static hasRequiredS3Config(): boolean {
     const s3Config = this.getS3Config();
     return !!s3Config.bucket;
+  }
+
+  static getBackupConfig(): { localPath?: string } {
+    const config = this.loadConfig();
+    return config.backup || {};
+  }
+
+  static getBackupPath(): string {
+    const backupConfig = this.getBackupConfig();
+    return backupConfig.localPath || join(this.CONFIG_DIR, 'backups');
+  }
+
+  static hasS3Config(): boolean {
+    return this.hasRequiredS3Config();
   }
 
   static getValidEnvironments(): string[] {

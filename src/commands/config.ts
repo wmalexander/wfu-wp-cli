@@ -189,21 +189,38 @@ async function runConfigWizard(): Promise<void> {
 
     console.log(chalk.green('✓ Migration database configured'));
 
-    // Configure S3
-    console.log(chalk.yellow('\n--- S3 Configuration ---'));
+    // Configure S3 (optional)
+    console.log(chalk.yellow('\n--- S3 Configuration (Optional) ---'));
+    console.log(chalk.gray('Leave S3 bucket empty to use local backups instead'));
     const s3Bucket = await question(
-      'S3 bucket for backups (e.g., wfu-wp-backups): '
+      'S3 bucket for backups (leave empty for local backups): '
     );
-    const s3Region =
-      (await question('S3 region (default: us-east-1): ')) || 'us-east-1';
-    const s3Prefix =
-      (await question('S3 prefix (default: migrations): ')) || 'migrations';
 
-    if (s3Bucket) Config.set('s3.bucket', s3Bucket);
-    Config.set('s3.region', s3Region);
-    Config.set('s3.prefix', s3Prefix);
+    if (s3Bucket) {
+      const s3Region =
+        (await question('S3 region (default: us-east-1): ')) || 'us-east-1';
+      const s3Prefix =
+        (await question('S3 prefix (default: migrations): ')) || 'migrations';
 
-    console.log(chalk.green('✓ S3 configuration complete'));
+      Config.set('s3.bucket', s3Bucket);
+      Config.set('s3.region', s3Region);
+      Config.set('s3.prefix', s3Prefix);
+
+      console.log(chalk.green('✓ S3 configuration complete'));
+    } else {
+      // Configure local backup path
+      console.log(chalk.yellow('\n--- Local Backup Configuration ---'));
+      const defaultPath = Config.getBackupPath();
+      const backupPath = await question(
+        `Local backup directory (default: ${defaultPath}): `
+      );
+
+      if (backupPath && backupPath !== defaultPath) {
+        Config.set('backup.localPath', backupPath);
+      }
+
+      console.log(chalk.green(`✓ Local backups configured: ${Config.getBackupPath()}`));
+    }
     console.log(chalk.blue.bold('\n🎉 Configuration wizard complete!'));
     console.log(
       chalk.cyan('Run "wfuwp config verify" to check your configuration.')

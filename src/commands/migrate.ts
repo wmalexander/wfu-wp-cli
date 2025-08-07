@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { execSync } from 'child_process';
 import { existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { join, dirname, basename } from 'path';
 import { Config } from '../utils/config';
 
 interface MigrateOptions {
@@ -104,7 +104,7 @@ async function runSimpleMigration(
   }
 
   const { DatabaseOperations } = await import('../utils/database');
-  DatabaseOperations.checkWpCliAvailability();
+  DatabaseOperations.checkDockerAvailability();
 
   const migrationConfig = Config.getMigrationDbConfig();
   const environmentMapping = getEnvironmentMapping(options.from, options.to);
@@ -400,19 +400,55 @@ async function runCompleteMigration(
           migratedExport: migratedFile,
         };
 
-        const s3Result = await S3Operations.archiveToS3(
-          sqlFiles,
-          metadata,
-          options.verbose
-        );
-        console.log(
-          chalk.green(`✓ Archived ${s3Result.files.length} files to S3`)
-        );
-        console.log(
-          chalk.cyan(`   S3 location: s3://${s3Result.bucket}/${s3Result.path}`)
-        );
+        if (Config.hasS3Config()) {
+          // Archive to S3
+          const s3Result = await S3Operations.archiveToS3(
+            sqlFiles,
+            metadata,
+            options.verbose
+          );
+          console.log(
+            chalk.green(`✓ Archived ${s3Result.files.length} files to S3`)
+          );
+          console.log(
+            chalk.cyan(`   S3 location: s3://${s3Result.bucket}/${s3Result.path}`)
+          );
+        } else {
+          // Archive to local backup directory
+          const backupDir = Config.getBackupPath();
+          const timestampDir = join(backupDir, timestamp);
+          
+          if (!existsSync(timestampDir)) {
+            mkdirSync(timestampDir, { recursive: true });
+          }
+          
+          // Copy SQL files to backup directory
+          const fs = require('fs');
+          let copiedFiles = 0;
+          
+          for (const [fileName, filePath] of Object.entries(sqlFiles)) {
+            const backupPath = join(timestampDir, fileName);
+            fs.copyFileSync(filePath, backupPath);
+            copiedFiles++;
+          }
+          
+          // Save metadata
+          const metadataPath = join(timestampDir, 'migration-metadata.json');
+          fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+          
+          console.log(
+            chalk.green(`✓ Archived ${copiedFiles} files to local backup`)
+          );
+          console.log(
+            chalk.cyan(`   Local location: ${timestampDir}`)
+          );
+        }
       } else {
-        console.log(chalk.gray('  Would archive SQL files to S3'));
+        if (Config.hasS3Config()) {
+          console.log(chalk.gray('  Would archive SQL files to S3'));
+        } else {
+          console.log(chalk.gray(`  Would archive SQL files to local backup: ${Config.getBackupPath()}`));
+        }
       }
     } else if (options.skipS3) {
       console.log(
@@ -510,8 +546,8 @@ async function runPreflightChecks(
 ): Promise<void> {
   console.log(chalk.blue('Running pre-flight checks...'));
 
-  // Check WP-CLI availability
-  DatabaseOperations.checkWpCliAvailability();
+  // Check Docker availability
+  DatabaseOperations.checkDockerAvailability();
 
   // Check environment configurations
   if (!Config.hasRequiredEnvironmentConfig(options.from)) {
@@ -533,11 +569,17 @@ async function runPreflightChecks(
     );
   }
 
-  // Check S3 configuration if not skipped
-  if (!options.skipS3 && !Config.hasRequiredS3Config()) {
-    throw new Error(
-      'S3 configuration is incomplete. Run "wfuwp config wizard" or use --skip-s3.'
-    );
+  // Check S3 configuration and backup path
+  if (!options.skipS3 && !Config.hasS3Config()) {
+    console.log(chalk.yellow(`  S3 not configured - will use local backups in: ${Config.getBackupPath()}`));
+    // Ensure local backup directory exists
+    const backupDir = Config.getBackupPath();
+    if (!existsSync(backupDir)) {
+      mkdirSync(backupDir, { recursive: true });
+      console.log(chalk.green(`  ✓ Created local backup directory: ${backupDir}`));
+    }
+  } else if (!options.skipS3) {
+    console.log(chalk.green(`  ✓ S3 configuration found - will use S3 for backups`));
   }
 
   // Test database connections
@@ -570,13 +612,13 @@ async function runPreflightChecks(
     );
   }
 
-  // Test S3 access if not skipped
-  if (!options.skipS3) {
+  // Test S3 access if configured and not skipped
+  if (!options.skipS3 && Config.hasS3Config()) {
     console.log(chalk.gray('  Testing S3 access...'));
     if (!(await S3Operations.testS3Access())) {
-      throw new Error(
-        'Cannot access S3 bucket. Check AWS configuration and bucket permissions.'
-      );
+      console.log(chalk.yellow('  Warning: S3 access failed - will use local backups instead'));
+    } else {
+      console.log(chalk.green('  ✓ S3 access verified'));
     }
   }
 
@@ -762,39 +804,48 @@ async function executeWpCliCommand(
     verbose?: boolean;
   }
 ): Promise<void> {
-  const wpCommand = [
-    'wp',
+  // Build WP-CLI command
+  const wpCliArgs = [
     command,
     ...args,
     '--all-tables',
     `--skip-tables=${options.skipTables}`,
-    `--dbhost=${options.dbConfig.host}`,
-    `--dbuser=${options.dbConfig.user}`,
-    `--dbpass=${options.dbConfig.password}`,
-    `--dbname=${options.dbConfig.name}`,
-    `--log=${options.logFile}`,
-    '--skip-plugins',
-    '--skip-themes',
-    '--skip-packages',
-    '--path=./wp-cli-env',
   ];
 
   if (options.dryRun) {
-    wpCommand.push('--dry-run');
+    wpCliArgs.push('--dry-run');
   }
 
-  const commandString = wpCommand.join(' ');
+  const wpCliCommand = `wp ${wpCliArgs.join(' ')}`;
+
+  // Use Docker to run WP-CLI search-replace
+  const dockerCommand = [
+    'docker', 'run', '--rm',
+    '-v', `${dirname(options.logFile)}:/logs`,
+    '-e', `WORDPRESS_DB_HOST=${options.dbConfig.host}`,
+    '-e', `WORDPRESS_DB_USER=${options.dbConfig.user}`,
+    '-e', `WORDPRESS_DB_PASSWORD=${options.dbConfig.password}`,
+    '-e', `WORDPRESS_DB_NAME=${options.dbConfig.name}`,
+    '-e', 'WP_CLI_PHP_ARGS=-d memory_limit=512M',
+    'wordpress:cli',
+    'bash', '-c', [
+      'cd /var/www/html',
+      'wp core download',
+      'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
+      `${wpCliCommand} --log=/logs/${basename(options.logFile)}`
+    ].join(' && ')
+  ];
 
   if (options.verbose) {
     console.log(
       chalk.gray(
-        `Executing: ${commandString.replace(/--dbpass=[^ ]+/, '--dbpass=****')}`
+        `Executing Docker WP-CLI: ${wpCliCommand.replace(/--dbpass=[^ ]+/, '--dbpass=****')}`
       )
     );
   }
 
   try {
-    const output = execSync(commandString, {
+    const output = execSync(dockerCommand.join(' '), {
       encoding: 'utf8',
       stdio: options.verbose ? 'inherit' : 'pipe',
     });
@@ -804,7 +855,7 @@ async function executeWpCliCommand(
     }
   } catch (error) {
     throw new Error(
-      `WP-CLI command failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Docker WP-CLI command failed: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }

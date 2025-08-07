@@ -45,7 +45,8 @@ environments: {
   prod: { host, user, password, database }
 }
 migration: { host, user, password, database } // wp_migration
-s3: { bucket, region, prefix }
+s3: { bucket, region, prefix } // Optional - for S3 backups
+backup: { localPath } // Optional - for local backups (default: ~/.wfuwp/backups)
 ```
 
 ### Complete Workflow (Default)
@@ -60,7 +61,7 @@ wfuwp migrate 43 --from prod --to pprd --sync-s3  # Include WordPress files
 5. Export migrated tables
 6. Import to target environment
 7. Sync WordPress files between S3 environments (if --sync-s3)
-8. Archive all SQL files to S3
+8. Archive all SQL files (to S3 if configured, otherwise to local backup directory)
 9. Cleanup migration database
 
 ### Simple Mode (Phase 1 behavior)
@@ -85,7 +86,12 @@ wfuwp config wizard
 # Manual configuration
 wfuwp config set env.prod.host prod-db.wfu.edu
 wfuwp config set migration.database wp_migration
+
+# S3 backups (optional)
 wfuwp config set s3.bucket wfu-wp-backups
+
+# Local backups (alternative to S3)  
+wfuwp config set backup.localPath /path/to/backups
 
 # Verification
 wfuwp config verify
@@ -98,12 +104,19 @@ wfuwp config verify
 - Database operations require test WordPress multisite setup
 
 ## External Dependencies
-- **WP-CLI**: Required for all database operations
-- **AWS CLI**: Required for S3 operations and EC2 management
+- **Docker**: Required for WP-CLI database operations (uses `wordpress:cli` image)
+- **AWS CLI**: Required for S3 operations and EC2 management  
 - **MySQL**: WordPress multisite databases in multiple environments
 - Uses Commander.js for CLI framework
 - Chalk for colored terminal output
 - Crypto for password encryption
+
+## Hybrid Architecture Approach
+The tool uses a **hybrid approach** combining the best of both worlds:
+- **Docker containers**: Handle all WP-CLI database operations reliably
+- **Native Node.js**: Manages configuration, S3 operations, file handling, and workflow orchestration
+- **Proven reliability**: Leverages existing Docker-based WP-CLI solutions that work with remote databases
+- **Modern interface**: Provides unified CLI with comprehensive Phase 2 features
 
 ## WordPress Multisite Specifics
 - **Main site (ID 1)**: Tables like `wp_posts`, `wp_options`
