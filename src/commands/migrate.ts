@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { execSync } from 'child_process';
 import { existsSync, mkdirSync } from 'fs';
-import { join, dirname, basename } from 'path';
+import { join, dirname, basename, resolve } from 'path';
 import { Config } from '../utils/config';
 
 interface MigrateOptions {
@@ -826,22 +826,12 @@ async function executeWpCliCommand(
   const wpCliCommand = `wp ${wpCliArgs.join(' ')}`;
 
   // Use Docker to run WP-CLI search-replace
-  const dockerCommand = [
-    'docker', 'run', '--rm',
-    '-v', `${dirname(options.logFile)}:/logs`,
-    '-e', `WORDPRESS_DB_HOST=${options.dbConfig.host}`,
-    '-e', `WORDPRESS_DB_USER=${options.dbConfig.user}`,
-    '-e', `WORDPRESS_DB_PASSWORD=${options.dbConfig.password}`,
-    '-e', `WORDPRESS_DB_NAME=${options.dbConfig.name}`,
-    '-e', 'WP_CLI_PHP_ARGS=-d memory_limit=512M',
-    'wordpress:cli',
-    'bash', '-c', [
-      'cd /var/www/html',
-      'wp core download',
-      'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
-      `${wpCliCommand} --log=/logs/${basename(options.logFile)}`
-    ].join(' && ')
-  ];
+  const bashScript = [
+    'cd /var/www/html',
+    'wp core download',
+    'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
+    `${wpCliCommand} --log=/logs/${basename(options.logFile)}`
+  ].join(' && ');
 
   if (options.verbose) {
     console.log(
@@ -852,9 +842,18 @@ async function executeWpCliCommand(
   }
 
   try {
-    const output = execSync(dockerCommand.join(' '), {
+    const output = execSync(`docker run --rm \\
+      -v "${resolve(dirname(options.logFile))}:/logs" \\
+      -e WORDPRESS_DB_HOST="${options.dbConfig.host}" \\
+      -e WORDPRESS_DB_USER="${options.dbConfig.user}" \\
+      -e WORDPRESS_DB_PASSWORD="${options.dbConfig.password}" \\
+      -e WORDPRESS_DB_NAME="${options.dbConfig.database}" \\
+      -e WP_CLI_PHP_ARGS="-d memory_limit=2048M" \\
+      wordpress:cli \\
+      bash -c '${bashScript}'`, {
       encoding: 'utf8',
       stdio: options.verbose ? 'inherit' : 'pipe',
+      shell: '/bin/bash'
     });
 
     if (!options.verbose && output) {

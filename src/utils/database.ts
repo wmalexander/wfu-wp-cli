@@ -171,7 +171,7 @@ export class DatabaseOperations {
         encoding: 'utf8',
         stdio: verbose ? 'inherit' : 'ignore',
         shell: '/bin/bash',
-        timeout: 600000, // 10 minutes
+        timeout: 1200000, // 20 minutes
         env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
       });
 
