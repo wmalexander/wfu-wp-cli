@@ -155,6 +155,130 @@ wfuwp sshaws dev --user ubuntu
 wfuwp sshaws uat --dry-run
 ```
 
+#### `config` - Manage configuration settings
+
+Manage database connection settings and other configuration options. Configuration is stored securely with encrypted passwords.
+
+```bash
+wfuwp config <subcommand> [arguments]
+```
+
+**Subcommands:**
+
+```bash
+# Set configuration values
+wfuwp config set <key> <value>
+
+# Get configuration values
+wfuwp config get <key>
+
+# List all configuration
+wfuwp config list
+
+# Reset all configuration
+wfuwp config reset
+```
+
+**Configuration Keys:**
+- `db.host`: Database hostname
+- `db.user`: Database username
+- `db.password`: Database password (encrypted when stored)
+- `db.name`: Database name
+
+**Examples:**
+
+```bash
+# Initial database setup
+wfuwp config set db.host prod-db.wfu.edu
+wfuwp config set db.user wp_admin
+wfuwp config set db.password secretpassword123
+wfuwp config set db.name wp_multisite
+
+# Check current configuration
+wfuwp config list
+
+# Get specific value
+wfuwp config get db.host
+
+# Reset all settings
+wfuwp config reset
+```
+
+#### `migrate` - Migrate WordPress multisite database between environments (Phase 1)
+
+Migrates WordPress multisite database content between environments by performing URL and path replacements. Integrates with WP-CLI for reliable database operations.
+
+**⚠️ Current Limitations (Phase 1):**
+- Requires tables to be manually imported into migration database before running
+- Does not handle export/import operations automatically
+- Single database configuration only
+- No S3 archival of SQL dumps
+
+**📋 Phase 2 (Coming Soon):**
+- Complete automated workflow with export/import
+- Multi-environment configuration support
+- Automatic S3 backup archival
+- Full migration orchestration with single command
+
+```bash
+wfuwp migrate <site-id> --from <source-env> --to <target-env> [options]
+```
+
+**Arguments:**
+- `site-id`: Numeric site identifier for the multisite installation (e.g., 43)
+
+**Required Options:**
+- `--from <env>`: Source environment (`dev`, `uat`, `pprd`, `prod`)
+- `--to <env>`: Target environment (`dev`, `uat`, `pprd`, `prod`)
+
+**Optional Flags:**
+- `--dry-run`: Preview changes without executing them
+- `-f, --force`: Skip confirmation prompts
+- `-v, --verbose`: Show detailed output including all WP-CLI commands
+- `--homepage`: Include homepage tables (default: exclude for non-homepage sites)
+- `--custom-domain <source:target>`: Additional custom domain replacement
+- `--log-dir <path>`: Custom log directory (default: `./logs`)
+
+**Supported Migration Paths:**
+- `prod` ↔ `pprd` (production to/from pre-production)
+- `dev` ↔ `uat` (development to/from user acceptance testing)
+
+**Examples:**
+
+```bash
+# Basic migration with confirmation prompt
+wfuwp migrate 43 --from uat --to pprd
+
+# Dry run to preview changes
+wfuwp migrate 43 --from prod --to pprd --dry-run
+
+# Force migration without confirmation
+wfuwp migrate 15 --from pprd --to prod --force
+
+# Migration with custom domain replacement
+wfuwp migrate 22 --from dev --to uat --custom-domain "oldsite.wfu.edu:newsite.wfu.edu"
+
+# Homepage migration with verbose output
+wfuwp migrate 1 --from prod --to pprd --homepage --verbose
+
+# Custom log directory
+wfuwp migrate 43 --from uat --to pprd --log-dir /custom/logs
+```
+
+**Prerequisites:**
+- Database configuration must be set using `wfuwp config` commands
+- WP-CLI must be installed and accessible in PATH
+- Appropriate database access permissions for the configured user
+- **Phase 1**: Tables must be manually imported into migration database before running
+
+**Current Workflow (Phase 1):**
+1. Manually export site tables from source environment
+2. Manually import tables into wp_migration database
+3. Run `wfuwp migrate` command for URL replacements
+4. Manually export transformed tables from wp_migration
+5. Manually backup target environment tables
+6. Manually import transformed tables to target environment
+
 ## Safety Features
 
 ### Input Validation
@@ -163,12 +287,17 @@ wfuwp sshaws uat --dry-run
 - Source and destination environments cannot be the same
 
 ### Confirmation Prompts
-- Interactive confirmation before executing sync operations
+- Interactive confirmation before executing sync and migration operations
 - Use `--force` flag to bypass confirmations in automated scripts
 
 ### Dry Run Mode
-- Use `--dry-run` to preview what files would be synced
+- Use `--dry-run` to preview what files would be synced or what database changes would be made
 - No actual changes are made in dry-run mode
+
+### Secure Configuration Storage
+- Database passwords are encrypted when stored locally
+- Configuration files are stored in user's home directory (`~/.wfuwp/config.json`)
+- WP-CLI commands mask passwords in verbose output
 
 ### AWS CLI Verification
 - Checks if AWS CLI is installed and accessible
@@ -191,6 +320,19 @@ wfuwp sshaws uat --dry-run
 **"Source and destination environments cannot be the same"**
 - Ensure you're specifying different environments for source and destination
 
+**"Database configuration incomplete"**
+- Set up database connection using `wfuwp config set` commands
+- Ensure all required fields are configured: host, user, password, name
+
+**"WP-CLI is not installed or not in PATH"**
+- Install WP-CLI: https://wp-cli.org/
+- Ensure it's accessible in your system PATH
+- Test with `wp --version`
+
+**"Migration path [env] -> [env] is not supported"**
+- Use supported migration paths: prod↔pprd, dev↔uat
+- Check that both environments are valid: dev, uat, pprd, prod
+
 ### Getting Help
 
 ```bash
@@ -199,6 +341,8 @@ wfuwp --help
 
 # Command-specific help
 wfuwp syncs3 --help
+wfuwp config --help
+wfuwp migrate --help
 
 # Display version
 wfuwp --version
@@ -231,7 +375,14 @@ npm run format     # Format code with Prettier
 wfu-wp-cli/
 ├── src/
 │   ├── commands/
-│   │   └── syncs3.ts     # S3 sync command implementation
+│   │   ├── syncs3.ts     # S3 sync command implementation
+│   │   ├── listips.ts    # EC2 IP listing command
+│   │   ├── sshaws.ts     # SSH connection command
+│   │   ├── removehostkey.ts # SSH host key removal command
+│   │   ├── config.ts     # Configuration management command
+│   │   └── migrate.ts    # Database migration command
+│   ├── utils/
+│   │   └── config.ts     # Configuration storage utilities
 │   └── index.ts          # Main CLI entry point
 ├── bin/
 │   └── wfuwp            # Binary wrapper
