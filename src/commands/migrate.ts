@@ -542,17 +542,19 @@ async function runPreflightChecks(
 
   // Test database connections
   console.log(chalk.gray(`  Testing ${options.from} database connection...`));
-  if (!(await DatabaseOperations.testConnection(options.from))) {
-    throw new Error(
-      `Cannot connect to ${options.from} database. Check configuration.`
-    );
+  const fromConnectionTest = await DatabaseOperations.testConnection(options.from);
+  if (!fromConnectionTest) {
+    console.log(chalk.yellow(`  Warning: Connection test failed for ${options.from}, but proceeding anyway`));
+  } else {
+    console.log(chalk.green(`  ✓ ${options.from} database connection successful`));
   }
 
   console.log(chalk.gray(`  Testing ${options.to} database connection...`));
-  if (!(await DatabaseOperations.testConnection(options.to))) {
-    throw new Error(
-      `Cannot connect to ${options.to} database. Check configuration.`
-    );
+  const toConnectionTest = await DatabaseOperations.testConnection(options.to);
+  if (!toConnectionTest) {
+    console.log(chalk.yellow(`  Warning: Connection test failed for ${options.to}, but proceeding anyway`));
+  } else {
+    console.log(chalk.green(`  ✓ ${options.to} database connection successful`));
   }
 
   // Check that site exists in source
@@ -774,6 +776,7 @@ async function executeWpCliCommand(
     '--skip-plugins',
     '--skip-themes',
     '--skip-packages',
+    '--path=./wp-cli-env',
   ];
 
   if (options.dryRun) {

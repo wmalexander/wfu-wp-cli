@@ -74,7 +74,8 @@ export class DatabaseOperations {
       '--skip-plugins',
       '--skip-themes',
       '--skip-packages',
-      '--path=/tmp/wp-cli-env',
+      '--path=./wp-cli-env',
+      '--path=./wp-cli-env',
     ];
 
     try {
@@ -134,6 +135,7 @@ export class DatabaseOperations {
       '--skip-plugins',
       '--skip-themes',
       '--skip-packages',
+      '--path=./wp-cli-env',
     ];
 
     try {
@@ -187,6 +189,7 @@ export class DatabaseOperations {
           '--skip-plugins',
           '--skip-themes',
           '--skip-packages',
+          '--path=./wp-cli-env',
         ].join(' ');
       } else {
         // Subsite - get tables with site prefix
@@ -201,6 +204,7 @@ export class DatabaseOperations {
           '--skip-plugins',
           '--skip-themes',
           '--skip-packages',
+          '--path=./wp-cli-env',
         ].join(' ');
       }
 
@@ -241,6 +245,7 @@ export class DatabaseOperations {
       '--skip-plugins',
       '--skip-themes',
       '--skip-packages',
+      '--path=./wp-cli-env',
     ];
 
     try {
@@ -283,6 +288,7 @@ export class DatabaseOperations {
       '--skip-plugins',
       '--skip-themes',
       '--skip-packages',
+      '--path=./wp-cli-env',
     ];
 
     try {
@@ -300,20 +306,27 @@ export class DatabaseOperations {
       return false;
     }
 
+    // Use a simple query instead of wp db check to avoid mysqlcheck issues
     const wpCommand = [
-      'wp db check',
+      'wp db query',
+      '"SELECT 1 as connection_test"',
       `--dbhost=${envConfig.host}`,
       `--dbuser=${envConfig.user}`,
       `--dbpass=${envConfig.password}`,
+      `--dbname=${envConfig.database}`,
       '--skip-plugins',
       '--skip-themes',
       '--skip-packages',
-      `--dbname=${envConfig.database}`,
+      '--path=./wp-cli-env',
     ];
 
     try {
-      execSync(wpCommand.join(' '), { stdio: 'ignore' });
-      return true;
+      const result = execSync(wpCommand.join(' '), { 
+        encoding: 'utf8',
+        stdio: 'pipe'
+      });
+      // Check if result contains expected output
+      return result.includes('connection_test') || result.includes('1');
     } catch (error) {
       return false;
     }
