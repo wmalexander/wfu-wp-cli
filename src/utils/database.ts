@@ -71,6 +71,10 @@ export class DatabaseOperations {
       `--dbuser=${envConfig.user}`,
       `--dbpass=${envConfig.password}`,
       `--dbname=${envConfig.database}`,
+      '--skip-plugins',
+      '--skip-themes',
+      '--skip-packages',
+      '--path=/tmp/wp-cli-env',
     ];
 
     try {
@@ -127,6 +131,9 @@ export class DatabaseOperations {
       `--dbuser=${targetConfig.user}`,
       `--dbpass=${targetConfig.password}`,
       `--dbname=${targetConfig.database}`,
+      '--skip-plugins',
+      '--skip-themes',
+      '--skip-packages',
     ];
 
     try {
@@ -177,6 +184,9 @@ export class DatabaseOperations {
           `--dbpass=${envConfig.password}`,
           `--dbname=${envConfig.database}`,
           '--format=csv',
+          '--skip-plugins',
+          '--skip-themes',
+          '--skip-packages',
         ].join(' ');
       } else {
         // Subsite - get tables with site prefix
@@ -188,6 +198,9 @@ export class DatabaseOperations {
           `--dbpass=${envConfig.password}`,
           `--dbname=${envConfig.database}`,
           '--format=csv',
+          '--skip-plugins',
+          '--skip-themes',
+          '--skip-packages',
         ].join(' ');
       }
 
@@ -225,6 +238,9 @@ export class DatabaseOperations {
       `--dbuser=${migrationConfig.user}`,
       `--dbpass=${migrationConfig.password}`,
       `--dbname=${migrationConfig.database}`,
+      '--skip-plugins',
+      '--skip-themes',
+      '--skip-packages',
     ];
 
     try {
@@ -264,6 +280,9 @@ export class DatabaseOperations {
       `--dbpass=${dbConfig.password}`,
       `--dbname=${dbConfig.database}`,
       '--format=count',
+      '--skip-plugins',
+      '--skip-themes',
+      '--skip-packages',
     ];
 
     try {
@@ -286,6 +305,9 @@ export class DatabaseOperations {
       `--dbhost=${envConfig.host}`,
       `--dbuser=${envConfig.user}`,
       `--dbpass=${envConfig.password}`,
+      '--skip-plugins',
+      '--skip-themes',
+      '--skip-packages',
       `--dbname=${envConfig.database}`,
     ];
 

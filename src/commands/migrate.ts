@@ -771,6 +771,9 @@ async function executeWpCliCommand(
     `--dbpass=${options.dbConfig.password}`,
     `--dbname=${options.dbConfig.name}`,
     `--log=${options.logFile}`,
+    '--skip-plugins',
+    '--skip-themes',
+    '--skip-packages',
   ];
 
   if (options.dryRun) {
