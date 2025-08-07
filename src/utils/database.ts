@@ -83,33 +83,31 @@ export class DatabaseOperations {
       mkdirSync(outputDir, { recursive: true });
     }
 
-    // Use Docker to run WP-CLI export
-    const containerPath = '/workspace/' + outputPath.split('/').pop();
-    const bashScript = [
-      'export WP_CLI_PHP_ARGS="-d memory_limit=1024M"',
-      'cd /var/www/html',
-      'wp core download',
-      'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
-      `wp db export ${containerPath} --tables=${tables.join(',')}`
-    ].join(' && ');
-
+    // Use mysqldump directly (much more efficient than WP-CLI)
     try {
       if (verbose) {
-        console.log(chalk.gray('Running Docker WP-CLI export...'));
+        console.log(chalk.gray('Running mysqldump export...'));
       }
       
-      execSync(`docker run --rm \\
-        --memory=2g \\
-        -v "${process.cwd()}:/workspace" \\
-        -e WORDPRESS_DB_HOST="${envConfig.host}" \\
-        -e WORDPRESS_DB_USER="${envConfig.user}" \\
-        -e WORDPRESS_DB_PASSWORD="${envConfig.password}" \\
-        -e WORDPRESS_DB_NAME="${envConfig.database}" \\
-        wordpress:cli \\
-        bash -c '${bashScript}'`, {
+      const mysqldumpCommand = [
+        'mysqldump',
+        '-h', `"${envConfig.host}"`,
+        '-u', `"${envConfig.user}"`,
+        `-p"${envConfig.password}"`,
+        `"${envConfig.database}"`,
+        '--skip-lock-tables',
+        '--no-tablespaces',
+        '--set-gtid-purged=OFF',
+        ...tables.map(table => `"${table}"`),
+        '>', `"${outputPath}"`
+      ].join(' ');
+
+      execSync(mysqldumpCommand, {
         encoding: 'utf8',
         stdio: verbose ? 'inherit' : 'ignore',
-        shell: '/bin/bash'
+        shell: '/bin/bash',
+        timeout: 900000, // 15 minutes
+        env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
       });
 
       if (!existsSync(outputPath)) {
@@ -153,33 +151,28 @@ export class DatabaseOperations {
       throw new Error('Target database configuration is incomplete');
     }
 
-    // Use Docker to run WP-CLI import
-    const containerPath = '/workspace/' + sqlFile.split('/').pop();
-    const dockerCommand = [
-      'docker', 'run', '--rm',
-      '-v', `${process.cwd()}:/workspace`,
-      '-e', `WORDPRESS_DB_HOST=${targetConfig.host}`,
-      '-e', `WORDPRESS_DB_USER=${targetConfig.user}`,
-      '-e', `WORDPRESS_DB_PASSWORD=${targetConfig.password}`,
-      '-e', `WORDPRESS_DB_NAME=${targetConfig.database}`,
-      '-e', 'WP_CLI_PHP_ARGS=-d memory_limit=512M',
-      'wordpress:cli',
-      'bash', '-c', [
-        'cd /var/www/html',
-        'wp core download',
-        'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
-        `wp db import ${containerPath}`
-      ].join(' && ')
-    ];
-
+    // Use mysql directly (much more efficient than WP-CLI)
     try {
       if (verbose) {
-        console.log(chalk.gray('Running Docker WP-CLI import...'));
+        console.log(chalk.gray('Running mysql import...'));
       }
       
-      execSync(dockerCommand.join(' '), {
+      const mysqlCommand = [
+        'mysql',
+        '-h', `"${targetConfig.host}"`,
+        '-u', `"${targetConfig.user}"`,
+        `-p"${targetConfig.password}"`,
+        `"${targetConfig.database}"`,
+        '--max_allowed_packet=1G',
+        '<', `"${sqlFile}"`
+      ].join(' ');
+
+      execSync(mysqlCommand, {
         encoding: 'utf8',
         stdio: verbose ? 'inherit' : 'ignore',
+        shell: '/bin/bash',
+        timeout: 600000, // 10 minutes
+        env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
       });
 
       // Get table count to verify import
@@ -231,7 +224,9 @@ export class DatabaseOperations {
         return tables.filter((table) => !table.match(/wp_\d+_/));
       }
 
-      return tables;
+      // For subsites, filter to ensure exact site ID match (avoid wp_430_ when looking for wp_43_)
+      const exactPrefix = `wp_${siteId}_`;
+      return tables.filter((table) => table.startsWith(exactPrefix));
     } catch (error) {
       throw new Error(
         `Failed to get site tables: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -248,29 +243,36 @@ export class DatabaseOperations {
       );
     }
 
-    // Use Docker to clean migration database
-    const dockerCommand = [
-      'docker', 'run', '--rm',
-      '-e', `WORDPRESS_DB_HOST=${migrationConfig.host}`,
-      '-e', `WORDPRESS_DB_USER=${migrationConfig.user}`,
-      '-e', `WORDPRESS_DB_PASSWORD=${migrationConfig.password}`,
-      '-e', `WORDPRESS_DB_NAME=${migrationConfig.database}`,
-      '-e', 'WP_CLI_PHP_ARGS=-d memory_limit=512M',
-      'wordpress:cli',
-      'bash', '-c', [
-        'cd /var/www/html',
-        'wp core download',
-        'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
-        'wp db reset --yes'
-      ].join(' && ')
-    ];
-
+    // Use direct MySQL to clean migration database (much more efficient than WP-CLI)
     try {
-      execSync(dockerCommand.join(' '), { encoding: 'utf8', stdio: 'ignore' });
+      // Get all tables in the migration database
+      const showTablesQuery = 'SHOW TABLES';
+      const tablesOutput = execSync(`mysql -h "${migrationConfig.host}" -u "${migrationConfig.user}" -p"${migrationConfig.password}" "${migrationConfig.database}" -e "${showTablesQuery}" -s`, {
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
+      });
+
+      const tables = tablesOutput
+        .trim()
+        .split('\n')
+        .filter((table) => table.length > 0);
+
+      if (tables.length > 0) {
+        // Drop tables in batches of 10 to avoid command length limits
+        const batchSize = 10;
+        for (let i = 0; i < tables.length; i += batchSize) {
+          const batch = tables.slice(i, i + batchSize);
+          const dropTablesQuery = `DROP TABLE IF EXISTS ${batch.map(table => `\`${table}\``).join(', ')}`;
+          execSync(`mysql -h "${migrationConfig.host}" -u "${migrationConfig.user}" -p"${migrationConfig.password}" "${migrationConfig.database}" -e "${dropTablesQuery}"`, {
+            encoding: 'utf8',
+            stdio: 'ignore',
+            env: { ...process.env, PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}` }
+          });
+        }
+      }
     } catch (error) {
-      throw new Error(
-        `Failed to clean migration database: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      // Don't fail the entire migration if cleanup fails - log warning and continue
+      console.warn(chalk.yellow(`Warning: Could not clean migration database: ${error instanceof Error ? error.message : 'Unknown error'}`));
     }
   }
 
@@ -296,24 +298,25 @@ export class DatabaseOperations {
     database?: string;
   }): number {
     // Use Docker to get table count
-    const dockerCommand = [
-      'docker', 'run', '--rm',
-      '-e', `WORDPRESS_DB_HOST=${dbConfig.host}`,
-      '-e', `WORDPRESS_DB_USER=${dbConfig.user}`,
-      '-e', `WORDPRESS_DB_PASSWORD=${dbConfig.password}`,
-      '-e', `WORDPRESS_DB_NAME=${dbConfig.database}`,
-      '-e', 'WP_CLI_PHP_ARGS=-d memory_limit=512M',
-      'wordpress:cli',
-      'bash', '-c', [
-        'cd /var/www/html',
-        'wp core download',
-        'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
-        'wp db tables --format=count'
-      ].join(' && ')
-    ];
+    const bashScript = [
+      'cd /var/www/html',
+      'wp core download',
+      'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
+      'wp db tables --format=count'
+    ].join(' && ');
 
     try {
-      const output = execSync(dockerCommand.join(' '), { encoding: 'utf8' });
+      const output = execSync(`docker run --rm \\
+        -e WORDPRESS_DB_HOST="${dbConfig.host}" \\
+        -e WORDPRESS_DB_USER="${dbConfig.user}" \\
+        -e WORDPRESS_DB_PASSWORD="${dbConfig.password}" \\
+        -e WORDPRESS_DB_NAME="${dbConfig.database}" \\
+        -e WP_CLI_PHP_ARGS="-d memory_limit=512M" \\
+        wordpress:cli \\
+        bash -c '${bashScript}'`, { 
+        encoding: 'utf8',
+        shell: '/bin/bash'
+      });
       return parseInt(output.trim(), 10) || 0;
     } catch (error) {
       return 0;
@@ -328,26 +331,25 @@ export class DatabaseOperations {
     }
 
     // Use Docker to run simple connection test
-    const dockerCommand = [
-      'docker', 'run', '--rm',
-      '-e', `WORDPRESS_DB_HOST=${envConfig.host}`,
-      '-e', `WORDPRESS_DB_USER=${envConfig.user}`,
-      '-e', `WORDPRESS_DB_PASSWORD=${envConfig.password}`,
-      '-e', `WORDPRESS_DB_NAME=${envConfig.database}`,
-      '-e', 'WP_CLI_PHP_ARGS=-d memory_limit=512M',
-      'wordpress:cli',
-      'bash', '-c', [
-        'cd /var/www/html',
-        'wp core download',
-        'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
-        'wp db query "SELECT 1 as connection_test"'
-      ].join(' && ')
-    ];
+    const bashScript = [
+      'cd /var/www/html',
+      'wp core download',
+      'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
+      'wp db query "SELECT 1 as connection_test"'
+    ].join(' && ');
 
     try {
-      const result = execSync(dockerCommand.join(' '), { 
+      const result = execSync(`docker run --rm \\
+        -e WORDPRESS_DB_HOST="${envConfig.host}" \\
+        -e WORDPRESS_DB_USER="${envConfig.user}" \\
+        -e WORDPRESS_DB_PASSWORD="${envConfig.password}" \\
+        -e WORDPRESS_DB_NAME="${envConfig.database}" \\
+        -e WP_CLI_PHP_ARGS="-d memory_limit=512M" \\
+        wordpress:cli \\
+        bash -c '${bashScript}'`, { 
         encoding: 'utf8',
-        stdio: 'pipe'
+        stdio: 'pipe',
+        shell: '/bin/bash'
       });
       // Check if result contains expected output
       return result.includes('connection_test') || result.includes('1');

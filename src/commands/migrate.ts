@@ -579,7 +579,7 @@ async function runPreflightChecks(
       console.log(chalk.green(`  ✓ Created local backup directory: ${backupDir}`));
     }
   } else if (!options.skipS3) {
-    console.log(chalk.green(`  ✓ S3 configuration found - will use S3 for backups`));
+    console.log(chalk.gray(`  S3 configuration found - testing access...`));
   }
 
   // Test database connections
@@ -614,11 +614,18 @@ async function runPreflightChecks(
 
   // Test S3 access if configured and not skipped
   if (!options.skipS3 && Config.hasS3Config()) {
-    console.log(chalk.gray('  Testing S3 access...'));
     if (!(await S3Operations.testS3Access())) {
       console.log(chalk.yellow('  Warning: S3 access failed - will use local backups instead'));
+      // Ensure local backup directory exists when S3 fails
+      const backupDir = Config.getBackupPath();
+      if (!existsSync(backupDir)) {
+        mkdirSync(backupDir, { recursive: true });
+        console.log(chalk.green(`  ✓ Created local backup directory: ${backupDir}`));
+      } else {
+        console.log(chalk.cyan(`  ✓ Local backup directory ready: ${backupDir}`));
+      }
     } else {
-      console.log(chalk.green('  ✓ S3 access verified'));
+      console.log(chalk.green('  ✓ S3 access verified - will use S3 for backups'));
     }
   }
 
