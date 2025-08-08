@@ -1,8 +1,14 @@
+<!-- wp:heading -->
+<h1 class="wp-block-heading">WFU WordPress CLI Tool</h1>
+<!-- /wp:heading -->
+
 <!-- wp:paragraph -->
 <p>The WFU WordPress CLI tool provides a comprehensive set of commands to manage WordPress environments, EC2 instances, and AWS resources. Instead of manually running complex AWS CLI commands, you can now use simple, validated commands with built-in safety features.</p>
 <!-- /wp:paragraph -->
 
-<!-- wp:heading -->
+
+
+<!-- wp:heading {"level":2} -->
 <h2 class="wp-block-heading">Installation</h2>
 <!-- /wp:heading -->
 
@@ -10,31 +16,39 @@
 <p>Just run this one command:<br /><code>npm install -g wfuwp</code></p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:paragraph -->
 <p><strong>To update to the latest version:</strong><br /><code>npm update -g wfuwp</code></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:paragraph -->
 <p>Prerequisites:</p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
 <li>Node.js (most of you already have this)</li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
+<!-- /wp:list-item --><!-- wp:list-item -->
 <li>AWS CLI installed and configured with your WFU credentials</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
-<!-- wp:heading -->
+
+
+<!-- wp:heading {"level":2} -->
 <h2 class="wp-block-heading">Available Commands</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
 <p><strong>Environments supported</strong>: dev, uat, pprd, prod</p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:heading {"level":3} -->
 <h3 class="wp-block-heading">syncs3 - Sync S3 Assets Between Environments</h3>
@@ -44,31 +58,33 @@
 <p>Safely sync S3 assets (uploads, media files, etc.) for WordPress sites between different environments with validation and confirmation prompts.</p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:paragraph -->
-<p><strong>Usage:</strong> <code>wfuwp syncs3 &lt;site-id&gt; &lt;source-env&gt; &lt;target-env&gt; [options]</code></p>
+<p><strong>Usage:</strong> <code>wfuwp syncs3 <site-id> <source-env> <target-env> [options]</code></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:paragraph -->
 <p><strong>Examples:</strong></p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Basic sync with confirmation: <code>wfuwp syncs3 43 uat pprd</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Preview changes (dry run): <code>wfuwp syncs3 43 uat pprd --dry-run</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Show detailed output: <code>wfuwp syncs3 43 uat pprd --verbose</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Skip confirmation: <code>wfuwp syncs3 43 uat pprd --force</code></li>
+<li>Basic sync with confirmation: `wfuwp syncs3 43 uat pprd`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Preview changes (dry run): `wfuwp syncs3 43 uat pprd --dry-run`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Show detailed output: `wfuwp syncs3 43 uat pprd --verbose`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Skip confirmation: `wfuwp syncs3 43 uat pprd --force`</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
+
+
 
 <!-- wp:heading {"level":3} -->
 <h3 class="wp-block-heading">listips - List EC2 Instance IP Addresses</h3>
@@ -78,31 +94,33 @@
 <p>Display IP addresses of running EC2 instances in a specified environment, useful for SSH connections and network troubleshooting.</p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:paragraph -->
-<p><strong>Usage:</strong> <code>wfuwp listips &lt;environment&gt; [options]</code></p>
+<p><strong>Usage:</strong> <code>wfuwp listips <environment> [options]</code></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:paragraph -->
 <p><strong>Examples:</strong></p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>List private IPs: <code>wfuwp listips uat</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>List public IPs: <code>wfuwp listips uat --public</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Output as JSON: <code>wfuwp listips prod --json</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Show both private and public: <code>wfuwp listips pprd --private --public</code></li>
+<li>List private IPs: `wfuwp listips uat`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>List public IPs: `wfuwp listips uat --public`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Output as JSON: `wfuwp listips prod --json`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Show both private and public: `wfuwp listips pprd --private --public`</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
+
+
 
 <!-- wp:heading {"level":3} -->
 <h3 class="wp-block-heading">sshaws - SSH Into EC2 Instances</h3>
@@ -112,35 +130,35 @@
 <p>Easily SSH into EC2 instances in any environment with automatic key management and connection handling.</p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:paragraph -->
-<p><strong>Usage:</strong> <code>wfuwp sshaws &lt;environment&gt; [options]</code></p>
+<p><strong>Usage:</strong> <code>wfuwp sshaws <environment> [options]</code></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:paragraph -->
 <p><strong>Examples:</strong></p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Connect to first instance: <code>wfuwp sshaws uat</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Connect to all instances: <code>wfuwp sshaws prod --all</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>List instances without connecting: <code>wfuwp sshaws dev --list</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Use custom SSH key: <code>wfuwp sshaws uat --key ~/.ssh/my_key</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Preview SSH commands: <code>wfuwp sshaws pprd --dry-run</code></li>
+<li>Connect to first instance: `wfuwp sshaws uat`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Connect to all instances: `wfuwp sshaws prod --all`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>List instances without connecting: `wfuwp sshaws dev --list`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Use custom SSH key: `wfuwp sshaws uat --key ~/.ssh/my_key`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Preview SSH commands: `wfuwp sshaws pprd --dry-run`</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
+
+
 
 <!-- wp:heading {"level":3} -->
 <h3 class="wp-block-heading">removehostkey - Clean Up SSH Host Keys</h3>
@@ -150,31 +168,33 @@
 <p>Remove SSH host keys for EC2 instances when IP addresses change, preventing "host key verification failed" errors.</p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:paragraph -->
-<p><strong>Usage:</strong> <code>wfuwp removehostkey &lt;environment&gt; [options]</code></p>
+<p><strong>Usage:</strong> <code>wfuwp removehostkey <environment> [options]</code></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:paragraph -->
 <p><strong>Examples:</strong></p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Remove host keys: <code>wfuwp removehostkey uat</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Preview what would be removed: <code>wfuwp removehostkey prod --dry-run</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Skip confirmation: <code>wfuwp removehostkey dev -y</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Use custom known_hosts file: <code>wfuwp removehostkey pprd --known-hosts ~/.ssh/custom_hosts</code></li>
+<li>Remove host keys: `wfuwp removehostkey uat`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Preview what would be removed: `wfuwp removehostkey prod --dry-run`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Skip confirmation: `wfuwp removehostkey dev -y`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Use custom known_hosts file: `wfuwp removehostkey pprd --known-hosts ~/.ssh/custom_hosts`</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
+
+
 
 <!-- wp:heading {"level":3} -->
 <h3 class="wp-block-heading">spoof - DNS Spoofing for Testing</h3>
@@ -184,27 +204,31 @@
 <p>Spoof DNS for a WFU subdomain by adding entries to /etc/hosts. This allows you to test sites before DNS changes take effect.</p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:paragraph -->
-<p><strong>Usage:</strong> <code>sudo wfuwp spoof &lt;subdomain&gt; [options]</code></p>
+<p><strong>Usage:</strong> <code>sudo wfuwp spoof <subdomain> [options]</code></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:paragraph -->
 <p><strong>Examples:</strong></p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Spoof main domain: <code>sudo wfuwp spoof shoes</code> (creates shoes.wfu.edu)</li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Spoof dev environment: <code>sudo wfuwp spoof tennis --env dev</code> (creates tennis.dev.wfu.edu)</li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li>Spoof any subdomain: <code>sudo wfuwp spoof mysite</code> (creates mysite.wfu.edu)</li>
+<li>Spoof main domain: `sudo wfuwp spoof shoes` (creates shoes.wfu.edu)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Spoof dev environment: `sudo wfuwp spoof tennis --env dev` (creates tennis.dev.wfu.edu)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Spoof any subdomain: `sudo wfuwp spoof mysite` (creates mysite.wfu.edu)</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
+
+
 
 <!-- wp:heading {"level":3} -->
 <h3 class="wp-block-heading">unspoof - Remove DNS Spoofing</h3>
@@ -214,59 +238,63 @@
 <p>Remove all WFU DNS spoofing entries from /etc/hosts to restore normal DNS resolution.</p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:paragraph -->
 <p><strong>Usage:</strong> <code>sudo wfuwp unspoof</code></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:paragraph -->
 <p><strong>Examples:</strong></p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Remove all spoofed entries: <code>sudo wfuwp unspoof</code></li>
+<li>Remove all spoofed entries: `sudo wfuwp unspoof`</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
-<!-- wp:heading -->
+
+
+<!-- wp:heading {"level":2} -->
 <h2 class="wp-block-heading">Safety Features</h2>
 <!-- /wp:heading -->
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li><strong>Input validation</strong> - Validates all environment names, site IDs, and file paths</li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li><strong>Confirmation prompts</strong> - Asks before making changes (can be skipped with --force or --yes)</li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li><strong>Dry run mode</strong> - Preview changes with --dry-run before running for real</li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li><strong>AWS CLI checks</strong> - Verifies your AWS setup before attempting operations</li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li><strong>File existence validation</strong> - Checks for required files (SSH keys, known_hosts) before proceeding</li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li><strong>Error handling</strong> - Clear error messages with suggestions for resolution</li>
+<li>**Input validation** - Validates all environment names, site IDs, and file paths</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Confirmation prompts** - Asks before making changes (can be skipped with --force or --yes)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Dry run mode** - Preview changes with --dry-run before running for real</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**AWS CLI checks** - Verifies your AWS setup before attempting operations</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**File existence validation** - Checks for required files (SSH keys, known_hosts) before proceeding</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Error handling** - Clear error messages with suggestions for resolution</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
-<!-- wp:heading -->
+
+
+<!-- wp:heading {"level":2} -->
 <h2 class="wp-block-heading">Getting Help</h2>
 <!-- /wp:heading -->
 
-<!-- wp:paragraph -->
-<p><code>wfuwp --help</code>                          # General help and command list<br /><code>wfuwp &lt;command&gt; --help</code>    # Specific command help<br /><code>wfuwp --version</code>                   # Check current version</p>
-<!-- /wp:paragraph -->
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp --help                # General help and command list
+wfuwp <command> --help      # Specific command help
+wfuwp --version             # Check current version</code></pre>
+<!-- /wp:code -->
 
-<!-- wp:heading -->
+
+
+<!-- wp:heading {"level":2} -->
 <h2 class="wp-block-heading">Staying Updated</h2>
 <!-- /wp:heading -->
 
@@ -274,51 +302,53 @@
 <p><strong>Check for updates:</strong><br />Run <code>wfuwp --version</code> and compare with the latest version on <a href="https://www.npmjs.com/package/wfuwp">npm</a>.</p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:paragraph -->
 <p><strong>Update to latest version:</strong><br /><code>npm update -g wfuwp</code></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:paragraph -->
 <p><strong>When new features are added:</strong><br />New commands and options are regularly added. After updating, run <code>wfuwp --help</code> to see all available commands, or check this documentation page for the latest features and examples.</p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:paragraph -->
 <p><strong>Command-specific help examples:</strong></p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li><code>wfuwp syncs3 --help</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li><code>wfuwp listips --help</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li><code>wfuwp sshaws --help</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li><code>wfuwp removehostkey --help</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li><code>wfuwp spoof --help</code></li>
-<!-- /wp:list-item -->
-
-<!-- wp:list-item -->
-<li><code>wfuwp unspoof --help</code></li>
+<li>`wfuwp syncs3 --help`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`wfuwp listips --help`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`wfuwp sshaws --help`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`wfuwp removehostkey --help`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`wfuwp spoof --help`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`wfuwp unspoof --help`</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
-<!-- wp:heading -->
+
+
+<!-- wp:heading {"level":2} -->
 <h2 class="wp-block-heading">Common Workflows</h2>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
 <p><strong>Deploying changes to production:</strong></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:code -->
 <pre class="wp-block-code"><code># 1. List instances to verify environment
@@ -331,9 +361,13 @@ wfuwp syncs3 43 uat prod --dry-run
 wfuwp syncs3 43 uat prod</code></pre>
 <!-- /wp:code -->
 
+
+
 <!-- wp:paragraph -->
 <p><strong>Troubleshooting SSH connections:</strong></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:code -->
 <pre class="wp-block-code"><code># 1. Check instance IPs
@@ -346,9 +380,13 @@ wfuwp removehostkey uat
 wfuwp sshaws uat --dry-run</code></pre>
 <!-- /wp:code -->
 
+
+
 <!-- wp:paragraph -->
 <p><strong>Testing a site before DNS changes:</strong></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:code -->
 <pre class="wp-block-code"><code># 1. Spoof DNS for testing
@@ -361,7 +399,9 @@ sudo wfuwp spoof newsite
 sudo wfuwp unspoof</code></pre>
 <!-- /wp:code -->
 
-<!-- wp:heading -->
+
+
+<!-- wp:heading {"level":2} -->
 <h2 class="wp-block-heading">Troubleshooting</h2>
 <!-- /wp:heading -->
 
@@ -369,13 +409,19 @@ sudo wfuwp unspoof</code></pre>
 <p><strong>AWS-related errors:</strong><br />Make sure your AWS CLI is configured: <code>aws configure list</code></p>
 <!-- /wp:paragraph -->
 
+
+
 <!-- wp:paragraph -->
-<p><strong>SSH connection issues:</strong><br />Clean up old host keys: <code>wfuwp removehostkey &lt;environment&gt;</code><br />Check your SSH key permissions: <code>ls -la ~/.ssh/</code></p>
+<p><strong>SSH connection issues:</strong><br />Clean up old host keys: <code>wfuwp removehostkey <environment></code><br />Check your SSH key permissions: <code>ls -la ~/.ssh/</code></p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:paragraph -->
 <p><strong>Permission errors:</strong><br />If your AWS keys have expired, <a href="https://web.dev.wfu.edu/2025/03/regenerating-aws-credentials/">follow this guide to refresh them</a>.</p>
 <!-- /wp:paragraph -->
+
+
 
 <!-- wp:paragraph -->
 <p>The tool uses the same S3 buckets, EC2 instances, and permissions you already have - it's just a safer, easier way to manage your WordPress environments and AWS resources.</p>

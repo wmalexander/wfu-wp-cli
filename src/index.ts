@@ -10,6 +10,7 @@ import { spoofCommand } from './commands/spoof';
 import { unspoofCommand } from './commands/unspoof';
 import { configCommand } from './commands/config';
 import { migrateCommand } from './commands/migrate';
+import { md2wpblockCommand } from './commands/md2wpblock';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -33,6 +34,7 @@ program.addCommand(spoofCommand);
 program.addCommand(unspoofCommand);
 program.addCommand(configCommand);
 program.addCommand(migrateCommand);
+program.addCommand(md2wpblockCommand);
 
 program
   .command('help')
@@ -48,6 +50,7 @@ program
     console.log(chalk.green('  unspoof') + '     - Remove WFU DNS spoofing entries from /etc/hosts');
     console.log(chalk.green('  config') + '      - Manage configuration settings (database credentials)');
     console.log(chalk.green('  migrate') + '     - Migrate WordPress multisite database between environments');
+    console.log(chalk.green('  md2wpblock') + '  - Convert Markdown files to WordPress block editor HTML');
     console.log('\nUse "wfuwp <command> --help" for more information about a command.');
   });
 

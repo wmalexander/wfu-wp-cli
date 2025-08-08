@@ -6,5 +6,8 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts'
+  ],
+  transformIgnorePatterns: [
+    'node_modules/(?!marked)'
   ]
 };
