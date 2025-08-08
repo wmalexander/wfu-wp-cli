@@ -94,6 +94,20 @@ Remove all WFU DNS spoofing entries from /etc/hosts to restore normal DNS resolu
 
 - Remove all spoofed entries: `sudo wfuwp unspoof`
 
+### md2wpblock - Convert Markdown to WordPress Block HTML
+
+Convert Markdown files to WordPress block editor HTML format for easy publishing. Supports both single files and batch processing of directories.
+
+**Usage:** `wfuwp md2wpblock <path> [options]`
+
+**Examples:**
+
+- Convert single file: `wfuwp md2wpblock document.md`
+- Convert all .md files in directory: `wfuwp md2wpblock wp-docs/`
+- Custom output name: `wfuwp md2wpblock file.md -o custom.html`
+- Preview changes (dry run): `wfuwp md2wpblock directory/ --dry-run`
+- Show detailed progress: `wfuwp md2wpblock file.md --verbose`
+
 ## Safety Features
 
 - **Input validation** - Validates all environment names, site IDs, and file paths
@@ -130,6 +144,7 @@ New commands and options are regularly added. After updating, run `wfuwp --help`
 - `wfuwp removehostkey --help`
 - `wfuwp spoof --help`
 - `wfuwp unspoof --help`
+- `wfuwp md2wpblock --help`
 
 ## Common Workflows
 
@@ -170,6 +185,19 @@ sudo wfuwp spoof newsite
 
 # 3. Remove spoofing when done
 sudo wfuwp unspoof
+```
+
+**Converting documentation for WordPress:**
+
+```bash
+# 1. Update your markdown documentation
+# Edit your .md files in wp-docs/ directory
+
+# 2. Convert to WordPress block HTML
+wfuwp md2wpblock wp-docs/
+
+# 3. Copy the generated .html files to WordPress
+# Upload or paste the HTML into WordPress block editor
 ```
 
 ## Troubleshooting
