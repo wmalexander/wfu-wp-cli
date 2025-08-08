@@ -18,9 +18,9 @@
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Complete Workflow** (default): Full automated migration with export/import/transform/backup/archival</li>
+<li><strong>Complete Workflow</strong> (default): Full automated migration with export/import/transform/backup/archival</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Simple Mode**: Uses migration database for search-replace only (assumes tables already imported)</li>
+<li><strong>Simple Mode</strong>: Uses migration database for search-replace only (assumes tables already imported)</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -71,23 +71,23 @@ wfuwp migrate 43 --from prod --to pprd --simple</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Export** site tables from source environment</li>
+<li>1. <strong>Export</strong> site tables from source environment</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Import** to migration database</li>
+<li>2. <strong>Import</strong> to migration database</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Transform** data with search-replace operations</li>
+<li>3. <strong>Transform</strong> data with search-replace operations</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Backup** existing target tables</li>
+<li>4. <strong>Backup</strong> existing target tables</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Export** migrated tables from migration database</li>
+<li>5. <strong>Export</strong> migrated tables from migration database</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Import** to target environment</li>
+<li>6. <strong>Import</strong> to target environment</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Sync** WordPress files between S3 environments (if --sync-s3)</li>
+<li>7. <strong>Sync</strong> WordPress files between S3 environments (if --sync-s3)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Archive** all SQL files (to S3 if configured, otherwise local backup directory)</li>
+<li>8. <strong>Archive</strong> all SQL files (to S3 if configured, otherwise local backup directory)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Cleanup** migration database</li>
+<li>9. <strong>Cleanup</strong> migration database</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -99,17 +99,17 @@ wfuwp migrate 43 --from prod --to pprd --simple</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`--sync-s3` - Include WordPress file synchronization between S3 environments</li>
+<li><code>--sync-s3</code> - Include WordPress file synchronization between S3 environments</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--simple` - Use simple mode (Phase 1 behavior)</li>
+<li><code>--simple</code> - Use simple mode (Phase 1 behavior)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--skip-backup` - Skip backup of target tables (not recommended)</li>
+<li><code>--skip-backup</code> - Skip backup of target tables (not recommended)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--skip-s3` - Skip S3 archival even if configured</li>
+<li><code>--skip-s3</code> - Skip S3 archival even if configured</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--keep-files` - Keep local SQL files after archival</li>
+<li><code>--keep-files</code> - Keep local SQL files after archival</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--work-dir <path>` - Custom working directory for temporary files</li>
+<li><code>--work-dir <path></code> - Custom working directory for temporary files</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -121,17 +121,17 @@ wfuwp migrate 43 --from prod --to pprd --simple</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Pre-flight checks** - Validates database connections, site existence, AWS CLI availability</li>
+<li><strong>Pre-flight checks</strong> - Validates database connections, site existence, AWS CLI availability</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Target backups** - Automatically backs up existing target tables before import</li>
+<li><strong>Target backups</strong> - Automatically backs up existing target tables before import</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**S3 archival** - Archives all SQL files with metadata for audit trail</li>
+<li><strong>S3 archival</strong> - Archives all SQL files with metadata for audit trail</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Rollback capability** - Can restore from backups if migration fails</li>
+<li><strong>Rollback capability</strong> - Can restore from backups if migration fails</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Confirmation prompts** - Asks before destructive operations</li>
+<li><strong>Confirmation prompts</strong> - Asks before destructive operations</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Progress tracking** - Shows step-by-step progress with file counts and sizes</li>
+<li><strong>Progress tracking</strong> - Shows step-by-step progress with file counts and sizes</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -143,13 +143,13 @@ wfuwp migrate 43 --from prod --to pprd --simple</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Main site (ID 1)**: Tables like `wp_posts`, `wp_options`</li>
+<li><strong>Main site (ID 1)</strong>: Tables like <code>wp_posts</code>, <code>wp_options</code></li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Subsites (ID > 1)**: Tables like `wp_43_posts`, `wp_43_options`</li>
+<li><strong>Subsites (ID > 1)</strong>: Tables like <code>wp_43_posts</code>, <code>wp_43_options</code></li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Network tables**: Shared tables like `wp_users`, `wp_blogs` (excluded from site migrations)</li>
+<li><strong>Network tables</strong>: Shared tables like <code>wp_users</code>, <code>wp_blogs</code> (excluded from site migrations)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Automatic detection**: Identifies site-specific tables automatically</li>
+<li><strong>Automatic detection</strong>: Identifies site-specific tables automatically</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -178,7 +178,7 @@ wfuwp migrate 43 --from prod --to pprd --simple</code></pre>
 
 
 <!-- wp:paragraph -->
-<p>See the <a href="config.md">config command documentation</a> for setup details.</p>
+<p>See the <a href="config.html">config command documentation</a> for setup details.</p>
 <!-- /wp:paragraph -->
 
 
@@ -227,7 +227,7 @@ wfuwp migrate 43 --from prod --to pprd --simple</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Verify environment configuration with `wfuwp config verify`</li>
+<li>Verify environment configuration with <code>wfuwp config verify</code></li>
 <!-- /wp:list-item --><!-- wp:list-item -->
 <li>Check database credentials and network connectivity</li>
 <!-- /wp:list-item --></ul>
@@ -255,7 +255,7 @@ wfuwp migrate 43 --from prod --to pprd --simple</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Verify AWS CLI configuration with `aws configure list`</li>
+<li>Verify AWS CLI configuration with <code>aws configure list</code></li>
 <!-- /wp:list-item --><!-- wp:list-item -->
 <li>Check S3 bucket permissions and region settings</li>
 <!-- /wp:list-item --></ul>

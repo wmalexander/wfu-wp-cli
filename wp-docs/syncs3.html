@@ -34,11 +34,11 @@
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`<site-id>` - WordPress multisite ID (e.g., 43 for site wp_43_*)</li>
+<li><code><site-id></code> - WordPress multisite ID (e.g., 43 for site wp_43_*)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`<source-env>` - Source environment (dev, uat, pprd, prod)</li>
+<li><code><source-env></code> - Source environment (dev, uat, pprd, prod)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`<target-env>` - Target environment (dev, uat, pprd, prod)</li>
+<li><code><target-env></code> - Target environment (dev, uat, pprd, prod)</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -96,11 +96,11 @@ wfuwp syncs3 43 prod pprd --dry-run --verbose</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`--dry-run` - Preview changes without executing them</li>
+<li><code>--dry-run</code> - Preview changes without executing them</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--verbose` - Show detailed output including individual file operations</li>
+<li><code>--verbose</code> - Show detailed output including individual file operations</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--force` - Skip confirmation prompts (use with caution)</li>
+<li><code>--force</code> - Skip confirmation prompts (use with caution)</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -112,17 +112,17 @@ wfuwp syncs3 43 prod pprd --dry-run --verbose</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Input validation** - Validates environment names and site IDs</li>
+<li><strong>Input validation</strong> - Validates environment names and site IDs</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Confirmation prompts** - Asks before making changes (unless --force is used)</li>
+<li><strong>Confirmation prompts</strong> - Asks before making changes (unless --force is used)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Dry run mode** - Preview operations with --dry-run before executing</li>
+<li><strong>Dry run mode</strong> - Preview operations with --dry-run before executing</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**AWS CLI verification** - Checks AWS configuration before attempting operations</li>
+<li><strong>AWS CLI verification</strong> - Checks AWS configuration before attempting operations</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**S3 bucket validation** - Verifies source and target buckets exist and are accessible</li>
+<li><strong>S3 bucket validation</strong> - Verifies source and target buckets exist and are accessible</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**File count reporting** - Shows number of files to be synchronized</li>
+<li><strong>File count reporting</strong> - Shows number of files to be synchronized</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -158,13 +158,13 @@ wfuwp syncs3 43 prod pprd --dry-run --verbose</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Main site (ID 1)**: Uses `wp-content/uploads/` path</li>
+<li><strong>Main site (ID 1)</strong>: Uses <code>wp-content/uploads/</code> path</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Subsites (ID > 1)**: Uses `wp-content/uploads/sites/{ID}/` path</li>
+<li><strong>Subsites (ID > 1)</strong>: Uses <code>wp-content/uploads/sites/{ID}/</code> path</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Automatic detection**: Tool automatically determines correct paths based on site ID</li>
+<li><strong>Automatic detection</strong>: Tool automatically determines correct paths based on site ID</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Environment isolation**: Each environment has separate S3 bucket prefixes</li>
+<li><strong>Environment isolation</strong>: Each environment has separate S3 bucket prefixes</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -180,21 +180,21 @@ wfuwp syncs3 43 prod pprd --dry-run --verbose</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Validates source and target environments</li>
+<li>1. Validates source and target environments</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Checks AWS CLI configuration and credentials</li>
+<li>2. Checks AWS CLI configuration and credentials</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Verifies S3 bucket accessibility</li>
+<li>3. Verifies S3 bucket accessibility</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Determines appropriate S3 paths based on site ID</li>
+<li>4. Determines appropriate S3 paths based on site ID</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Shows summary of files to be synchronized</li>
+<li>5. Shows summary of files to be synchronized</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Requests confirmation (unless --force is used)</li>
+<li>6. Requests confirmation (unless --force is used)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Executes AWS S3 sync operation</li>
+<li>7. Executes AWS S3 sync operation</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Reports results and any errors</li>
+<li>8. Reports results and any errors</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -210,7 +210,7 @@ wfuwp syncs3 43 prod pprd --dry-run --verbose</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`--delete` flag to remove files that don't exist in source</li>
+<li><code>--delete</code> flag to remove files that don't exist in source</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
 <li>Progress reporting for large operations</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
@@ -290,7 +290,7 @@ wfuwp syncs3 43 prod pprd --force</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Verify AWS CLI configuration: `aws configure list`</li>
+<li>Verify AWS CLI configuration: <code>aws configure list</code></li>
 <!-- /wp:list-item --><!-- wp:list-item -->
 <li>Check credential expiration and refresh if needed</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
@@ -310,7 +310,7 @@ wfuwp syncs3 43 prod pprd --force</code></pre>
 <!-- /wp:list-item --><!-- wp:list-item -->
 <li>Check that buckets exist and are accessible</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Test manual access: `aws s3 ls s3://bucket-name/environment/`</li>
+<li>Test manual access: <code>aws s3 ls s3://bucket-name/environment/</code></li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 

@@ -79,7 +79,41 @@ export class MarkdownToWpBlocks {
 
   private listToBlock(token: Tokens.List): string {
     const listItems = token.items.map(item => {
-      const text = this.parseInlineTokens(item.tokens);
+      let text: string;
+      
+      
+      // Always try the regex approach first for raw text
+      if (item.raw || item.text) {
+        const rawText = item.raw || item.text || '';
+        text = rawText
+          // Remove list markers (-, *, +) from the beginning
+          .replace(/^[\s]*[-*+]\s*/, '')
+          // Remove trailing newlines
+          .replace(/\n+$/, '')
+          // Convert **text** to <strong>text</strong>
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          // Convert *text* to <em>text</em> (but not if already inside **)
+          .replace(/(?<!\*)\*([^*]+?)\*(?!\*)/g, '<em>$1</em>')
+          // Convert `code` to <code>code</code>
+          .replace(/`([^`]+)`/g, '<code>$1</code>')
+          // Convert [text](link.md) to <a href="link.html">text</a>
+          .replace(/\[([^\]]+)\]\(([^)]+\.md)\)/g, '<a href="$2">$1</a>')
+          .replace(/\.md"/g, '.html"')
+          // Convert [text](link) to <a href="link">text</a>
+          .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+      } else if (item.tokens && item.tokens.length > 0) {
+        // If the item has parsed tokens, use them
+        if (item.tokens[0]?.type === 'paragraph') {
+          const paragraphToken = item.tokens[0] as Tokens.Paragraph;
+          text = this.parseInlineTokens(paragraphToken.tokens);
+        } else {
+          // Parse as inline tokens
+          text = this.parseInlineTokens(item.tokens);
+        }
+      } else {
+        text = '';
+      }
+      
       return `<!-- wp:list-item -->
 <li>${text}</li>
 <!-- /wp:list-item -->`;
@@ -139,9 +173,14 @@ ${token.text}
       case 'link':
         const linkToken = token as Tokens.Link;
         const linkText = this.parseInlineTokens(linkToken.tokens);
-        const href = this.escapeHtml(linkToken.href);
+        // Convert .md links to .html for WordPress
+        let href = linkToken.href;
+        if (href.endsWith('.md')) {
+          href = href.replace(/\.md$/, '.html');
+        }
+        const escapedHref = this.escapeHtml(href);
         const title = linkToken.title ? ` title="${this.escapeHtml(linkToken.title)}"` : '';
-        return `<a href="${href}"${title}>${linkText}</a>`;
+        return `<a href="${escapedHref}"${title}>${linkText}</a>`;
       
       case 'image':
         const imgToken = token as Tokens.Image;

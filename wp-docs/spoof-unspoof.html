@@ -72,7 +72,7 @@
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`<subdomain>` - The subdomain to spoof (e.g., 'mysite' creates mysite.wfu.edu)</li>
+<li><code><subdomain></code> - The subdomain to spoof (e.g., 'mysite' creates mysite.wfu.edu)</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -116,7 +116,7 @@ sudo wfuwp spoof mysite --env uat</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`--env <environment>` - Target environment (dev, uat, pprd). Default: production (no subdomain)</li>
+<li><code>--env <environment></code> - Target environment (dev, uat, pprd). Default: production (no subdomain)</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -128,13 +128,13 @@ sudo wfuwp spoof mysite --env uat</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Without --env**: Creates `{subdomain}.wfu.edu`</li>
+<li><strong>Without --env</strong>: Creates <code>{subdomain}.wfu.edu</code></li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**With --env dev**: Creates `{subdomain}.dev.wfu.edu`  </li>
+<li><strong>With --env dev</strong>: Creates <code>{subdomain}.dev.wfu.edu</code>  </li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**With --env uat**: Creates `{subdomain}.uat.wfu.edu`</li>
+<li><strong>With --env uat</strong>: Creates <code>{subdomain}.uat.wfu.edu</code></li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**With --env pprd**: Creates `{subdomain}.pprd.wfu.edu`</li>
+<li><strong>With --env pprd</strong>: Creates <code>{subdomain}.pprd.wfu.edu</code></li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -300,13 +300,13 @@ sudo wfuwp spoof secursite
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Backup creation** - Creates backup of original `/etc/hosts` before modifications</li>
+<li><strong>Backup creation</strong> - Creates backup of original <code>/etc/hosts</code> before modifications</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**WFU domain filtering** - Only affects WFU-related domains, leaves other entries intact</li>
+<li><strong>WFU domain filtering</strong> - Only affects WFU-related domains, leaves other entries intact</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Clean removal** - `unspoof` removes only WFU entries added by the tool</li>
+<li><strong>Clean removal</strong> - <code>unspoof</code> removes only WFU entries added by the tool</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Validation** - Checks subdomain format and prevents invalid entries</li>
+<li><strong>Validation</strong> - Checks subdomain format and prevents invalid entries</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -322,9 +322,9 @@ sudo wfuwp spoof secursite
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Creates timestamped backup: `/etc/hosts.wfuwp-backup-YYYYMMDD-HHMMSS`</li>
+<li>Creates timestamped backup: <code>/etc/hosts.wfuwp-backup-YYYYMMDD-HHMMSS</code></li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Preserves existing `/etc/hosts` entries</li>
+<li>Preserves existing <code>/etc/hosts</code> entries</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
 <li>Allows manual recovery if needed</li>
 <!-- /wp:list-item --></ul>
@@ -431,11 +431,11 @@ cat /etc/hosts | grep wfu.edu</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Only affects local machine** - DNS spoofing doesn't affect other users</li>
+<li><strong>Only affects local machine</strong> - DNS spoofing doesn't affect other users</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Temporary testing** - Always run `unspoof` when testing is complete</li>
+<li><strong>Temporary testing</strong> - Always run <code>unspoof</code> when testing is complete</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**No production impact** - Changes only local DNS resolution</li>
+<li><strong>No production impact</strong> - Changes only local DNS resolution</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 

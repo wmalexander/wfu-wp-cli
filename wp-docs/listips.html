@@ -34,7 +34,7 @@
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`<environment>` - Target environment (dev, uat, pprd, prod)</li>
+<li><code><environment></code> - Target environment (dev, uat, pprd, prod)</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -95,11 +95,11 @@ wfuwp listips dev --json --private --public</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`--public` - Show public IP addresses instead of private</li>
+<li><code>--public</code> - Show public IP addresses instead of private</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--private` - Show private IP addresses (default behavior)</li>
+<li><code>--private</code> - Show private IP addresses (default behavior)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--json` - Output as JSON for scripting/automation</li>
+<li><code>--json</code> - Output as JSON for scripting/automation</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -155,11 +155,11 @@ wfuwp listips dev --json --private --public</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Running state** - Only shows instances that are currently running</li>
+<li><strong>Running state</strong> - Only shows instances that are currently running</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Environment tags** - Uses AWS tags to identify environment membership</li>
+<li><strong>Environment tags</strong> - Uses AWS tags to identify environment membership</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Name patterns** - Recognizes WFU naming conventions for environment identification</li>
+<li><strong>Name patterns</strong> - Recognizes WFU naming conventions for environment identification</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -248,9 +248,9 @@ wfuwp listips pprd --json --private --public</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`ec2:DescribeInstances` - To list and filter EC2 instances</li>
+<li><code>ec2:DescribeInstances</code> - To list and filter EC2 instances</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`ec2:DescribeTags` - To identify instances by environment tags</li>
+<li><code>ec2:DescribeTags</code> - To identify instances by environment tags</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -413,9 +413,9 @@ wfuwp listips uat --public</code></pre>
 <ul class="wp-block-list"><!-- wp:list-item -->
 <li>Check internet connectivity</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Verify AWS CLI configuration: `aws configure list`</li>
+<li>Verify AWS CLI configuration: <code>aws configure list</code></li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Test basic AWS access: `aws ec2 describe-regions`</li>
+<li>Test basic AWS access: <code>aws ec2 describe-regions</code></li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -429,7 +429,7 @@ wfuwp listips uat --public</code></pre>
 <ul class="wp-block-list"><!-- wp:list-item -->
 <li>Ensure AWS credentials have EC2 read permissions</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Check IAM policies include `ec2:DescribeInstances`</li>
+<li>Check IAM policies include <code>ec2:DescribeInstances</code></li>
 <!-- /wp:list-item --><!-- wp:list-item -->
 <li>Verify credentials haven't expired</li>
 <!-- /wp:list-item --></ul>

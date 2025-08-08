@@ -34,7 +34,7 @@
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`<environment>` - Target environment (dev, uat, pprd, prod)</li>
+<li><code><environment></code> - Target environment (dev, uat, pprd, prod)</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -95,11 +95,11 @@ wfuwp removehostkey dev --known-hosts /path/to/ssh/known_hosts</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`--dry-run` - Preview changes without executing them</li>
+<li><code>--dry-run</code> - Preview changes without executing them</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`-y, --yes` - Skip confirmation prompts</li>
+<li><code>-y, --yes</code> - Skip confirmation prompts</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--known-hosts <path>` - Specify custom known_hosts file location (default: ~/.ssh/known_hosts)</li>
+<li><code>--known-hosts <path></code> - Specify custom known_hosts file location (default: ~/.ssh/known_hosts)</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -158,11 +158,11 @@ wfuwp removehostkey dev -y         # No prompts for automation</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**IP address matching** - Finds keys for current environment instance IPs</li>
+<li><strong>IP address matching</strong> - Finds keys for current environment instance IPs</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Hostname matching** - Removes keys for environment-specific hostnames</li>
+<li><strong>Hostname matching</strong> - Removes keys for environment-specific hostnames</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Pattern recognition** - Identifies WFU environment naming conventions</li>
+<li><strong>Pattern recognition</strong> - Identifies WFU environment naming conventions</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -174,13 +174,13 @@ wfuwp removehostkey dev -y         # No prompts for automation</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Query AWS EC2 for current instance IPs in environment</li>
+<li>1. Query AWS EC2 for current instance IPs in environment</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Search known_hosts file for matching entries</li>
+<li>2. Search known_hosts file for matching entries</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Identify both current and potentially stale entries</li>
+<li>3. Identify both current and potentially stale entries</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Present findings for confirmation or removal</li>
+<li>4. Present findings for confirmation or removal</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -277,15 +277,15 @@ wfuwp sshaws prod</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Backup creation** - Creates backup of known_hosts before modifications</li>
+<li><strong>Backup creation</strong> - Creates backup of known_hosts before modifications</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Confirmation prompts** - Asks before removing keys (unless -y flag used)</li>
+<li><strong>Confirmation prompts</strong> - Asks before removing keys (unless -y flag used)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Dry run mode** - Preview operations with --dry-run</li>
+<li><strong>Dry run mode</strong> - Preview operations with --dry-run</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Precise matching** - Only removes keys specifically related to the environment</li>
+<li><strong>Precise matching</strong> - Only removes keys specifically related to the environment</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Error handling** - Graceful handling of missing files or permission issues</li>
+<li><strong>Error handling</strong> - Graceful handling of missing files or permission issues</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 

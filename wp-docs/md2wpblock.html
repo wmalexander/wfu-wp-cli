@@ -34,7 +34,7 @@
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`<path>` - Path to Markdown file or directory containing Markdown files</li>
+<li><code><path></code> - Path to Markdown file or directory containing Markdown files</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -98,13 +98,13 @@ wfuwp md2wpblock file.md --verbose --dry-run</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>`-o, --output <path>` - Custom output file or directory path</li>
+<li><code>-o, --output <path></code> - Custom output file or directory path</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--dry-run` - Preview conversion without creating files</li>
+<li><code>--dry-run</code> - Preview conversion without creating files</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--verbose` - Show detailed progress and file information</li>
+<li><code>--verbose</code> - Show detailed progress and file information</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>`--recursive` - Process subdirectories when converting directories</li>
+<li><code>--recursive</code> - Process subdirectories when converting directories</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -120,11 +120,11 @@ wfuwp md2wpblock file.md --verbose --dry-run</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Default**: Creates `.html` file in same directory as source</li>
+<li><strong>Default</strong>: Creates <code>.html</code> file in same directory as source</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Custom output**: Uses specified output path</li>
+<li><strong>Custom output</strong>: Uses specified output path</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Example**: `document.md` → `document.html`</li>
+<li><strong>Example</strong>: <code>document.md</code> → <code>document.html</code></li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -136,11 +136,11 @@ wfuwp md2wpblock file.md --verbose --dry-run</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Default**: Creates `.html` files alongside `.md` files</li>
+<li><strong>Default</strong>: Creates <code>.html</code> files alongside <code>.md</code> files</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Preserves structure**: Maintains directory hierarchy</li>
+<li><strong>Preserves structure</strong>: Maintains directory hierarchy</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Batch processing**: Converts all `.md` files found</li>
+<li><strong>Batch processing</strong>: Converts all <code>.md</code> files found</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -186,23 +186,23 @@ wfuwp md2wpblock file.md --verbose --dry-run</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Headers** (H1-H6) → WordPress heading blocks</li>
+<li><strong>Headers</strong> (H1-H6) → WordPress heading blocks</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Paragraphs** → WordPress paragraph blocks  </li>
+<li><strong>Paragraphs</strong> → WordPress paragraph blocks  </li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Lists** (ordered/unordered) → WordPress list blocks</li>
+<li><strong>Lists</strong> (ordered/unordered) → WordPress list blocks</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Code blocks** → WordPress code blocks</li>
+<li><strong>Code blocks</strong> → WordPress code blocks</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Inline code** → Inline code formatting</li>
+<li><strong>Inline code</strong> → Inline code formatting</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Bold/italic** → WordPress text formatting</li>
+<li><strong>Bold/italic</strong> → WordPress text formatting</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Links** → Proper link formatting</li>
+<li><strong>Links</strong> → Proper link formatting</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Images** → WordPress image blocks</li>
+<li><strong>Images</strong> → WordPress image blocks</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Blockquotes** → WordPress quote blocks</li>
+<li><strong>Blockquotes</strong> → WordPress quote blocks</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -265,11 +265,20 @@ wp-docs/
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Convert documentation**:</li>
+<li>1. <strong>Convert documentation</strong>:
+   ``<code>bash
+   wfuwp md2wpblock wp-docs/
+   </code>``</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Copy HTML content**:</li>
+<li>2. <strong>Copy HTML content</strong>:
+   - Open generated <code>.html</code> file
+   - Copy the HTML content</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Paste into WordPress**:</li>
+<li>3. <strong>Paste into WordPress</strong>:
+   - Create new post/page in WordPress
+   - Switch to "Code editor" view
+   - Paste the HTML content
+   - Switch back to "Visual editor" to see blocks</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -380,11 +389,11 @@ cat file.html</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Permission errors**: Checks read/write permissions</li>
+<li><strong>Permission errors</strong>: Checks read/write permissions</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Missing files**: Validates input file existence</li>
+<li><strong>Missing files</strong>: Validates input file existence</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Output path issues**: Creates necessary directories</li>
+<li><strong>Output path issues</strong>: Creates necessary directories</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -396,11 +405,11 @@ cat file.html</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>**Invalid Markdown**: Provides feedback on parsing problems</li>
+<li><strong>Invalid Markdown</strong>: Provides feedback on parsing problems</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Large files**: Handles large documents efficiently</li>
+<li><strong>Large files</strong>: Handles large documents efficiently</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>**Character encoding**: Preserves UTF-8 encoding</li>
+<li><strong>Character encoding</strong>: Preserves UTF-8 encoding</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -507,7 +516,7 @@ chmod 644 wp-docs/*.md</code></pre>
 <ul class="wp-block-list"><!-- wp:list-item -->
 <li>Break large files into smaller sections</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Use `--verbose` to monitor progress</li>
+<li>Use <code>--verbose</code> to monitor progress</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
 <li>Consider processing files individually for very large documents</li>
 <!-- /wp:list-item --></ul>
