@@ -1,0 +1,363 @@
+<!-- wp:heading -->
+<h1 class="wp-block-heading">syncs3 - S3 Asset Synchronization</h1>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Safely sync S3 assets (uploads, media files, etc.) for WordPress sites between different environments with validation and confirmation prompts.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Overview</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The syncs3 command synchronizes WordPress uploads and media files stored in S3 buckets between different environments. This is essential when migrating sites or testing with production-like content.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Usage</h2>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp syncs3 <site-id> <source-env> <target-env> [options]</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Parameters</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`<site-id>` - WordPress multisite ID (e.g., 43 for site wp_43_*)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`<source-env>` - Source environment (dev, uat, pprd, prod)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`<target-env>` - Target environment (dev, uat, pprd, prod)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Examples</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Basic Synchronization</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Sync site 43 from UAT to Pre-Production
+wfuwp syncs3 43 uat pprd
+
+# Sync site 12 from Production to Development
+wfuwp syncs3 12 prod dev</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Preview and Validation</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Preview changes without making them (dry run)
+wfuwp syncs3 43 uat pprd --dry-run
+
+# Show detailed file-by-file output
+wfuwp syncs3 43 uat pprd --verbose</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Automation-Friendly Options</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Skip confirmation prompts
+wfuwp syncs3 43 uat pprd --force
+
+# Combine options
+wfuwp syncs3 43 prod pprd --dry-run --verbose</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Options</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`--dry-run` - Preview changes without executing them</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--verbose` - Show detailed output including individual file operations</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--force` - Skip confirmation prompts (use with caution)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Safety Features</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Input validation** - Validates environment names and site IDs</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Confirmation prompts** - Asks before making changes (unless --force is used)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Dry run mode** - Preview operations with --dry-run before executing</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**AWS CLI verification** - Checks AWS configuration before attempting operations</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**S3 bucket validation** - Verifies source and target buckets exist and are accessible</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**File count reporting** - Shows number of files to be synchronized</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">S3 Bucket Structure</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The tool expects S3 buckets to follow WFU's standard structure:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>bucket-name/
+├── dev/
+│   ├── wp-content/uploads/sites/43/
+│   └── wp-content/uploads/sites/12/
+├── uat/
+│   ├── wp-content/uploads/sites/43/
+│   └── wp-content/uploads/sites/12/
+├── pprd/
+│   └── wp-content/uploads/sites/43/
+└── prod/
+    └── wp-content/uploads/sites/43/</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">WordPress Multisite Considerations</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Main site (ID 1)**: Uses `wp-content/uploads/` path</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Subsites (ID > 1)**: Uses `wp-content/uploads/sites/{ID}/` path</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Automatic detection**: Tool automatically determines correct paths based on site ID</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Environment isolation**: Each environment has separate S3 bucket prefixes</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Operation Details</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The syncs3 command:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Validates source and target environments</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Checks AWS CLI configuration and credentials</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Verifies S3 bucket accessibility</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Determines appropriate S3 paths based on site ID</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Shows summary of files to be synchronized</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Requests confirmation (unless --force is used)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Executes AWS S3 sync operation</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Reports results and any errors</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">AWS CLI Integration</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>This command uses the AWS CLI <code>s3 sync</code> operation with:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`--delete` flag to remove files that don't exist in source</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Progress reporting for large operations</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Automatic retry on network errors</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Preservation of file metadata and permissions</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Common Use Cases</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><strong>Before database migration:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Preview file sync
+wfuwp syncs3 43 prod pprd --dry-run
+
+# Execute file sync
+wfuwp syncs3 43 prod pprd</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Development environment refresh:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Get latest files from UAT
+wfuwp syncs3 43 uat dev --verbose</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Testing with production data:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Copy production files to pre-production
+wfuwp syncs3 43 prod pprd --force</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Prerequisites</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>AWS CLI installed and configured with WFU credentials</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>S3 bucket read/write permissions for source and target environments</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Valid environment names (dev, uat, pprd, prod)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Existing WordPress multisite with specified site ID</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Troubleshooting</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><strong>AWS credential errors:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Verify AWS CLI configuration: `aws configure list`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Check credential expiration and refresh if needed</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Ensure credentials have S3 permissions</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>S3 bucket access errors:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Verify bucket names and regions are correct</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Check that buckets exist and are accessible</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Test manual access: `aws s3 ls s3://bucket-name/environment/`</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Permission denied errors:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Ensure AWS credentials have s3:GetObject and s3:PutObject permissions</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Check bucket policies allow access from your AWS user/role</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Large file operations:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Use --verbose to monitor progress on large synchronizations</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Network timeouts may require retrying the operation</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Environment validation errors:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Ensure source and target environments are different</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Verify environment names are exactly: dev, uat, pprd, or prod</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p>For additional help: <code>wfuwp syncs3 --help</code></p>
+<!-- /wp:paragraph -->

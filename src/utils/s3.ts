@@ -8,6 +8,7 @@ interface MigrationMetadata {
   fromEnvironment: string;
   toEnvironment: string;
   timestamp: string;
+  siteName?: string;
   sourceExport?: string;
   targetBackup?: string;
   migratedExport?: string;
@@ -49,7 +50,8 @@ export class S3Operations {
       metadata.siteId,
       metadata.fromEnvironment,
       metadata.toEnvironment,
-      metadata.timestamp
+      metadata.timestamp,
+      metadata.siteName
     );
 
     const uploadedFiles: string[] = [];
@@ -125,13 +127,37 @@ export class S3Operations {
     siteId: string,
     from: string,
     to: string,
-    timestamp: string
+    timestamp: string,
+    siteName?: string
   ): string {
     const s3Config = Config.getS3Config();
     const prefix = s3Config.prefix || 'migrations';
 
-    const datePrefix = timestamp.slice(0, 10); // YYYY-MM-DD
-    return `${prefix}/${datePrefix}/${timestamp}/site${siteId}-${from}-to-${to}/`;
+    // Convert timestamp to MM-DD-YYYY format
+    // Handle timestamp format: 2025-08-08T15-56-35
+    let date: Date;
+    if (timestamp.includes('T') && timestamp.includes('-')) {
+      // Parse format like "2025-08-08T15-56-35"
+      const [datePart, timePart] = timestamp.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      date = new Date(year, month - 1, day); // month is 0-indexed
+    } else {
+      // Fallback to regular Date parsing
+      date = new Date(timestamp);
+    }
+    
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const dateStr = `${month}-${day}-${year}`;
+
+    // Use provided site name or fallback to site{ID}
+    const siteNameForPath = siteName || `site${siteId}`;
+    
+    // Create directory name: {siteName}-{siteId}-{from}-to-{to}-{date}
+    const directoryName = `${siteNameForPath}-${siteId}-${from}-to-${to}-${dateStr}`;
+    
+    return `${prefix}/${directoryName}/`;
   }
 
   static async listMigrations(siteId?: string): Promise<any[]> {

@@ -1,0 +1,442 @@
+<!-- wp:heading -->
+<h1 class="wp-block-heading">listips - List EC2 Instance IP Addresses</h1>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Display IP addresses of running EC2 instances in a specified environment, useful for SSH connections and network troubleshooting.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Overview</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The listips command queries AWS EC2 to find running instances in a specified environment and displays their IP addresses. This is particularly useful for determining which instances to connect to via SSH or for network troubleshooting.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Usage</h2>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp listips <environment> [options]</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Parameters</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`<environment>` - Target environment (dev, uat, pprd, prod)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Examples</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Basic IP Listing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># List private IPs for UAT environment
+wfuwp listips uat
+
+# List private IPs for production
+wfuwp listips prod</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Public IP Addresses</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># List public IPs for UAT environment
+wfuwp listips uat --public
+
+# List both private and public IPs
+wfuwp listips pprd --private --public</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Output Formats</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Human-readable output (default)
+wfuwp listips uat
+
+# JSON output for scripting
+wfuwp listips prod --json
+
+# JSON with both IP types
+wfuwp listips dev --json --private --public</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Options</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`--public` - Show public IP addresses instead of private</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--private` - Show private IP addresses (default behavior)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--json` - Output as JSON for scripting/automation</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Output Format</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Default (Human-readable)</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>UAT Environment EC2 Instances:
+- i-1234567890abcdef0: 10.0.1.100
+- i-0987654321fedcba0: 10.0.1.101</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">JSON Format</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>{
+  "environment": "uat",
+  "instances": [
+    {
+      "instanceId": "i-1234567890abcdef0",
+      "privateIpAddress": "10.0.1.100",
+      "publicIpAddress": "54.123.456.789"
+    },
+    {
+      "instanceId": "i-0987654321fedcba0", 
+      "privateIpAddress": "10.0.1.101",
+      "publicIpAddress": null
+    }
+  ]
+}</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Instance Discovery</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The command identifies instances by:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Running state** - Only shows instances that are currently running</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Environment tags** - Uses AWS tags to identify environment membership</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Name patterns** - Recognizes WFU naming conventions for environment identification</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Use Cases</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">SSH Connection Planning</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Find instances to SSH into
+wfuwp listips uat
+wfuwp sshaws uat  # Use discovered IPs for SSH</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Network Troubleshooting</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Check public connectivity
+wfuwp listips prod --public
+
+# Verify private network setup
+wfuwp listips dev --private</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Automation and Scripting</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Get JSON for scripts
+INSTANCES=$(wfuwp listips prod --json)
+echo $INSTANCES | jq '.instances[0].privateIpAddress'</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Load Balancer Configuration</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># List all instances in environment for load balancer setup
+wfuwp listips pprd --json --private --public</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Environment Validation</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The command validates that:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Environment name is one of: dev, uat, pprd, prod</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>AWS CLI is configured and accessible</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>AWS credentials have EC2 describe permissions</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">AWS Permissions Required</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The command requires these AWS IAM permissions:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`ec2:DescribeInstances` - To list and filter EC2 instances</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`ec2:DescribeTags` - To identify instances by environment tags</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Integration with Other Commands</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">With SSH Commands</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># List IPs then SSH
+wfuwp listips uat
+wfuwp sshaws uat</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">With Host Key Management</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># List IPs to know which host keys to remove
+wfuwp listips prod --public
+wfuwp removehostkey prod</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">With Network Configuration</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Get IPs for DNS spoofing
+wfuwp listips dev --public
+sudo wfuwp spoof mysite --env dev</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Common Scenarios</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Multi-Instance Environments</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Production with multiple instances
+wfuwp listips prod --json</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Development Environment Check</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Quick check of dev environment
+wfuwp listips dev --private --public</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Public Access Verification</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Check which instances have public IPs
+wfuwp listips uat --public</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Error Handling</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><strong>No instances found:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Verifies environment has running EC2 instances</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Checks if instances are properly tagged</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Suggests checking environment name spelling</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>AWS credential issues:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Validates AWS CLI configuration</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Checks credential expiration</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Provides guidance for credential refresh</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Permission errors:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Identifies missing EC2 permissions</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Suggests required IAM policies</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Provides AWS documentation links</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Troubleshooting</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><strong>Empty results:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Verify instances are in "running" state</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Check environment tags match expected values</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Confirm AWS region is correct</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Connection timeouts:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Check internet connectivity</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Verify AWS CLI configuration: `aws configure list`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Test basic AWS access: `aws ec2 describe-regions`</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Permission denied:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Ensure AWS credentials have EC2 read permissions</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Check IAM policies include `ec2:DescribeInstances`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Verify credentials haven't expired</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p>For detailed help: <code>wfuwp listips --help</code></p>
+<!-- /wp:paragraph -->

@@ -19,94 +19,16 @@ Prerequisites:
 
 **Environments supported**: dev, uat, pprd, prod
 
-### syncs3 - Sync S3 Assets Between Environments
+### Command Reference
 
-Safely sync S3 assets (uploads, media files, etc.) for WordPress sites between different environments with validation and confirmation prompts.
-
-**Usage:** `wfuwp syncs3 <site-id> <source-env> <target-env> [options]`
-
-**Examples:**
-
-- Basic sync with confirmation: `wfuwp syncs3 43 uat pprd`
-- Preview changes (dry run): `wfuwp syncs3 43 uat pprd --dry-run`
-- Show detailed output: `wfuwp syncs3 43 uat pprd --verbose`
-- Skip confirmation: `wfuwp syncs3 43 uat pprd --force`
-
-### listips - List EC2 Instance IP Addresses
-
-Display IP addresses of running EC2 instances in a specified environment, useful for SSH connections and network troubleshooting.
-
-**Usage:** `wfuwp listips <environment> [options]`
-
-**Examples:**
-
-- List private IPs: `wfuwp listips uat`
-- List public IPs: `wfuwp listips uat --public`
-- Output as JSON: `wfuwp listips prod --json`
-- Show both private and public: `wfuwp listips pprd --private --public`
-
-### sshaws - SSH Into EC2 Instances
-
-Easily SSH into EC2 instances in any environment with automatic key management and connection handling.
-
-**Usage:** `wfuwp sshaws <environment> [options]`
-
-**Examples:**
-
-- Connect to first instance: `wfuwp sshaws uat`
-- Connect to all instances: `wfuwp sshaws prod --all`
-- List instances without connecting: `wfuwp sshaws dev --list`
-- Use custom SSH key: `wfuwp sshaws uat --key ~/.ssh/my_key`
-- Preview SSH commands: `wfuwp sshaws pprd --dry-run`
-
-### removehostkey - Clean Up SSH Host Keys
-
-Remove SSH host keys for EC2 instances when IP addresses change, preventing "host key verification failed" errors.
-
-**Usage:** `wfuwp removehostkey <environment> [options]`
-
-**Examples:**
-
-- Remove host keys: `wfuwp removehostkey uat`
-- Preview what would be removed: `wfuwp removehostkey prod --dry-run`
-- Skip confirmation: `wfuwp removehostkey dev -y`
-- Use custom known_hosts file: `wfuwp removehostkey pprd --known-hosts ~/.ssh/custom_hosts`
-
-### spoof - DNS Spoofing for Testing
-
-Spoof DNS for a WFU subdomain by adding entries to /etc/hosts. This allows you to test sites before DNS changes take effect.
-
-**Usage:** `sudo wfuwp spoof <subdomain> [options]`
-
-**Examples:**
-
-- Spoof main domain: `sudo wfuwp spoof shoes` (creates shoes.wfu.edu)
-- Spoof dev environment: `sudo wfuwp spoof tennis --env dev` (creates tennis.dev.wfu.edu)
-- Spoof any subdomain: `sudo wfuwp spoof mysite` (creates mysite.wfu.edu)
-
-### unspoof - Remove DNS Spoofing
-
-Remove all WFU DNS spoofing entries from /etc/hosts to restore normal DNS resolution.
-
-**Usage:** `sudo wfuwp unspoof`
-
-**Examples:**
-
-- Remove all spoofed entries: `sudo wfuwp unspoof`
-
-### md2wpblock - Convert Markdown to WordPress Block HTML
-
-Convert Markdown files to WordPress block editor HTML format for easy publishing. Supports both single files and batch processing of directories.
-
-**Usage:** `wfuwp md2wpblock <path> [options]`
-
-**Examples:**
-
-- Convert single file: `wfuwp md2wpblock document.md`
-- Convert all .md files in directory: `wfuwp md2wpblock wp-docs/`
-- Custom output name: `wfuwp md2wpblock file.md -o custom.html`
-- Preview changes (dry run): `wfuwp md2wpblock directory/ --dry-run`
-- Show detailed progress: `wfuwp md2wpblock file.md --verbose`
+- **[migrate](migrate.md)** - Complete WordPress multisite database migration with automated export/import/archival
+- **[config](config.md)** - Multi-environment configuration management with interactive wizard  
+- **[syncs3](syncs3.md)** - Sync S3 assets (uploads, media files, etc.) between WordPress environments
+- **[listips](listips.md)** - Display IP addresses of running EC2 instances in specified environments
+- **[sshaws](sshaws.md)** - SSH into EC2 instances with automatic key management and connection handling
+- **[spoof/unspoof](spoof-unspoof.md)** - DNS spoofing for testing sites before DNS changes take effect
+- **[removehostkey](removehostkey.md)** - Clean up SSH host keys when EC2 IP addresses change
+- **[md2wpblock](md2wpblock.md)** - Convert Markdown files to WordPress block editor HTML format
 
 ## Safety Features
 

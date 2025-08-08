@@ -1,0 +1,520 @@
+<!-- wp:heading -->
+<h1 class="wp-block-heading">md2wpblock - Convert Markdown to WordPress Block HTML</h1>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Convert Markdown files to WordPress block editor HTML format for easy publishing. Supports both single files and batch processing of directories.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Overview</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The md2wpblock command converts Markdown files into WordPress block editor (Gutenberg) HTML format, making it easy to publish documentation and content to WordPress sites. The converted HTML is optimized for WordPress's block-based editor.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Usage</h2>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp md2wpblock <path> [options]</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Parameters</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`<path>` - Path to Markdown file or directory containing Markdown files</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Examples</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Single File Conversion</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Convert a single Markdown file
+wfuwp md2wpblock document.md
+
+# Convert with custom output name
+wfuwp md2wpblock README.md -o readme.html
+
+# Convert with specific output directory
+wfuwp md2wpblock guide.md -o wp-content/guide.html</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Directory Processing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Convert all .md files in a directory
+wfuwp md2wpblock wp-docs/
+
+# Process subdirectories recursively
+wfuwp md2wpblock documentation/ --recursive
+
+# Convert with detailed progress
+wfuwp md2wpblock docs/ --verbose</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Preview and Testing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Preview changes without creating files (dry run)
+wfuwp md2wpblock directory/ --dry-run
+
+# Show detailed processing information
+wfuwp md2wpblock file.md --verbose --dry-run</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Options</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`-o, --output <path>` - Custom output file or directory path</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--dry-run` - Preview conversion without creating files</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--verbose` - Show detailed progress and file information</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--recursive` - Process subdirectories when converting directories</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Output Behavior</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Single File</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Default**: Creates `.html` file in same directory as source</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Custom output**: Uses specified output path</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Example**: `document.md` → `document.html`</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Directory Processing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Default**: Creates `.html` files alongside `.md` files</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Preserves structure**: Maintains directory hierarchy</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Batch processing**: Converts all `.md` files found</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">WordPress Block Format</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Generated HTML Structure</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The tool converts Markdown to WordPress-compatible block HTML:</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code><!-- wp:heading -->
+<h2>Your Heading</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Your paragraph content with <strong>formatting</strong>.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul><li>List item 1</li><li>List item 2</li></ul>
+<!-- /wp:list -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>code example</code></pre>
+<!-- /wp:code --></code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Supported Markdown Elements</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Headers** (H1-H6) → WordPress heading blocks</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Paragraphs** → WordPress paragraph blocks  </li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Lists** (ordered/unordered) → WordPress list blocks</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Code blocks** → WordPress code blocks</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Inline code** → Inline code formatting</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Bold/italic** → WordPress text formatting</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Links** → Proper link formatting</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Images** → WordPress image blocks</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Blockquotes** → WordPress quote blocks</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">File Management</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Output File Naming</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Single file
+document.md → document.html
+
+# Custom output
+document.md -o custom.html → custom.html
+
+# Directory processing  
+docs/guide.md → docs/guide.html
+docs/api.md → docs/api.html</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Directory Structure Preservation</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Input structure
+wp-docs/
+├── README.md
+├── commands/
+│   ├── migrate.md
+│   └── config.md
+
+# Output structure (after processing)
+wp-docs/
+├── README.md
+├── README.html          # Generated
+├── commands/
+│   ├── migrate.md
+│   ├── migrate.html     # Generated
+│   ├── config.md
+│   └── config.html      # Generated</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">WordPress Integration</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Publishing Workflow</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Convert documentation**:</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Copy HTML content**:</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Paste into WordPress**:</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Block Editor Compatibility</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Generated HTML is fully compatible with WordPress 5.0+ block editor</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Blocks appear properly formatted in the visual editor</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Can be edited using standard WordPress block controls</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Maintains formatting when switching between visual and code editors</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Common Use Cases</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Documentation Publishing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Convert project documentation for WordPress
+wfuwp md2wpblock docs/ --verbose
+
+# Process README files
+wfuwp md2wpblock README.md -o wp-readme.html</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Batch Content Creation</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Convert all markdown files in current directory
+wfuwp md2wpblock . --recursive
+
+# Preview before conversion
+wfuwp md2wpblock articles/ --dry-run --verbose</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Automated Workflows</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>#!/bin/bash
+# Update documentation workflow
+echo "Converting documentation to WordPress format..."
+wfuwp md2wpblock wp-docs/ --verbose
+
+echo "Upload the following files to WordPress:"
+find wp-docs/ -name "*.html" -type f</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Quality Assurance</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Dry Run Validation</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Check what will be converted
+wfuwp md2wpblock docs/ --dry-run</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Output Verification</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Convert with detailed logging
+wfuwp md2wpblock file.md --verbose
+
+# Check generated file
+cat file.html</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Error Handling</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">File Access Issues</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Permission errors**: Checks read/write permissions</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Missing files**: Validates input file existence</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Output path issues**: Creates necessary directories</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Conversion Issues</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Invalid Markdown**: Provides feedback on parsing problems</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Large files**: Handles large documents efficiently</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Character encoding**: Preserves UTF-8 encoding</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Advanced Features</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Recursive Processing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Process entire directory tree
+wfuwp md2wpblock content/ --recursive --verbose</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Custom Output Locations</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Organize output files
+wfuwp md2wpblock source.md -o ../wordpress-content/formatted.html</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Automation Integration</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Git hook for automatic conversion
+#!/bin/bash
+if git diff --name-only | grep -q "\.md$"; then
+    echo "Markdown files changed, converting..."
+    wfuwp md2wpblock wp-docs/ --verbose
+fi</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Troubleshooting</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">No Output Generated</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Check input file exists
+ls -la source.md
+
+# Verify file has content
+wc -l source.md
+
+# Test with verbose output
+wfuwp md2wpblock source.md --verbose</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">WordPress Block Issues</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Ensure WordPress site is using block editor (Gutenberg)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Check that custom blocks/plugins don't conflict</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Test with simple content first</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">File Permission Problems</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Check directory permissions
+ls -la wp-docs/
+
+# Fix permissions if needed
+chmod 755 wp-docs/
+chmod 644 wp-docs/*.md</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Large File Processing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Break large files into smaller sections</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Use `--verbose` to monitor progress</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Consider processing files individually for very large documents</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p>For detailed help: <code>wfuwp md2wpblock --help</code></p>
+<!-- /wp:paragraph -->

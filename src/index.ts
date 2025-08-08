@@ -11,6 +11,7 @@ import { unspoofCommand } from './commands/unspoof';
 import { configCommand } from './commands/config';
 import { migrateCommand } from './commands/migrate';
 import { md2wpblockCommand } from './commands/md2wpblock';
+import { restoreCommand } from './commands/restore';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -35,6 +36,7 @@ program.addCommand(unspoofCommand);
 program.addCommand(configCommand);
 program.addCommand(migrateCommand);
 program.addCommand(md2wpblockCommand);
+program.addCommand(restoreCommand);
 
 program
   .command('help')

@@ -1,0 +1,478 @@
+<!-- wp:heading -->
+<h1 class="wp-block-heading">spoof/unspoof - DNS Spoofing for Testing</h1>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>DNS spoofing commands for testing websites before DNS changes take effect by modifying the local <code>/etc/hosts</code> file.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Overview</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The spoof and unspoof commands allow you to test WFU WordPress sites locally before DNS changes are implemented. This is essential for testing site deployments, SSL certificates, and functionality in a production-like environment.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Commands</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">spoof - Add DNS Spoofing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>sudo wfuwp spoof <subdomain> [options]</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">unspoof - Remove DNS Spoofing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>sudo wfuwp unspoof</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Why sudo is Required</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>These commands modify the system <code>/etc/hosts</code> file, which requires administrator privileges. The <code>sudo</code> prefix is mandatory for both commands.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">spoof Command</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Usage</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>sudo wfuwp spoof <subdomain> [options]</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Parameters</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`<subdomain>` - The subdomain to spoof (e.g., 'mysite' creates mysite.wfu.edu)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Examples</h3>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading">Production Domain Spoofing</h4>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Spoof shoes.wfu.edu to point to development server
+sudo wfuwp spoof shoes
+
+# Spoof tennis.wfu.edu to point to development server
+sudo wfuwp spoof tennis</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading">Development Environment Spoofing</h4>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Spoof tennis.dev.wfu.edu to point to development server
+sudo wfuwp spoof tennis --env dev
+
+# Spoof mysite.uat.wfu.edu to point to development server
+sudo wfuwp spoof mysite --env uat</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Options</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`--env <environment>` - Target environment (dev, uat, pprd). Default: production (no subdomain)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Domain Creation Logic</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Without --env**: Creates `{subdomain}.wfu.edu`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**With --env dev**: Creates `{subdomain}.dev.wfu.edu`  </li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**With --env uat**: Creates `{subdomain}.uat.wfu.edu`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**With --env pprd**: Creates `{subdomain}.pprd.wfu.edu`</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">unspoof Command</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Usage</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>sudo wfuwp unspoof</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Function</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Removes all WFU-related DNS spoofing entries from <code>/etc/hosts</code>, restoring normal DNS resolution for all WFU domains.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Examples</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Remove all spoofed WFU domains
+sudo wfuwp unspoof</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">How DNS Spoofing Works</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">/etc/hosts File</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The commands modify <code>/etc/hosts</code> to redirect domain names to your development server:</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Added by wfuwp spoof command
+127.0.0.1 shoes.wfu.edu
+127.0.0.1 tennis.dev.wfu.edu  </code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">IP Address Target</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>By default, spoofed domains point to <code>127.0.0.1</code> (localhost). This assumes you're running a local development server that can handle the spoofed domain requests.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Common Workflows</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Testing New Site Deployment</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># 1. Spoof the domain
+sudo wfuwp spoof newsite
+
+# 2. Test the site in browser at newsite.wfu.edu
+# (Your local development server should handle this)
+
+# 3. Remove spoofing when done
+sudo wfuwp unspoof</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Pre-Launch Testing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># 1. Spoof production domain to test locally
+sudo wfuwp spoof mysite
+
+# 2. Test SSL certificates, functionality, etc.
+# Visit mysite.wfu.edu in browser
+
+# 3. Clean up when testing complete
+sudo wfuwp unspoof</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Environment-Specific Testing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Test UAT subdomain locally  
+sudo wfuwp spoof testsite --env uat
+# Now testsite.uat.wfu.edu points to localhost
+
+# Test in browser, then clean up
+sudo wfuwp unspoof</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Integration with Development Setup</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Local WordPress Development</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Set up local WordPress multisite
+# Configure virtual hosts for spoofed domains
+# Spoof domain for testing
+sudo wfuwp spoof mysite
+
+# Test at mysite.wfu.edu
+# Should hit your local development server</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">SSL Certificate Testing</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Spoof domain to test SSL certificates
+sudo wfuwp spoof secursite
+
+# Test HTTPS at https://secursite.wfu.edu
+# Verify certificates work with spoofed domain</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Safety Features</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Backup creation** - Creates backup of original `/etc/hosts` before modifications</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**WFU domain filtering** - Only affects WFU-related domains, leaves other entries intact</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Clean removal** - `unspoof` removes only WFU entries added by the tool</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Validation** - Checks subdomain format and prevents invalid entries</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">File Management</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Backup Behavior</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Creates timestamped backup: `/etc/hosts.wfuwp-backup-YYYYMMDD-HHMMSS`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Preserves existing `/etc/hosts` entries</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Allows manual recovery if needed</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Entry Format</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Added by wfuwp spoof command - [timestamp]
+127.0.0.1 subdomain.wfu.edu
+# End wfuwp spoof entries</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Troubleshooting</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Permission Errors</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Ensure using sudo
+sudo wfuwp spoof mysite
+
+# Check file permissions
+ls -la /etc/hosts</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">DNS Not Working</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Clear DNS cache after spoofing
+sudo dscacheutil -flushcache  # macOS
+sudo systemctl restart systemd-resolved  # Linux</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Browser Cache Issues</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Clear browser cache after spoofing/unspoofing</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Use private/incognito mode for testing</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Check browser developer tools for cached redirects</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Verification</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Check if spoofing worked
+nslookup mysite.wfu.edu
+# Should show 127.0.0.1
+
+# Or check hosts file directly
+cat /etc/hosts | grep wfu.edu</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Local Server Not Responding</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Ensure local development server is running</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Configure server to handle spoofed domain names</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Check virtual host configuration matches spoofed domains</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Important Notes</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Production Safety</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Only affects local machine** - DNS spoofing doesn't affect other users</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Temporary testing** - Always run `unspoof` when testing is complete</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**No production impact** - Changes only local DNS resolution</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Development Environment</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Configure local server to handle spoofed domain requests</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Set up SSL certificates for HTTPS testing if needed</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Ensure WordPress multisite can handle the spoofed domain names</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Team Coordination</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Document which domains are being spoofed during testing</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Communicate testing periods to avoid confusion</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Use version control for development server configuration changes</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p>For detailed help: <code>wfuwp spoof --help</code> or <code>wfuwp unspoof --help</code></p>
+<!-- /wp:paragraph -->

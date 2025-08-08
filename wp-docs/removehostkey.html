@@ -1,0 +1,495 @@
+<!-- wp:heading -->
+<h1 class="wp-block-heading">removehostkey - Clean Up SSH Host Keys</h1>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Remove SSH host keys for EC2 instances when IP addresses change, preventing "host key verification failed" errors.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Overview</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The removehostkey command cleans up SSH host keys from your <code>~/.ssh/known_hosts</code> file when EC2 instances are recreated or IP addresses change. This prevents the common "host key verification failed" error that blocks SSH connections.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Usage</h2>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp removehostkey <environment> [options]</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Parameters</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`<environment>` - Target environment (dev, uat, pprd, prod)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Examples</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Basic Host Key Removal</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Remove host keys for UAT environment
+wfuwp removehostkey uat
+
+# Remove host keys for production
+wfuwp removehostkey prod</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Preview and Automation</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Preview what would be removed (dry run)
+wfuwp removehostkey prod --dry-run
+
+# Skip confirmation prompts
+wfuwp removehostkey dev -y
+
+# Combine options
+wfuwp removehostkey uat --dry-run -y</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Custom Known Hosts File</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Use custom known_hosts file location
+wfuwp removehostkey pprd --known-hosts ~/.ssh/custom_hosts
+
+# Work with specific file
+wfuwp removehostkey dev --known-hosts /path/to/ssh/known_hosts</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Options</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`--dry-run` - Preview changes without executing them</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`-y, --yes` - Skip confirmation prompts</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--known-hosts <path>` - Specify custom known_hosts file location (default: ~/.ssh/known_hosts)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">When to Use</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Common Scenarios</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><strong>After EC2 instance recreation:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Instances recreated, SSH fails with host key errors
+wfuwp removehostkey prod
+wfuwp sshaws prod  # Should work now</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>IP address changes:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Infrastructure changes caused IP reassignment
+wfuwp removehostkey uat --dry-run  # See what would be removed
+wfuwp removehostkey uat            # Clean up old keys</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Deployment automation:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Clean slate for automated deployments
+wfuwp removehostkey dev -y         # No prompts for automation</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Host Key Discovery</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The command identifies host keys by:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**IP address matching** - Finds keys for current environment instance IPs</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Hostname matching** - Removes keys for environment-specific hostnames</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Pattern recognition** - Identifies WFU environment naming conventions</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Key Identification Process</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Query AWS EC2 for current instance IPs in environment</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Search known_hosts file for matching entries</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Identify both current and potentially stale entries</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Present findings for confirmation or removal</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Output Examples</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Dry Run Output</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>$ wfuwp removehostkey uat --dry-run
+Found host keys to remove from ~/.ssh/known_hosts:
+- 10.0.1.100 (line 15)
+- 10.0.1.101 (line 23)  
+- old-uat-host.wfu.edu (line 8)
+
+Would remove 3 host key entries.</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Normal Operation</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>$ wfuwp removehostkey prod
+Found 2 host keys for production environment.
+Remove these host keys? (y/N): y
+Removed 2 host key entries from ~/.ssh/known_hosts</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">No Keys Found</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>$ wfuwp removehostkey dev
+No host keys found for dev environment in ~/.ssh/known_hosts</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Integration with SSH Workflow</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Typical Troubleshooting Sequence</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># SSH connection fails with host key error
+wfuwp sshaws uat
+# Error: Host key verification failed
+
+# Clean up old keys
+wfuwp removehostkey uat
+
+# Retry SSH connection
+wfuwp sshaws uat
+# Should work now</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">With Other Commands</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Check current IPs
+wfuwp listips prod
+
+# Clean up old host keys
+wfuwp removehostkey prod --dry-run
+wfuwp removehostkey prod
+
+# Connect with clean slate
+wfuwp sshaws prod</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Safety Features</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Backup creation** - Creates backup of known_hosts before modifications</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Confirmation prompts** - Asks before removing keys (unless -y flag used)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Dry run mode** - Preview operations with --dry-run</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Precise matching** - Only removes keys specifically related to the environment</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Error handling** - Graceful handling of missing files or permission issues</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">File Management</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Backup Behavior</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Automatic backup created
+~/.ssh/known_hosts.wfuwp-backup-20240315-143022</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Known Hosts File Format</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The command works with standard SSH known_hosts format:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>10.0.1.100 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC...
+[10.0.1.101]:22 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXN...
+hostname.wfu.edu ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAA...</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Error Handling</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Missing Known Hosts File</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Creates empty file if none exists
+# No error if file doesn't exist initially</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Permission Issues</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Checks file permissions
+# Provides guidance for fixing permission problems
+chmod 644 ~/.ssh/known_hosts</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">AWS Connection Problems</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Validates AWS connectivity before proceeding
+# Provides clear error messages for credential issues</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Advanced Usage</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Automation Scripts</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>#!/bin/bash
+# Deployment script with host key cleanup
+wfuwp removehostkey prod -y --dry-run > /tmp/keys_to_remove.log
+if [ -s /tmp/keys_to_remove.log ]; then
+    wfuwp removehostkey prod -y
+fi
+wfuwp sshaws prod --dry-run  # Test connection</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Custom SSH Configurations</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># For custom SSH config with specific known_hosts
+wfuwp removehostkey uat --known-hosts ~/.ssh/project_known_hosts</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Batch Operations</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Clean all environments (be careful!)
+for env in dev uat pprd prod; do
+    wfuwp removehostkey $env -y
+done</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Common Error Messages</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">"Host key verification failed"</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># This is the error that removehostkey fixes
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+# Solution:
+wfuwp removehostkey <environment></code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">"No instances found"</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Check environment name spelling (dev, uat, pprd, prod)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Verify AWS credentials have EC2 describe permissions</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Ensure instances exist in the specified environment</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Troubleshooting</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">SSH Still Failing After Key Removal</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Check if connection works now
+wfuwp sshaws env --dry-run
+
+# Verify instances are accessible
+wfuwp listips env --public
+
+# Check SSH key permissions
+ls -la ~/.ssh/</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Keys Not Found</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Check current known_hosts content
+cat ~/.ssh/known_hosts | grep -E "(10\.|prod|uat|pprd|dev)"
+
+# Verify instances are running
+wfuwp listips env</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">File Permission Errors</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Fix known_hosts permissions
+chmod 644 ~/.ssh/known_hosts
+chmod 700 ~/.ssh/
+
+# Verify ownership
+ls -la ~/.ssh/known_hosts</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p>For detailed help: <code>wfuwp removehostkey --help</code></p>
+<!-- /wp:paragraph -->

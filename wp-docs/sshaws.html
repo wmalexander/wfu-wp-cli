@@ -1,0 +1,500 @@
+<!-- wp:heading -->
+<h1 class="wp-block-heading">sshaws - SSH Into EC2 Instances</h1>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Easily SSH into EC2 instances in any environment with automatic key management and connection handling.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Overview</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The sshaws command simplifies SSH connections to EC2 instances by automatically discovering instances in specified environments, handling SSH keys, and managing connections. No need to manually look up IP addresses or manage SSH key paths.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Usage</h2>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp sshaws <environment> [options]</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Parameters</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`<environment>` - Target environment (dev, uat, pprd, prod)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Examples</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Basic SSH Connection</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Connect to first instance in UAT
+wfuwp sshaws uat
+
+# Connect to first instance in production  
+wfuwp sshaws prod</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Multiple Instance Handling</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Connect to all instances (opens separate terminals)
+wfuwp sshaws prod --all
+
+# List instances without connecting
+wfuwp sshaws dev --list</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Connection Options</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Use custom SSH key
+wfuwp sshaws uat --key ~/.ssh/my_custom_key
+
+# Preview SSH commands without executing
+wfuwp sshaws pprd --dry-run
+
+# Connect using specific username
+wfuwp sshaws dev --user ubuntu</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Options</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`--all` - Connect to all running instances in environment</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--list` - List available instances without connecting</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--key <path>` - Use specific SSH private key file</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--user <username>` - SSH username (default: ec2-user)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`--dry-run` - Show SSH commands without executing them</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">SSH Key Management</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Automatic Key Discovery</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The tool automatically searches for SSH keys in standard locations:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>`~/.ssh/id_rsa`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`~/.ssh/id_ed25519`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`~/.ssh/{environment}-key`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>`~/.ssh/{environment}.pem`</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Custom Key Specification</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Use environment-specific key
+wfuwp sshaws prod --key ~/.ssh/prod-key.pem
+
+# Use personal key
+wfuwp sshaws dev --key ~/.ssh/my_personal_key</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Multiple Instance Behavior</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Single Instance (Default)</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Connects to the first available instance in the environment.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">All Instances (--all flag)</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp sshaws prod --all</code></pre>
+<!-- /wp:code -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Opens separate terminal windows/tabs for each instance</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Useful for environments with multiple load-balanced servers</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Each connection runs independently</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Instance Selection</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>When multiple instances exist, the tool:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Lists all available instances</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Connects to first instance by default</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Allows --all flag for multiple connections</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Shows instance IDs and IP addresses for reference</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Connection Process</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Discovery** - Finds running EC2 instances in specified environment</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Key location** - Identifies appropriate SSH key file</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Connection** - Establishes SSH connection with proper parameters</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Error handling** - Provides clear feedback on connection issues</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Output Examples</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Listing Instances</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>$ wfuwp sshaws uat --list
+UAT Environment EC2 Instances:
+- i-1234567890abcdef0: 10.0.1.100 (ec2-user@10.0.1.100)
+- i-0987654321fedcba0: 10.0.1.101 (ec2-user@10.0.1.101)</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Dry Run Output</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>$ wfuwp sshaws prod --dry-run
+Would execute: ssh -i ~/.ssh/prod-key.pem ec2-user@54.123.456.789</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Successful Connection</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>$ wfuwp sshaws uat
+Connecting to UAT instance i-1234567890abcdef0 (10.0.1.100)...
+[SSH connection opens]</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Environment Integration</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">With Other Commands</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Check instance IPs first
+wfuwp listips uat
+
+# Then connect
+wfuwp sshaws uat
+
+# Clean up host keys if needed
+wfuwp removehostkey uat</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Workflow Integration</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Typical deployment workflow
+wfuwp syncs3 43 uat prod          # Sync files
+wfuwp migrate 43 --from uat --to prod  # Migrate database
+wfuwp sshaws prod                 # Connect to verify deployment</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Security Features</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>**Key validation** - Verifies SSH key file exists and has proper permissions</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Connection security** - Uses standard SSH security practices</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**No credential storage** - Relies on local SSH key files, no password storage</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>**Permission checking** - Validates SSH key permissions (600/400)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Common Use Cases</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Server Maintenance</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Connect to production for maintenance
+wfuwp sshaws prod</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Log Checking</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Connect to check application logs
+wfuwp sshaws uat --dry-run  # Preview connection
+wfuwp sshaws uat           # Connect and check logs</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Multi-Server Operations</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Connect to all instances for cluster operations
+wfuwp sshaws prod --all</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Troubleshooting</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># List instances to see what's available
+wfuwp sshaws dev --list
+
+# Connect with specific key if default fails
+wfuwp sshaws dev --key ~/.ssh/debug-key.pem</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Prerequisites</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>SSH client installed (standard on macOS/Linux)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>AWS CLI configured with appropriate credentials</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>SSH private key files with correct permissions (600 or 400)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>EC2 instances configured to accept SSH connections</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Error Handling</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><strong>No instances found:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Checks if environment has running instances</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Verifies environment name is correct</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Suggests using `wfuwp listips <env>` to verify instances</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>SSH key issues:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Validates key file existence</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Checks key file permissions</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Provides guidance on fixing permission problems</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Connection failures:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Suggests running `wfuwp removehostkey <env>` for host key issues</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Checks security group configurations</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Provides network troubleshooting steps</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Troubleshooting</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><strong>Host key verification failed:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp removehostkey uat  # Clean up old keys
+wfuwp sshaws uat         # Retry connection</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Permission denied (publickey):</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Verify SSH key path: `wfuwp sshaws uat --key ~/.ssh/correct-key.pem`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Check key permissions: `chmod 600 ~/.ssh/your-key.pem`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Confirm key is associated with EC2 instances</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Connection timeout:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Check instance status: `wfuwp listips uat`</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Verify security groups allow SSH (port 22)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Confirm network connectivity</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Multiple key files:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Specify exact key to use
+wfuwp sshaws prod --key ~/.ssh/prod-specific-key.pem</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p>For detailed help: <code>wfuwp sshaws --help</code></p>
+<!-- /wp:paragraph -->

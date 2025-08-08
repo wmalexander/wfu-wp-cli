@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import { existsSync, mkdirSync } from 'fs';
 import { join, dirname, basename, resolve } from 'path';
 import { Config } from '../utils/config';
+import { FileNaming } from '../utils/file-naming';
 
 interface MigrateOptions {
   from: string;
@@ -232,15 +233,21 @@ async function runCompleteMigration(
 
   const sqlFiles: string[] = [];
 
+  // Get site name for better file naming
+  const siteName = await FileNaming.getSiteName(siteId, options.from);
+  console.log(chalk.cyan(`Site: ${siteName} (ID: ${siteId})`));
+
   try {
     // Step 1: Export from source environment
     console.log(
       chalk.blue('Step 1: Exporting tables from source environment...')
     );
-    const sourceFile = join(
-      workDir,
-      `source-site${siteId}-${options.from}.sql`
-    );
+    const sourceFile = FileNaming.generateFilePath(workDir, {
+      siteId,
+      environment: options.from,
+      purpose: 'initial-export',
+      siteName
+    });
 
     if (!options.dryRun) {
       const timeoutMinutes = parseInt(options.timeout || '20', 10);
@@ -294,7 +301,12 @@ async function runCompleteMigration(
     let backupFile = '';
     if (!options.skipBackup) {
       console.log(chalk.blue('Step 4: Backing up existing target tables...'));
-      backupFile = join(workDir, `backup-site${siteId}-${options.to}.sql`);
+      backupFile = FileNaming.generateFilePath(workDir, {
+        siteId,
+        environment: options.to,
+        purpose: 'backup-export',
+        siteName
+      });
 
       if (!options.dryRun) {
         const timeoutMinutes = parseInt(options.timeout || '20', 10);
@@ -322,7 +334,12 @@ async function runCompleteMigration(
 
     // Step 5: Export migrated tables
     console.log(chalk.blue('Step 5: Exporting migrated tables...'));
-    const migratedFile = join(workDir, `migrated-site${siteId}.sql`);
+    const migratedFile = FileNaming.generateFilePath(workDir, {
+      siteId,
+      environment: options.to, // Target environment for migrated export
+      purpose: 'migrated-export',
+      siteName
+    });
 
     if (!options.dryRun) {
       const timeoutMinutes = parseInt(options.timeout || '20', 10);
@@ -407,6 +424,7 @@ async function runCompleteMigration(
           fromEnvironment: options.from,
           toEnvironment: options.to,
           timestamp,
+          siteName,
           sourceExport: sourceFile,
           targetBackup: backupFile,
           migratedExport: migratedFile,
