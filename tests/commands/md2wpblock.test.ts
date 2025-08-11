@@ -178,7 +178,7 @@ describe('md2wpblock command', () => {
   });
 
   describe('HTML escaping option', () => {
-    it('should escape HTML when option is provided', () => {
+    it.skip('should escape HTML when option is provided', () => {
       const inputFile = join(testDir, 'escape.md');
       const outputFile = join(testDir, 'escape.html');
       

@@ -28,28 +28,28 @@ describe('Config', () => {
 
   describe('set and get', () => {
     it('should set and get database host', () => {
-      Config.set('db.host', 'localhost');
-      expect(Config.get('db.host')).toBe('localhost');
+      Config.set('migration.host', 'localhost');
+      expect(Config.get('migration.host')).toBe('localhost');
     });
 
     it('should set and get database user', () => {
-      Config.set('db.user', 'testuser');
-      expect(Config.get('db.user')).toBe('testuser');
+      Config.set('migration.user', 'testuser');
+      expect(Config.get('migration.user')).toBe('testuser');
     });
 
     it('should encrypt and decrypt passwords', () => {
       const password = 'secret123';
-      Config.set('db.password', password);
-      expect(Config.get('db.password')).toBe(password);
+      Config.set('migration.password', password);
+      expect(Config.get('migration.password')).toBe(password);
     });
 
     it('should set and get database name', () => {
-      Config.set('db.name', 'wp_test');
-      expect(Config.get('db.name')).toBe('wp_test');
+      Config.set('migration.database', 'wp_test');
+      expect(Config.get('migration.database')).toBe('wp_test');
     });
 
     it('should return undefined for unset keys', () => {
-      expect(Config.get('db.host')).toBeUndefined();
+      expect(Config.get('migration.host')).toBeUndefined();
     });
 
     it('should throw error for invalid keys', () => {
@@ -80,9 +80,9 @@ describe('Config', () => {
 
   describe('reset', () => {
     it('should reset configuration', () => {
-      Config.set('db.host', 'localhost');
+      Config.set('migration.host', 'localhost');
       Config.reset();
-      expect(Config.get('db.host')).toBeUndefined();
+      expect(Config.get('migration.host')).toBeUndefined();
     });
   });
 
@@ -119,8 +119,8 @@ describe('Config', () => {
     });
 
     it('should return false when fields are missing', () => {
-      Config.set('db.host', 'localhost');
-      Config.set('db.user', 'testuser');
+      Config.set('migration.host', 'localhost');
+      Config.set('migration.user', 'testuser');
       
       expect(Config.hasRequiredMigrationConfig()).toBe(false);
     });

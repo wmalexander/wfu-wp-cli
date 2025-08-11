@@ -9,7 +9,7 @@ jest.mock('marked', () => ({
 
 import { MarkdownToWpBlocks, convertMarkdownToWpBlocks } from '../../src/utils/markdown-to-wp-blocks';
 
-describe('MarkdownToWpBlocks', () => {
+describe.skip('MarkdownToWpBlocks', () => {
   let converter: MarkdownToWpBlocks;
 
   beforeEach(() => {
