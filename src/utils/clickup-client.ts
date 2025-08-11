@@ -257,6 +257,62 @@ export class ClickUpClient {
     return response.data;
   }
 
+  async getWorkspaces(): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.get('/team')
+    );
+    return response.data;
+  }
+
+  async getSpaces(workspaceId: string): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.get(`/team/${workspaceId}/space`, {
+        params: { archived: false },
+      })
+    );
+    return response.data;
+  }
+
+  async getFolders(spaceId: string): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.get(`/space/${spaceId}/folder`, { params: { archived: false } })
+    );
+    return response.data;
+  }
+
+  async getLists(folderId: string): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.get(`/folder/${folderId}/list`, { params: { archived: false } })
+    );
+    return response.data;
+  }
+
+  async getFolderlessLists(spaceId: string): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.get(`/space/${spaceId}/list`, { params: { archived: false } })
+    );
+    return response.data;
+  }
+
+  async searchTasks(
+    workspaceId: string,
+    query: string,
+    options: {
+      page?: number;
+      limit?: number;
+    } = {}
+  ): Promise<any> {
+    const params: any = {
+      query: query,
+    };
+    if (options.page) params.page = options.page;
+    if (options.limit) params.limit = Math.min(options.limit, 100); // ClickUp API limit
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.get(`/team/${workspaceId}/task`, { params })
+    );
+    return response.data;
+  }
+
   // Generic request method for future use
   async request<T = any>(
     method: 'get' | 'post' | 'put' | 'delete',

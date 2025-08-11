@@ -365,6 +365,16 @@ export const clickupCommand = new Command('clickup')
       .option('--include-closed', 'Include closed/completed tasks')
       .option('--include-archived', 'Include archived tasks')
       .option('--page <number>', 'Page number for pagination (default: 1)')
+      .option('--my-tasks', 'Quick filter: Show only tasks assigned to me')
+      .option('--overdue', 'Quick filter: Show only overdue tasks')
+      .option('--due-today', 'Quick filter: Show tasks due today')
+      .option('--due-this-week', 'Quick filter: Show tasks due this week')
+      .option('--urgent', 'Quick filter: Show only urgent priority tasks')
+      .option(
+        '--high-priority',
+        'Quick filter: Show urgent and high priority tasks'
+      )
+      .option('--recent', 'Quick filter: Show tasks updated in last 7 days')
       .action(
         async (options: {
           list?: string;
@@ -381,10 +391,18 @@ export const clickupCommand = new Command('clickup')
           includeClosed?: boolean;
           includeArchived?: boolean;
           page?: string;
+          myTasks?: boolean;
+          overdue?: boolean;
+          dueToday?: boolean;
+          dueThisWeek?: boolean;
+          urgent?: boolean;
+          highPriority?: boolean;
+          recent?: boolean;
         }) => {
           try {
             const { ClickUpClient } = await import('../utils/clickup-client');
             const { TaskFormatter } = await import('../utils/task-formatter');
+            const client = new ClickUpClient();
             let listId = options.list;
             if (!listId) {
               const defaultListId = Config.get('clickup.defaultListId');
@@ -394,6 +412,47 @@ export const clickupCommand = new Command('clickup')
                 );
               }
               listId = defaultListId;
+            }
+            if (options.myTasks && !options.assignee) {
+              try {
+                const user = await client.getUser();
+                options.assignee = user.id;
+              } catch (error) {
+                throw new Error(
+                  'Could not get current user ID for --my-tasks filter'
+                );
+              }
+            }
+            const now = new Date();
+            const today = new Date(
+              now.getFullYear(),
+              now.getMonth(),
+              now.getDate()
+            );
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const weekFromNow = new Date(today);
+            weekFromNow.setDate(weekFromNow.getDate() + 7);
+            const weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            if (options.overdue && !options.dueBefore) {
+              options.dueBefore = today.toISOString().split('T')[0];
+            }
+            if (options.dueToday && !options.dueBefore && !options.dueAfter) {
+              options.dueAfter = today.toISOString().split('T')[0];
+              options.dueBefore = tomorrow.toISOString().split('T')[0];
+            }
+            if (options.dueThisWeek && !options.dueBefore) {
+              options.dueBefore = weekFromNow.toISOString().split('T')[0];
+              if (!options.dueAfter) {
+                options.dueAfter = today.toISOString().split('T')[0];
+              }
+            }
+            if (options.urgent && !options.priority) {
+              options.priority = 'urgent';
+            }
+            if (options.recent && !options.updatedAfter) {
+              options.updatedAfter = weekAgo.toISOString().split('T')[0];
             }
             const parseDate = (dateStr: string): number => {
               const date = new Date(dateStr);
@@ -451,7 +510,6 @@ export const clickupCommand = new Command('clickup')
               }
               filterOptions.page = pageNum;
             }
-            const client = new ClickUpClient();
             const response = await client.getTasks(listId, filterOptions);
             let tasks = response.tasks || [];
             if (options.priority) {
@@ -473,6 +531,14 @@ export const clickupCommand = new Command('clickup')
                   task.priority && task.priority.priority === targetPriority
               );
             }
+            if (options.highPriority) {
+              tasks = tasks.filter(
+                (task: any) =>
+                  task.priority &&
+                  (task.priority.priority === '1' ||
+                    task.priority.priority === '2')
+              );
+            }
             if (tasks.length === 0) {
               console.log(
                 chalk.yellow('No tasks found matching the specified criteria.')
@@ -489,6 +555,264 @@ export const clickupCommand = new Command('clickup')
               console.log(
                 chalk.gray(
                   `Use --page ${(filterOptions.page || 1) + 1} to see more tasks`
+                )
+              );
+            }
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
+          }
+        }
+      )
+  )
+  .addCommand(
+    new Command('lists')
+      .description('List available ClickUp lists and workspace navigation')
+      .option(
+        '--workspace <workspace-id>',
+        'Show lists from specific workspace'
+      )
+      .option('--space <space-id>', 'Show lists from specific space')
+      .option('--folder <folder-id>', 'Show lists from specific folder')
+      .option('--all', 'Show full workspace hierarchy')
+      .action(
+        async (options: {
+          workspace?: string;
+          space?: string;
+          folder?: string;
+          all?: boolean;
+        }) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const client = new ClickUpClient();
+            if (options.folder) {
+              const listsData = await client.getLists(options.folder);
+              const lists = listsData.lists || [];
+              if (lists.length === 0) {
+                console.log(chalk.yellow('No lists found in this folder.'));
+                return;
+              }
+              console.log(chalk.blue.bold('Lists in Folder:'));
+              console.log('');
+              lists.forEach((list: any) => {
+                console.log(
+                  `  ${chalk.cyan(list.id)} - ${chalk.white(list.name)}`
+                );
+                if (list.task_count !== undefined) {
+                  console.log(`    ${chalk.gray(`${list.task_count} tasks`)}`);
+                }
+              });
+              return;
+            }
+            if (options.space) {
+              console.log(chalk.blue.bold('Space Structure and Lists:'));
+              console.log('');
+              const foldersData = await client.getFolders(options.space);
+              const folders = foldersData.folders || [];
+              if (folders.length > 0) {
+                console.log(chalk.yellow.bold('📁 Folders:'));
+                for (const folder of folders) {
+                  console.log(
+                    `  ${chalk.cyan(folder.id)} - ${chalk.white(folder.name)}`
+                  );
+                  try {
+                    const listsData = await client.getLists(folder.id);
+                    const lists = listsData.lists || [];
+                    lists.forEach((list: any) => {
+                      console.log(
+                        `    └─ ${chalk.green(list.id)} - ${chalk.white(list.name)} ${chalk.gray(`(${list.task_count || 0} tasks)`)}`
+                      );
+                    });
+                  } catch (error) {
+                    console.log(`    └─ ${chalk.red('Error loading lists')}`);
+                  }
+                }
+                console.log('');
+              }
+              const folderlessListsData = await client.getFolderlessLists(
+                options.space
+              );
+              const folderlessLists = folderlessListsData.lists || [];
+              if (folderlessLists.length > 0) {
+                console.log(chalk.green.bold('📝 Lists (no folder):'));
+                folderlessLists.forEach((list: any) => {
+                  console.log(
+                    `  ${chalk.green(list.id)} - ${chalk.white(list.name)} ${chalk.gray(`(${list.task_count || 0} tasks)`)}`
+                  );
+                });
+              }
+              return;
+            }
+            if (options.workspace) {
+              console.log(chalk.blue.bold('Workspace Structure:'));
+              console.log('');
+              const spacesData = await client.getSpaces(options.workspace);
+              const spaces = spacesData.spaces || [];
+              if (spaces.length === 0) {
+                console.log(chalk.yellow('No spaces found in this workspace.'));
+                return;
+              }
+              for (const space of spaces) {
+                console.log(
+                  `${chalk.magenta.bold('🏢 Space:')} ${chalk.cyan(space.id)} - ${chalk.white(space.name)}`
+                );
+                console.log('');
+                try {
+                  const foldersData = await client.getFolders(space.id);
+                  const folders = foldersData.folders || [];
+                  if (folders.length > 0) {
+                    console.log('  📁 Folders:');
+                    for (const folder of folders) {
+                      console.log(
+                        `    ${chalk.cyan(folder.id)} - ${chalk.white(folder.name)}`
+                      );
+                      if (options.all) {
+                        try {
+                          const listsData = await client.getLists(folder.id);
+                          const lists = listsData.lists || [];
+                          lists.forEach((list: any) => {
+                            console.log(
+                              `      └─ ${chalk.green(list.id)} - ${chalk.white(list.name)}`
+                            );
+                          });
+                        } catch (error) {
+                          console.log(
+                            `      └─ ${chalk.red('Error loading lists')}`
+                          );
+                        }
+                      }
+                    }
+                  }
+                  const folderlessListsData = await client.getFolderlessLists(
+                    space.id
+                  );
+                  const folderlessLists = folderlessListsData.lists || [];
+                  if (folderlessLists.length > 0) {
+                    console.log('  📝 Lists (no folder):');
+                    folderlessLists.forEach((list: any) => {
+                      console.log(
+                        `    ${chalk.green(list.id)} - ${chalk.white(list.name)}`
+                      );
+                    });
+                  }
+                } catch (error) {
+                  console.log(`  ${chalk.red('Error loading space contents')}`);
+                }
+                console.log('');
+              }
+              return;
+            }
+            const workspacesData = await client.getWorkspaces();
+            const workspaces = workspacesData.teams || [];
+            if (workspaces.length === 0) {
+              console.log(chalk.yellow('No workspaces found.'));
+              return;
+            }
+            console.log(chalk.blue.bold('Available Workspaces:'));
+            console.log('');
+            workspaces.forEach((workspace: any) => {
+              console.log(
+                `${chalk.magenta.bold('🏢 Workspace:')} ${chalk.cyan(workspace.id)} - ${chalk.white(workspace.name)}`
+              );
+              if (workspace.members && workspace.members.length > 0) {
+                console.log(
+                  `   ${chalk.gray(`${workspace.members.length} members`)}`
+                );
+              }
+            });
+            console.log('');
+            console.log(
+              chalk.gray(
+                'Use --workspace <id> to explore spaces and lists in a workspace'
+              )
+            );
+            console.log(
+              chalk.gray('Use --all with --workspace to see complete hierarchy')
+            );
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
+          }
+        }
+      )
+  )
+  .addCommand(
+    new Command('search')
+      .description('Search tasks across ClickUp workspace')
+      .argument('<query>', 'Search query')
+      .option('--workspace <workspace-id>', 'Workspace to search in')
+      .option('--page <number>', 'Page number for pagination (default: 1)')
+      .option('--limit <number>', 'Number of results per page (max: 100)')
+      .action(
+        async (
+          query: string,
+          options: {
+            workspace?: string;
+            page?: string;
+            limit?: string;
+          }
+        ) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const { TaskFormatter } = await import('../utils/task-formatter');
+            const client = new ClickUpClient();
+            let workspaceId = options.workspace;
+            if (!workspaceId) {
+              const defaultWorkspaceId = Config.get(
+                'clickup.defaultWorkspaceId'
+              );
+              if (!defaultWorkspaceId) {
+                throw new Error(
+                  'No workspace ID provided and no default workspace configured. Use --workspace <workspace-id> or configure a default with: wfuwp clickup config set defaultWorkspaceId <workspace-id>'
+                );
+              }
+              workspaceId = defaultWorkspaceId;
+            }
+            const searchOptions: any = {};
+            if (options.page) {
+              const pageNum = parseInt(options.page, 10);
+              if (isNaN(pageNum) || pageNum < 1) {
+                throw new Error('Page number must be a positive integer');
+              }
+              searchOptions.page = pageNum;
+            }
+            if (options.limit) {
+              const limitNum = parseInt(options.limit, 10);
+              if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+                throw new Error('Limit must be between 1 and 100');
+              }
+              searchOptions.limit = limitNum;
+            }
+            const response = await client.searchTasks(
+              workspaceId,
+              query,
+              searchOptions
+            );
+            const tasks = response.tasks || [];
+            if (tasks.length === 0) {
+              console.log(chalk.yellow(`No tasks found matching "${query}".`));
+              return;
+            }
+            console.log(
+              chalk.blue.bold(
+                `Search Results for "${query}" (Page ${options.page || '1'}):`
+              )
+            );
+            console.log('');
+            TaskFormatter.formatTaskList(tasks);
+            if (searchOptions.page) {
+              console.log('');
+              console.log(
+                chalk.gray(
+                  `Use --page ${(searchOptions.page || 1) + 1} to see more results`
                 )
               );
             }
