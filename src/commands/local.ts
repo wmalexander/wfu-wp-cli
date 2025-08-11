@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { LocalHostsManager } from '../utils/local-hosts-manager';
 import { DDEVManager } from '../utils/ddev-manager';
+import { LocalInstaller } from '../utils/local-installer';
 
 export const localCommand = new Command('local')
   .description('Manage local development environment for WFU WordPress sites')
@@ -17,7 +18,7 @@ ${chalk.bold('Examples:')}
 ${chalk.bold('Available Subcommands:')}
   ${chalk.cyan('domain')}         ${chalk.green('✓')} Manage local development domains (/etc/hosts)
   ${chalk.cyan('status')}         ${chalk.green('✓')} Show environment status and health checks
-  ${chalk.cyan('install')}        ${chalk.yellow('Phase 4')} Install and setup development dependencies
+  ${chalk.cyan('install')}        ${chalk.green('✓')} Install and setup development dependencies
   ${chalk.cyan('start')}          ${chalk.yellow('Phase 5')} Start local development environment
   ${chalk.cyan('stop')}           ${chalk.yellow('Phase 5')} Stop local development environment
   ${chalk.cyan('restart')}        ${chalk.yellow('Phase 5')} Restart local development environment
@@ -404,10 +405,164 @@ localCommand
   .option('--mkcert', 'Install mkcert for SSL certificates', false)
   .option('--all', 'Install all dependencies', false)
   .option('-f, --force', 'Force reinstallation of existing dependencies', false)
+  .option('--guide', 'Show installation guide', false)
+  .option('--setup-workspace [dir]', 'Setup local workspace directory')
+  .option('--setup-database <site-id>', 'Download database backup for site')
+  .option(
+    '--from <env>',
+    'Source environment for database (prod, uat, pprd, dev)',
+    'prod'
+  )
   .action(async (options) => {
-    console.log(chalk.yellow('Install command will be implemented in Phase 4'));
-    if (options.all) {
-      console.log(chalk.dim('Will install all dependencies'));
+    try {
+      const installer = new LocalInstaller();
+
+      if (options.guide) {
+        installer.showInstallationGuide();
+        return;
+      }
+
+      const hasInstallOptions =
+        options.docker || options.ddev || options.mkcert || options.all;
+      const hasSetupOptions =
+        options.setupWorkspace !== undefined || options.setupDatabase;
+
+      if (!hasInstallOptions && !hasSetupOptions) {
+        console.log(chalk.blue('\n🔧 Local Development Environment Setup\n'));
+        console.log('Choose an option:');
+        console.log(
+          chalk.green('  --all                     ') +
+            chalk.dim('Install all dependencies')
+        );
+        console.log(
+          chalk.green('  --guide                   ') +
+            chalk.dim('Show installation guide')
+        );
+        console.log(
+          chalk.green('  --setup-workspace         ') +
+            chalk.dim('Setup workspace directory')
+        );
+        console.log(
+          chalk.green('  --setup-database <site-id>') +
+            chalk.dim('Download database backup')
+        );
+        console.log();
+        console.log(chalk.dim('Use "--help" for detailed options'));
+        return;
+      }
+
+      if (hasInstallOptions) {
+        console.log(
+          chalk.blue('\n🚀 Installing Local Development Dependencies\n')
+        );
+
+        const result = await installer.installDependencies({
+          docker: options.docker,
+          ddev: options.ddev,
+          mkcert: options.mkcert,
+          all: options.all,
+          force: options.force,
+        });
+
+        console.log(chalk.bold('\n📊 Installation Summary:'));
+
+        if (result.installed.length > 0) {
+          console.log(
+            chalk.green(
+              `✅ Installed (${result.installed.length}): ${result.installed.join(', ')}`
+            )
+          );
+        }
+
+        if (result.skipped.length > 0) {
+          console.log(
+            chalk.yellow(
+              `⚠️  Skipped (${result.skipped.length}): ${result.skipped.join(', ')}`
+            )
+          );
+        }
+
+        if (result.failed.length > 0) {
+          console.log(
+            chalk.red(
+              `❌ Failed (${result.failed.length}): ${result.failed.join(', ')}`
+            )
+          );
+          for (const error of result.errors) {
+            console.log(chalk.red(`   ${error}`));
+          }
+        }
+
+        console.log();
+
+        if (result.success) {
+          console.log(chalk.green('🎉 Installation completed successfully!'));
+          console.log(chalk.dim('Verify with: wfuwp local status'));
+        } else {
+          console.log(chalk.red('❌ Installation completed with errors.'));
+          console.log(
+            chalk.dim('See installation guide: wfuwp local install --guide')
+          );
+          process.exit(1);
+        }
+      }
+
+      if (options.setupWorkspace !== undefined) {
+        console.log(chalk.blue('\n📁 Setting up workspace...\n'));
+
+        const workspaceResult = await installer.setupWorkspace({
+          workspaceDir:
+            typeof options.setupWorkspace === 'string'
+              ? options.setupWorkspace
+              : undefined,
+          force: options.force,
+        });
+
+        if (workspaceResult.success) {
+          console.log(chalk.green('✅ Workspace setup complete'));
+        } else {
+          console.error(
+            chalk.red(`❌ Workspace setup failed: ${workspaceResult.error}`)
+          );
+          process.exit(1);
+        }
+      }
+
+      if (options.setupDatabase) {
+        if (!/^\d+$/.test(options.setupDatabase)) {
+          console.error(chalk.red('Error: Site ID must be a positive integer'));
+          process.exit(1);
+        }
+
+        console.log(
+          chalk.blue(
+            `\n🗄️  Setting up database for site ${options.setupDatabase}...\n`
+          )
+        );
+
+        const dbResult = await installer.setupDatabase({
+          siteId: options.setupDatabase,
+          environment: options.from,
+          force: options.force,
+        });
+
+        if (dbResult.success) {
+          console.log(chalk.green('✅ Database setup complete'));
+          console.log(
+            chalk.dim(
+              'Import the database using DDEV when your project is ready'
+            )
+          );
+        } else {
+          console.error(
+            chalk.red(`❌ Database setup failed: ${dbResult.error}`)
+          );
+          process.exit(1);
+        }
+      }
+    } catch (error) {
+      console.error(chalk.red(`Error during installation: ${error}`));
+      process.exit(1);
     }
   });
 
