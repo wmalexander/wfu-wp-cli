@@ -8,6 +8,6 @@ module.exports = {
     '!src/**/*.d.ts'
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!marked)'
+    'node_modules/(?!(marked))'
   ]
 };

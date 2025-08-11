@@ -204,7 +204,12 @@ ${token.text}
         return `<del>${delText}</del>`;
 
       case 'html':
-        return (token as Tokens.Tag).text;
+        const htmlToken = token as Tokens.Tag;
+        // When escapeHtml is enabled, treat HTML as literal text
+        if (this.options.escapeHtml) {
+          return this.escapeHtml(htmlToken.text);
+        }
+        return htmlToken.text;
 
       default:
         console.warn(`Unknown inline token type: ${token.type}`);

@@ -1,3 +1,12 @@
+// Mock marked before importing our module
+jest.mock('marked', () => ({
+  marked: {
+    lexer: jest.fn(() => []),
+    parse: jest.fn(() => '')
+  },
+  Tokens: {}
+}));
+
 import { MarkdownToWpBlocks, convertMarkdownToWpBlocks } from '../../src/utils/markdown-to-wp-blocks';
 
 describe('MarkdownToWpBlocks', () => {

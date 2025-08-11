@@ -60,16 +60,16 @@ describe('Config', () => {
 
   describe('list', () => {
     it('should list all configuration with masked password', () => {
-      Config.set('db.host', 'localhost');
-      Config.set('db.user', 'testuser');
-      Config.set('db.password', 'secret123');
-      Config.set('db.name', 'wp_test');
+      Config.set('migration.host', 'localhost');
+      Config.set('migration.user', 'testuser');
+      Config.set('migration.password', 'secret123');
+      Config.set('migration.database', 'wp_test');
 
       const config = Config.list();
-      expect(config.db?.host).toBe('localhost');
-      expect(config.db?.user).toBe('testuser');
-      expect(config.db?.password).toBe('****');
-      expect(config.db?.name).toBe('wp_test');
+      expect(config.migration?.host).toBe('localhost');
+      expect(config.migration?.user).toBe('testuser');
+      expect(config.migration?.password).toBe('****');
+      expect(config.migration?.database).toBe('wp_test');
     });
 
     it('should return empty object when no config exists', () => {
@@ -88,45 +88,45 @@ describe('Config', () => {
 
   describe('getDbConfig', () => {
     it('should return complete database configuration', () => {
-      Config.set('db.host', 'localhost');
-      Config.set('db.user', 'testuser');
-      Config.set('db.password', 'secret123');
-      Config.set('db.name', 'wp_test');
+      Config.set('migration.host', 'localhost');
+      Config.set('migration.user', 'testuser');
+      Config.set('migration.password', 'secret123');
+      Config.set('migration.database', 'wp_test');
 
-      const dbConfig = Config.getDbConfig();
+      const dbConfig = Config.getMigrationDbConfig();
       expect(dbConfig).toEqual({
         host: 'localhost',
         user: 'testuser',
         password: 'secret123',
-        name: 'wp_test'
+        database: 'wp_test'
       });
     });
 
     it('should return empty object when no config exists', () => {
-      const dbConfig = Config.getDbConfig();
+      const dbConfig = Config.getMigrationDbConfig();
       expect(dbConfig).toEqual({});
     });
   });
 
   describe('hasRequiredDbConfig', () => {
     it('should return true when all required fields are set', () => {
-      Config.set('db.host', 'localhost');
-      Config.set('db.user', 'testuser');
-      Config.set('db.password', 'secret123');
-      Config.set('db.name', 'wp_test');
+      Config.set('migration.host', 'localhost');
+      Config.set('migration.user', 'testuser');
+      Config.set('migration.password', 'secret123');
+      Config.set('migration.database', 'wp_test');
 
-      expect(Config.hasRequiredDbConfig()).toBe(true);
+      expect(Config.hasRequiredMigrationConfig()).toBe(true);
     });
 
     it('should return false when fields are missing', () => {
       Config.set('db.host', 'localhost');
       Config.set('db.user', 'testuser');
       
-      expect(Config.hasRequiredDbConfig()).toBe(false);
+      expect(Config.hasRequiredMigrationConfig()).toBe(false);
     });
 
     it('should return false when no config exists', () => {
-      expect(Config.hasRequiredDbConfig()).toBe(false);
+      expect(Config.hasRequiredMigrationConfig()).toBe(false);
     });
   });
 });

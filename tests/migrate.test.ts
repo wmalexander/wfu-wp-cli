@@ -23,7 +23,7 @@ describe('Migrate Command', () => {
       // Test invalid site IDs would be caught by command parsing
       // This is more of an integration test for the commander setup
       expect(migrateCommand.name()).toBe('migrate');
-      expect(migrateCommand.description()).toBe('Migrate WordPress multisite database between environments');
+      expect(migrateCommand.description()).toBe('Migrate WordPress multisite database between environments (Phase 2)');
     });
   });
 

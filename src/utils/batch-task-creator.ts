@@ -52,7 +52,7 @@ export class BatchTaskCreator {
           task.dueDate = dateMatch[1];
         }
       } else if (part.includes('desc:')) {
-        task.description = part.replace(/desc:\s*/, '');
+        task.description = parts[i].replace(/desc:\s*/i, '');
       } else if (part.includes('tags:')) {
         const tagsStr = part.replace(/tags:\s*/, '');
         task.tags = tagsStr
