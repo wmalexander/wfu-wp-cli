@@ -10,6 +10,14 @@ interface EnvironmentConfig {
   database?: string;
 }
 
+export interface LocalConfig {
+  workspaceDir?: string;
+  defaultPort?: number;
+  defaultEnvironment?: string;
+  autoStart?: boolean;
+  backupBeforeRefresh?: boolean;
+}
+
 interface ConfigData {
   environments?: {
     dev?: EnvironmentConfig;
@@ -36,6 +44,7 @@ interface ConfigData {
     defaultListId?: string;
     defaultWorkspaceId?: string;
   };
+  local?: LocalConfig;
 }
 
 export class Config {
@@ -98,7 +107,7 @@ export class Config {
 
     if (keys.length < 2) {
       throw new Error(
-        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, or clickup.<key>'
+        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, or local.<key>'
       );
     }
 
@@ -114,9 +123,11 @@ export class Config {
       this.setBackupConfig(config, keys, value);
     } else if (section === 'clickup') {
       this.setClickUpConfig(config, keys, value);
+    } else if (section === 'local') {
+      this.setLocalConfig(config, keys, value);
     } else {
       throw new Error(
-        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, or clickup.<key>'
+        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, or local.<key>'
       );
     }
 
@@ -287,13 +298,66 @@ export class Config {
     }
   }
 
+  private static setLocalConfig(
+    config: ConfigData,
+    keys: string[],
+    value: string
+  ): void {
+    if (keys.length !== 2) {
+      throw new Error('Invalid local config key. Use format: local.<key>');
+    }
+
+    const localKey = keys[1];
+
+    if (
+      ![
+        'workspaceDir',
+        'defaultPort',
+        'defaultEnvironment',
+        'autoStart',
+        'backupBeforeRefresh',
+      ].includes(localKey)
+    ) {
+      throw new Error(
+        'Invalid local config key. Valid keys: workspaceDir, defaultPort, defaultEnvironment, autoStart, backupBeforeRefresh'
+      );
+    }
+
+    if (!config.local) {
+      config.local = {};
+    }
+
+    if (localKey === 'defaultPort') {
+      const port = parseInt(value, 10);
+      if (isNaN(port) || port < 1 || port > 65535) {
+        throw new Error('defaultPort must be a valid port number (1-65535)');
+      }
+      config.local.defaultPort = port;
+    } else if (localKey === 'autoStart' || localKey === 'backupBeforeRefresh') {
+      const boolValue = value.toLowerCase();
+      if (!['true', 'false'].includes(boolValue)) {
+        throw new Error(`${localKey} must be either 'true' or 'false'`);
+      }
+      (config.local as any)[localKey] = boolValue === 'true';
+    } else if (localKey === 'defaultEnvironment') {
+      if (!['dev', 'uat', 'pprd', 'prod'].includes(value)) {
+        throw new Error(
+          'defaultEnvironment must be one of: dev, uat, pprd, prod'
+        );
+      }
+      (config.local as any)[localKey] = value;
+    } else {
+      (config.local as any)[localKey] = value;
+    }
+  }
+
   static get(key: string): string | undefined {
     const config = this.loadConfig();
     const keys = key.split('.');
 
     if (keys.length < 2) {
       throw new Error(
-        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, or clickup.<key>'
+        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, or local.<key>'
       );
     }
 
@@ -309,9 +373,11 @@ export class Config {
       return this.getBackupConfigValue(config, keys);
     } else if (section === 'clickup') {
       return this.getClickUpConfigValue(config, keys);
+    } else if (section === 'local') {
+      return this.getLocalConfigValue(config, keys);
     } else {
       throw new Error(
-        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, or clickup.<key>'
+        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, or local.<key>'
       );
     }
   }
@@ -444,6 +510,37 @@ export class Config {
 
     if (clickupKey === 'token') {
       return this.decrypt(value);
+    }
+
+    return value;
+  }
+
+  private static getLocalConfigValue(
+    config: ConfigData,
+    keys: string[]
+  ): string | undefined {
+    if (keys.length !== 2) {
+      throw new Error('Invalid local config key. Use format: local.<key>');
+    }
+
+    const localKey = keys[1];
+
+    if (!config.local) {
+      return undefined;
+    }
+
+    const value = config.local[localKey as keyof LocalConfig];
+
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (typeof value === 'boolean') {
+      return value.toString();
+    }
+
+    if (typeof value === 'number') {
+      return value.toString();
     }
 
     return value;
@@ -596,5 +693,42 @@ export class Config {
   static hasClickUpToken(): boolean {
     const clickupConfig = this.getClickUpConfig();
     return !!clickupConfig.token;
+  }
+
+  static getLocalConfig(): LocalConfig {
+    const config = this.loadConfig();
+    return config.local || {};
+  }
+
+  static getLocalWorkspaceDir(): string {
+    const localConfig = this.getLocalConfig();
+    return localConfig.workspaceDir || join(homedir(), 'wfu-wp-local');
+  }
+
+  static getLocalDefaultPort(): number {
+    const localConfig = this.getLocalConfig();
+    return localConfig.defaultPort || 8080;
+  }
+
+  static getLocalDefaultEnvironment(): string {
+    const localConfig = this.getLocalConfig();
+    return localConfig.defaultEnvironment || 'prod';
+  }
+
+  static getLocalAutoStart(): boolean {
+    const localConfig = this.getLocalConfig();
+    return localConfig.autoStart !== undefined ? localConfig.autoStart : true;
+  }
+
+  static getLocalBackupBeforeRefresh(): boolean {
+    const localConfig = this.getLocalConfig();
+    return localConfig.backupBeforeRefresh !== undefined
+      ? localConfig.backupBeforeRefresh
+      : true;
+  }
+
+  static hasLocalConfig(): boolean {
+    const config = this.loadConfig();
+    return !!config.local && Object.keys(config.local).length > 0;
   }
 }

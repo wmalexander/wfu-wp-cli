@@ -1,9 +1,12 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { existsSync } from 'fs';
 import { LocalHostsManager } from '../utils/local-hosts-manager';
 import { DDEVManager } from '../utils/ddev-manager';
 import { LocalInstaller } from '../utils/local-installer';
 import { LocalContentManager } from '../utils/local-content-manager';
+import { LocalConfigWizard } from '../utils/local-config-wizard';
+import { Config } from '../utils/config';
 
 export const localCommand = new Command('local')
   .description('Manage local development environment for WFU WordPress sites')
@@ -25,7 +28,7 @@ ${chalk.bold('Available Subcommands:')}
   ${chalk.cyan('restart')}        ${chalk.green('✓')} Restart local development environment
   ${chalk.cyan('refresh')}        ${chalk.green('✓')} Refresh database from production
   ${chalk.cyan('reset')}          ${chalk.green('✓')} Reset entire local environment
-  ${chalk.cyan('config')}         ${chalk.yellow('Phase 7')} Configure local development settings
+  ${chalk.cyan('config')}         ${chalk.green('✓')} Configure local development settings
 
 ${chalk.dim('Note: Domain management requires sudo privileges to modify /etc/hosts')}
 Use "${chalk.green('wfuwp local <subcommand> --help')}" for detailed help on each subcommand.
@@ -908,17 +911,238 @@ localCommand
   .description('Configure local development settings')
   .addCommand(
     new Command('wizard')
-      .description('Interactive configuration wizard')
+      .description('Interactive configuration wizard for first-time setup')
       .action(async () => {
-        console.log(
-          chalk.yellow('Config wizard will be implemented in Phase 7')
-        );
+        try {
+          const wizard = new LocalConfigWizard();
+          await wizard.runWizard();
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('aborted')) {
+            console.log(
+              chalk.yellow('\n⏹️  Configuration wizard cancelled by user')
+            );
+            process.exit(0);
+          }
+          console.error(chalk.red(`Configuration wizard error: ${error}`));
+          process.exit(1);
+        }
       })
   )
   .addCommand(
     new Command('show')
-      .description('Show current configuration')
+      .alias('list')
+      .description('Show current local development configuration')
       .action(async () => {
-        console.log(chalk.yellow('Config show will be implemented in Phase 7'));
+        try {
+          if (!Config.hasLocalConfig()) {
+            console.log(
+              chalk.yellow('⚠️  No local development configuration found\n')
+            );
+            console.log(chalk.dim('Setup your local configuration with:'));
+            console.log(chalk.green('  wfuwp local config wizard'));
+            return;
+          }
+
+          console.log(chalk.bold('\n⚙️  Local Development Configuration\n'));
+
+          const workspaceDir = Config.getLocalWorkspaceDir();
+          const defaultPort = Config.getLocalDefaultPort();
+          const defaultEnvironment = Config.getLocalDefaultEnvironment();
+          const autoStart = Config.getLocalAutoStart();
+          const backupBeforeRefresh = Config.getLocalBackupBeforeRefresh();
+
+          console.log(`${chalk.cyan('Workspace Directory')}:`);
+          console.log(`  ${workspaceDir}`);
+          console.log(
+            `  ${chalk.dim(`(${existsSync(workspaceDir) ? 'exists' : 'will be created'})`)}\n`
+          );
+
+          console.log(
+            `${chalk.cyan('Default Port')}: ${chalk.yellow(defaultPort)}\n`
+          );
+
+          console.log(
+            `${chalk.cyan('Default Environment')}: ${chalk.green(defaultEnvironment)}`
+          );
+          console.log(
+            `  ${chalk.dim('Used for database refresh operations')}\n`
+          );
+
+          console.log(
+            `${chalk.cyan('Auto Start Projects')}: ${autoStart ? chalk.green('Yes') : chalk.red('No')}`
+          );
+          console.log(
+            `  ${chalk.dim('Automatically start DDEV projects when using local commands')}\n`
+          );
+
+          console.log(
+            `${chalk.cyan('Backup Before Refresh')}: ${backupBeforeRefresh ? chalk.green('Yes') : chalk.red('No')}`
+          );
+          console.log(
+            `  ${chalk.dim('Create database backups before refresh operations')}\n`
+          );
+
+          console.log(chalk.dim('Modify settings with:'));
+          console.log(chalk.green('  wfuwp local config set <key> <value>'));
+          console.log(chalk.green('  wfuwp local config wizard'));
+        } catch (error) {
+          console.error(chalk.red(`Error displaying configuration: ${error}`));
+          process.exit(1);
+        }
+      })
+  )
+  .addCommand(
+    new Command('set')
+      .description('Set a local development configuration value')
+      .argument(
+        '<key>',
+        'Configuration key (workspaceDir, defaultPort, defaultEnvironment, autoStart, backupBeforeRefresh)'
+      )
+      .argument('<value>', 'Configuration value')
+      .action(async (key, value) => {
+        try {
+          const validKeys = [
+            'workspaceDir',
+            'defaultPort',
+            'defaultEnvironment',
+            'autoStart',
+            'backupBeforeRefresh',
+          ];
+
+          if (!validKeys.includes(key)) {
+            console.error(chalk.red(`Invalid configuration key: ${key}`));
+            console.error(chalk.dim(`Valid keys: ${validKeys.join(', ')}`));
+            process.exit(1);
+          }
+
+          // Validate the value based on key
+          if (key === 'defaultPort') {
+            const port = parseInt(value, 10);
+            if (isNaN(port) || port < 1 || port > 65535) {
+              console.error(
+                chalk.red('defaultPort must be a valid port number (1-65535)')
+              );
+              process.exit(1);
+            }
+          } else if (key === 'defaultEnvironment') {
+            if (!['dev', 'uat', 'pprd', 'prod'].includes(value)) {
+              console.error(
+                chalk.red(
+                  'defaultEnvironment must be one of: dev, uat, pprd, prod'
+                )
+              );
+              process.exit(1);
+            }
+          } else if (key === 'autoStart' || key === 'backupBeforeRefresh') {
+            const boolValue = value.toLowerCase();
+            if (!['true', 'false'].includes(boolValue)) {
+              console.error(
+                chalk.red(`${key} must be either 'true' or 'false'`)
+              );
+              process.exit(1);
+            }
+          }
+
+          Config.set(`local.${key}`, value);
+
+          console.log(chalk.green(`✅ Configuration updated successfully`));
+          console.log(`  ${chalk.cyan(key)}: ${chalk.yellow(value)}`);
+          console.log();
+          console.log(chalk.dim('View full configuration with:'));
+          console.log(chalk.green('  wfuwp local config show'));
+        } catch (error) {
+          console.error(chalk.red(`Error setting configuration: ${error}`));
+          process.exit(1);
+        }
+      })
+  )
+  .addCommand(
+    new Command('get')
+      .description('Get a local development configuration value')
+      .argument('<key>', 'Configuration key')
+      .action(async (key) => {
+        try {
+          const validKeys = [
+            'workspaceDir',
+            'defaultPort',
+            'defaultEnvironment',
+            'autoStart',
+            'backupBeforeRefresh',
+          ];
+
+          if (!validKeys.includes(key)) {
+            console.error(chalk.red(`Invalid configuration key: ${key}`));
+            console.error(chalk.dim(`Valid keys: ${validKeys.join(', ')}`));
+            process.exit(1);
+          }
+
+          const value = Config.get(`local.${key}`);
+
+          if (value === undefined) {
+            console.log(chalk.yellow(`Configuration key '${key}' is not set`));
+            console.log(chalk.dim('Set it with:'));
+            console.log(chalk.green(`  wfuwp local config set ${key} <value>`));
+            return;
+          }
+
+          console.log(value);
+        } catch (error) {
+          console.error(chalk.red(`Error getting configuration: ${error}`));
+          process.exit(1);
+        }
+      })
+  )
+  .addCommand(
+    new Command('reset')
+      .description('Reset local development configuration to defaults')
+      .option('-f, --force', 'Skip confirmation prompt', false)
+      .action(async (options) => {
+        try {
+          if (!Config.hasLocalConfig()) {
+            console.log(
+              chalk.yellow('No local development configuration to reset')
+            );
+            return;
+          }
+
+          if (!options.force) {
+            console.log(
+              chalk.yellow(
+                '\n⚠️  This will reset ALL local development configuration to defaults'
+              )
+            );
+            console.log(
+              chalk.red('Current configuration will be lost permanently')
+            );
+            console.log();
+            console.log(chalk.dim('Use --force flag to confirm reset'));
+            console.log(chalk.dim('Example: wfuwp local config reset --force'));
+            process.exit(1);
+          }
+
+          // Reset by removing the entire local config section
+          const config = Config.list();
+          delete config.local;
+
+          // Re-save the config without local section
+          const fs = require('fs');
+          const path = require('path');
+          const configFile = path.join(
+            require('os').homedir(),
+            '.wfuwp',
+            'config.json'
+          );
+          fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
+
+          console.log(
+            chalk.green('✅ Local development configuration reset successfully')
+          );
+          console.log();
+          console.log(chalk.dim('Setup new configuration with:'));
+          console.log(chalk.green('  wfuwp local config wizard'));
+        } catch (error) {
+          console.error(chalk.red(`Error resetting configuration: ${error}`));
+          process.exit(1);
+        }
       })
   );
