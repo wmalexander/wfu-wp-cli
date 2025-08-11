@@ -13,6 +13,7 @@ import { migrateCommand } from './commands/migrate';
 import { md2wpblockCommand } from './commands/md2wpblock';
 import { restoreCommand } from './commands/restore';
 import { clickupCommand } from './commands/clickup';
+import { localCommand } from './commands/local';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -39,6 +40,7 @@ program.addCommand(migrateCommand);
 program.addCommand(md2wpblockCommand);
 program.addCommand(restoreCommand);
 program.addCommand(clickupCommand);
+program.addCommand(localCommand);
 
 program
   .command('help')
@@ -55,6 +57,7 @@ program
     console.log(chalk.green('  config') + '      - Manage configuration settings (database credentials)');
     console.log(chalk.green('  migrate') + '     - Migrate WordPress multisite database between environments');
     console.log(chalk.green('  md2wpblock') + '  - Convert Markdown files to WordPress block editor HTML');
+    console.log(chalk.green('  local') + '       - Manage local development environment (DDEV, domains, setup)');
     console.log('\nUse "wfuwp <command> --help" for more information about a command.');
   });
 
