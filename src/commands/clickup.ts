@@ -115,16 +115,49 @@ export const clickupCommand = new Command('clickup')
   .addCommand(
     new Command('create')
       .description('Create a new ClickUp task')
-      .argument('<title>', 'Task title')
+      .argument('[title]', 'Task title')
       .option('--list <list-id>', 'List ID to create the task in')
       .option('--description <description>', 'Task description')
+      .option(
+        '--priority <priority>',
+        'Task priority (urgent, high, normal, low)',
+        'normal'
+      )
+      .option('--assignee <user-id>', 'Assignee user ID')
+      .option('--due <date>', 'Due date (YYYY-MM-DD format)')
+      .option('--tags <tags>', 'Comma-separated tags')
+      .option('--interactive', 'Use interactive mode for guided task creation')
       .action(
         async (
-          title: string,
-          options: { list?: string; description?: string }
+          title: string | undefined,
+          options: {
+            list?: string;
+            description?: string;
+            priority?: string;
+            assignee?: string;
+            due?: string;
+            tags?: string;
+            interactive?: boolean;
+          }
         ) => {
           try {
             const { ClickUpClient } = await import('../utils/clickup-client');
+
+            // Handle interactive mode
+            if (options.interactive) {
+              const { interactiveTaskCreation } = await import(
+                '../utils/interactive-task-creation'
+              );
+              return await interactiveTaskCreation();
+            }
+
+            // Validate title is provided
+            if (!title) {
+              throw new Error(
+                'Task title is required. Use --interactive for guided creation.'
+              );
+            }
+
             let listId = options.list;
             if (!listId) {
               const defaultListId = Config.get('clickup.defaultListId');
@@ -135,20 +168,110 @@ export const clickupCommand = new Command('clickup')
               }
               listId = defaultListId;
             }
-            const client = new ClickUpClient();
-            const taskData = await client.createTask(listId, {
+
+            // Parse and validate options
+            const taskParams: any = {
               name: title,
               description: options.description,
-            });
-            const task = taskData.task;
-            console.log(chalk.green('✓ Task created successfully!'));
-            console.log(`  Title: ${task.name}`);
-            console.log(`  ID: ${task.id}`);
-            console.log(`  URL: ${task.url}`);
-            console.log(`  Status: ${task.status.status}`);
-            if (task.list) {
-              console.log(`  List: ${task.list.name}`);
+            };
+
+            // Handle priority
+            if (options.priority) {
+              const priorityMap: { [key: string]: number } = {
+                urgent: 1,
+                high: 2,
+                normal: 3,
+                low: 4,
+              };
+              const priority = priorityMap[options.priority.toLowerCase()];
+              if (!priority) {
+                throw new Error(
+                  'Priority must be one of: urgent, high, normal, low'
+                );
+              }
+              taskParams.priority = priority;
             }
+
+            // Handle assignees
+            if (options.assignee) {
+              taskParams.assignees = [options.assignee];
+            }
+
+            // Handle due date
+            if (options.due) {
+              const dueDate = new Date(options.due);
+              if (isNaN(dueDate.getTime())) {
+                throw new Error(
+                  'Invalid due date format. Use YYYY-MM-DD format.'
+                );
+              }
+              taskParams.dueDate = dueDate.getTime();
+            }
+
+            // Handle tags
+            if (options.tags) {
+              taskParams.tags = options.tags
+                .split(',')
+                .map((tag) => tag.trim())
+                .filter((tag) => tag.length > 0);
+            }
+
+            const client = new ClickUpClient();
+            const taskData = await client.createTask(listId, taskParams);
+            const task = taskData.task;
+
+            // Enhanced success feedback
+            console.log(chalk.green.bold('✓ Task created successfully!'));
+            console.log('');
+            console.log(chalk.blue.bold('Task Details:'));
+            console.log(`  ${chalk.cyan('Title:')} ${task.name}`);
+            console.log(`  ${chalk.cyan('ID:')} ${task.id}`);
+            console.log(`  ${chalk.cyan('URL:')} ${chalk.underline(task.url)}`);
+            console.log(`  ${chalk.cyan('Status:')} ${task.status.status}`);
+
+            if (task.priority && task.priority.priority !== null) {
+              const priorityMap: { [key: string]: string } = {
+                '1': chalk.red('Urgent'),
+                '2': chalk.yellow('High'),
+                '3': chalk.blue('Normal'),
+                '4': chalk.gray('Low'),
+              };
+              console.log(
+                `  ${chalk.cyan('Priority:')} ${priorityMap[task.priority.priority] || task.priority.priority}`
+              );
+            }
+
+            if (task.assignees && task.assignees.length > 0) {
+              const assigneeNames = task.assignees
+                .map((a: any) => `@${a.username}`)
+                .join(', ');
+              console.log(`  ${chalk.cyan('Assignees:')} ${assigneeNames}`);
+            }
+
+            if (task.tags && task.tags.length > 0) {
+              const tagNames = task.tags
+                .map((t: any) => chalk.magenta(`#${t.name}`))
+                .join(', ');
+              console.log(`  ${chalk.cyan('Tags:')} ${tagNames}`);
+            }
+
+            if (task.due_date) {
+              const dueDate = new Date(
+                parseInt(task.due_date)
+              ).toLocaleDateString();
+              console.log(`  ${chalk.cyan('Due Date:')} ${dueDate}`);
+            }
+
+            if (task.list) {
+              console.log(`  ${chalk.cyan('List:')} ${task.list.name}`);
+            }
+
+            console.log('');
+            console.log(
+              chalk.green(
+                `🎉 Your task is ready! View it at: ${chalk.underline(task.url)}`
+              )
+            );
           } catch (error) {
             console.error(
               chalk.red(
