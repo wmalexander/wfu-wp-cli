@@ -204,6 +204,39 @@ wfuwp config get db.host
 wfuwp config reset
 ```
 
+#### `clickup` - ClickUp Task Management Integration
+
+Comprehensive ClickUp integration for managing tasks directly from the command line.
+
+```bash
+wfuwp clickup <subcommand> [options]
+```
+
+**Key Features:**
+- Create and manage ClickUp tasks with full metadata support
+- List and filter tasks with advanced filtering options
+- Export tasks in CSV, JSON, and Markdown formats
+- Batch create tasks from text or JSON files
+- Navigate workspace hierarchies and search across workspaces
+- Secure encrypted storage of API credentials
+
+**Quick Start:**
+```bash
+# Configure API token
+wfuwp clickup config set token pk_your_api_token
+
+# Create a task
+wfuwp clickup create "Fix login bug" --priority high --assignee USER_ID
+
+# List your tasks
+wfuwp clickup tasks --my-tasks
+
+# Export tasks to CSV
+wfuwp clickup tasks --export csv
+```
+
+**📖 Detailed Documentation:** See [docs/CLICKUP.md](docs/CLICKUP.md) for comprehensive usage instructions, batch operations, export formats, and troubleshooting.
+
 #### `migrate` - Migrate WordPress multisite database between environments (Phase 1)
 
 Migrates WordPress multisite database content between environments by performing URL and path replacements. Integrates with WP-CLI for reliable database operations.
