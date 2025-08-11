@@ -14,14 +14,14 @@ export const localCommand = new Command('local')
     'after',
     `
 ${chalk.bold('Examples:')}
-  ${chalk.green('wfuwp local install')}                           Complete setup (Docker, DDEV, mkcert, database)
+  ${chalk.green('wfuwp local install')}                           Complete setup (repo clone, Docker, DDEV, mkcert, database)
   ${chalk.green('wfuwp local start')}                             Start development environment  
   ${chalk.green('wfuwp local status')}                            Check environment health
   ${chalk.green('wfuwp local reset --force')}                     Reset to fresh state
 
 ${chalk.bold('Core Commands:')}
   ${chalk.cyan('status')}         ${chalk.green('✓')} Check environment health
-  ${chalk.cyan('install')}        ${chalk.green('✓')} Complete setup (Docker, DDEV, mkcert, database)
+  ${chalk.cyan('install')}        ${chalk.green('✓')} Complete setup (repo clone, Docker, DDEV, mkcert, database)
   ${chalk.cyan('start')}          ${chalk.green('✓')} Start development environment
   ${chalk.cyan('stop')}           ${chalk.green('✓')} Stop development environment
   ${chalk.cyan('restart')}        ${chalk.green('✓')} Restart development environment
@@ -382,7 +382,7 @@ localCommand
 
 localCommand
   .command('install')
-  .description('Install dependencies and setup database (Docker, DDEV, mkcert, initial database)')
+  .description('Install dependencies and setup database (repo clone, Docker, DDEV, mkcert, initial database)')
   .option('-f, --force', 'Force reinstallation of existing dependencies', false)
   .action(async (options) => {
     try {
@@ -391,6 +391,21 @@ localCommand
       );
 
       const installer = new LocalInstaller();
+
+      // Step 0: Ensure we're in a WordPress repository
+      console.log(chalk.blue('🔍 Step 0/3 - Checking WordPress repository...'));
+      const repoResult = await installer.ensureWordPressRepo();
+      
+      if (!repoResult.success) {
+        console.log(chalk.red(`❌ Repository setup failed: ${repoResult.error}`));
+        process.exit(1);
+      }
+      
+      if (repoResult.cloned) {
+        console.log(chalk.green('✅ WordPress repository cloned and dependencies installed'));
+      } else {
+        console.log(chalk.green('✅ Already in WordPress repository'));
+      }
 
       // Always install all dependencies (Docker, DDEV, mkcert)
       const result = await installer.installDependencies({

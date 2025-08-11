@@ -63,11 +63,12 @@ export class LocalContentManager {
     options: { silent?: boolean; cwd?: string } = {}
   ): string {
     try {
-      return execSync(command, {
+      const result = execSync(command, {
         encoding: 'utf8',
         stdio: options.silent ? 'pipe' : 'inherit',
         cwd: options.cwd || process.cwd(),
-      }).trim();
+      });
+      return result ? result.trim() : '';
     } catch (error) {
       if (!options.silent) {
         throw error;
@@ -120,7 +121,7 @@ export class LocalContentManager {
       console.log(chalk.blue(`📦 Creating backup of current database...`));
 
       this.runCommand(
-        `ddev export-db --file="${backupPath}" --project="${project.name}"`,
+        `ddev export-db --file="${backupPath}"`,
         { silent: false }
       );
 
@@ -260,7 +261,7 @@ export class LocalContentManager {
       }
 
       this.runCommand(
-        `ddev import-db --file="${decompressedPath}" --project="${project.name}"`,
+        `ddev import-db --file="${decompressedPath}"`,
         { silent: false }
       );
 
@@ -366,7 +367,7 @@ export class LocalContentManager {
       }
 
       this.runCommand(
-        `ddev import-db --file="${decompressedPath}" --project="${runningProject.name}"`,
+        `ddev import-db --file="${decompressedPath}"`,
         { silent: false }
       );
 

@@ -80,6 +80,47 @@ export class LocalInstaller {
     return path.join(homeDir, 'wfu-wp-local');
   }
 
+  private isInWordPressRepo(): boolean {
+    return existsSync('wp-config-ddev.php');
+  }
+
+  async ensureWordPressRepo(): Promise<{ success: boolean; error?: string; cloned?: boolean }> {
+    if (this.isInWordPressRepo()) {
+      return { success: true, cloned: false };
+    }
+
+    console.log(chalk.blue('🔍 WordPress repository not detected in current directory'));
+    console.log(chalk.blue('📥 Cloning WFU WordPress repository...'));
+
+    try {
+      const repoUrl = 'git@github.com:wakeforestuniversity/app-web-aws-wp.git';
+      const targetDir = 'wfu-local';
+
+      if (existsSync(targetDir)) {
+        return {
+          success: false,
+          error: `Directory '${targetDir}' already exists. Please remove it or run from inside the WordPress repository.`
+        };
+      }
+
+      this.runCommand(`git clone ${repoUrl} ${targetDir}`);
+      
+      process.chdir(targetDir);
+      console.log(chalk.green(`✅ Repository cloned and changed to directory: ${targetDir}`));
+
+      console.log(chalk.blue('📦 Installing WordPress dependencies with Composer...'));
+      this.runCommand('composer update');
+      console.log(chalk.green('✅ Composer dependencies installed'));
+
+      return { success: true, cloned: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+
   async installDependencies(options: InstallOptions): Promise<InstallResult> {
     const result: InstallResult = {
       success: true,
