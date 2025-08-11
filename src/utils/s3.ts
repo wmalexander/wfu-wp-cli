@@ -138,7 +138,7 @@ export class S3Operations {
     let date: Date;
     if (timestamp.includes('T') && timestamp.includes('-')) {
       // Parse format like "2025-08-08T15-56-35"
-      const [datePart, timePart] = timestamp.split('T');
+      const [datePart] = timestamp.split('T');
       const [year, month, day] = datePart.split('-').map(Number);
       date = new Date(year, month - 1, day); // month is 0-indexed
     } else {

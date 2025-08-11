@@ -1,6 +1,6 @@
 import { execSync } from 'child_process';
 import { existsSync, mkdirSync } from 'fs';
-import { join, dirname } from 'path';
+import { dirname } from 'path';
 import chalk from 'chalk';
 import { Config } from './config';
 

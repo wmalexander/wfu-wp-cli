@@ -160,20 +160,22 @@ ${token.text}
       case 'text':
         return this.escapeHtml((token as Tokens.Text).text);
 
-      case 'strong':
+      case 'strong': {
         const strongText = this.parseInlineTokens(
           (token as Tokens.Strong).tokens
         );
         return `<strong>${strongText}</strong>`;
+      }
 
-      case 'em':
+      case 'em': {
         const emText = this.parseInlineTokens((token as Tokens.Em).tokens);
         return `<em>${emText}</em>`;
+      }
 
       case 'codespan':
         return `<code>${this.escapeHtml((token as Tokens.Codespan).text)}</code>`;
 
-      case 'link':
+      case 'link': {
         const linkToken = token as Tokens.Link;
         const linkText = this.parseInlineTokens(linkToken.tokens);
         // Convert .md links to .html for WordPress
@@ -186,8 +188,9 @@ ${token.text}
           ? ` title="${this.escapeHtml(linkToken.title)}"`
           : '';
         return `<a href="${escapedHref}"${title}>${linkText}</a>`;
+      }
 
-      case 'image':
+      case 'image': {
         const imgToken = token as Tokens.Image;
         const alt = this.escapeHtml(imgToken.text);
         const src = this.escapeHtml(imgToken.href);
@@ -195,21 +198,24 @@ ${token.text}
           ? ` title="${this.escapeHtml(imgToken.title)}"`
           : '';
         return `<img src="${src}" alt="${alt}"${imgTitle} />`;
+      }
 
       case 'br':
         return '<br />';
 
-      case 'del':
+      case 'del': {
         const delText = this.parseInlineTokens((token as Tokens.Del).tokens);
         return `<del>${delText}</del>`;
+      }
 
-      case 'html':
+      case 'html': {
         const htmlToken = token as Tokens.Tag;
         // When escapeHtml is enabled, treat HTML as literal text
         if (this.options.escapeHtml) {
           return this.escapeHtml(htmlToken.text);
         }
         return htmlToken.text;
+      }
 
       default:
         console.warn(`Unknown inline token type: ${token.type}`);
