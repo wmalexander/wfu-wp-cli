@@ -316,19 +316,181 @@ export class DDEVManager {
     return projects;
   }
 
-  startProject(): void {
-    throw new Error(
-      'DDEVManager.startProject() will be implemented in Phase 5'
-    );
+  startProject(projectName?: string): { success: boolean; message: string } {
+    if (!this.checkDDEVInstallation()) {
+      return {
+        success: false,
+        message:
+          'DDEV is not installed. Run "wfuwp local install dependencies" first.',
+      };
+    }
+    const dockerStatus = this.checkDockerStatus();
+    if (!dockerStatus.isRunning) {
+      return {
+        success: false,
+        message:
+          'Docker is not running. Please start Docker Desktop and try again.',
+      };
+    }
+    try {
+      if (projectName) {
+        const projects = this.getProjects();
+        const project = projects.find(
+          (p) => p.name === projectName || p.siteId === projectName
+        );
+        if (!project) {
+          return {
+            success: false,
+            message: `Project not found: ${projectName}. Available projects: ${projects.map((p) => p.name).join(', ') || 'none'}`,
+          };
+        }
+        this.runCommand(`ddev start -p ${project.name}`);
+        const updatedProject = this.getProjects().find(
+          (p) => p.name === project.name
+        );
+        if (updatedProject?.status === 'running') {
+          return {
+            success: true,
+            message: `Successfully started project "${project.name}". URL: ${updatedProject.url || 'N/A'}`,
+          };
+        } else {
+          return {
+            success: false,
+            message: `Failed to start project "${project.name}". Check DDEV logs for details.`,
+          };
+        }
+      } else {
+        this.runCommand('ddev start');
+        const runningProjects = this.getProjects().filter(
+          (p) => p.status === 'running'
+        );
+        return {
+          success: true,
+          message: `Successfully started ${runningProjects.length} project(s): ${runningProjects.map((p) => p.name).join(', ')}`,
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to start project(s): ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
   }
 
-  stopProject(): void {
-    throw new Error('DDEVManager.stopProject() will be implemented in Phase 5');
+  stopProject(projectName?: string): { success: boolean; message: string } {
+    if (!this.checkDDEVInstallation()) {
+      return {
+        success: false,
+        message:
+          'DDEV is not installed. Run "wfuwp local install dependencies" first.',
+      };
+    }
+    try {
+      if (projectName) {
+        const projects = this.getProjects();
+        const project = projects.find(
+          (p) => p.name === projectName || p.siteId === projectName
+        );
+        if (!project) {
+          return {
+            success: false,
+            message: `Project not found: ${projectName}. Available projects: ${projects.map((p) => p.name).join(', ') || 'none'}`,
+          };
+        }
+        this.runCommand(`ddev stop -p ${project.name}`);
+        const updatedProject = this.getProjects().find(
+          (p) => p.name === project.name
+        );
+        if (updatedProject?.status !== 'running') {
+          return {
+            success: true,
+            message: `Successfully stopped project "${project.name}".`,
+          };
+        } else {
+          return {
+            success: false,
+            message: `Failed to stop project "${project.name}". Check DDEV logs for details.`,
+          };
+        }
+      } else {
+        this.runCommand('ddev stop');
+        const runningProjects = this.getProjects().filter(
+          (p) => p.status === 'running'
+        );
+        return {
+          success: true,
+          message:
+            runningProjects.length > 0
+              ? `Some projects may still be running: ${runningProjects.map((p) => p.name).join(', ')}`
+              : 'Successfully stopped all projects.',
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to stop project(s): ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
   }
 
-  restartProject(): void {
-    throw new Error(
-      'DDEVManager.restartProject() will be implemented in Phase 5'
-    );
+  restartProject(projectName?: string): { success: boolean; message: string } {
+    if (!this.checkDDEVInstallation()) {
+      return {
+        success: false,
+        message:
+          'DDEV is not installed. Run "wfuwp local install dependencies" first.',
+      };
+    }
+    const dockerStatus = this.checkDockerStatus();
+    if (!dockerStatus.isRunning) {
+      return {
+        success: false,
+        message:
+          'Docker is not running. Please start Docker Desktop and try again.',
+      };
+    }
+    try {
+      if (projectName) {
+        const projects = this.getProjects();
+        const project = projects.find(
+          (p) => p.name === projectName || p.siteId === projectName
+        );
+        if (!project) {
+          return {
+            success: false,
+            message: `Project not found: ${projectName}. Available projects: ${projects.map((p) => p.name).join(', ') || 'none'}`,
+          };
+        }
+        this.runCommand(`ddev restart -p ${project.name}`);
+        const updatedProject = this.getProjects().find(
+          (p) => p.name === project.name
+        );
+        if (updatedProject?.status === 'running') {
+          return {
+            success: true,
+            message: `Successfully restarted project "${project.name}". URL: ${updatedProject.url || 'N/A'}`,
+          };
+        } else {
+          return {
+            success: false,
+            message: `Failed to restart project "${project.name}". Check DDEV logs for details.`,
+          };
+        }
+      } else {
+        this.runCommand('ddev restart');
+        const runningProjects = this.getProjects().filter(
+          (p) => p.status === 'running'
+        );
+        return {
+          success: true,
+          message: `Successfully restarted ${runningProjects.length} project(s): ${runningProjects.map((p) => p.name).join(', ')}`,
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to restart project(s): ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
   }
 }

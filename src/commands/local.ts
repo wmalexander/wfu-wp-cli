@@ -19,9 +19,9 @@ ${chalk.bold('Available Subcommands:')}
   ${chalk.cyan('domain')}         ${chalk.green('✓')} Manage local development domains (/etc/hosts)
   ${chalk.cyan('status')}         ${chalk.green('✓')} Show environment status and health checks
   ${chalk.cyan('install')}        ${chalk.green('✓')} Install and setup development dependencies
-  ${chalk.cyan('start')}          ${chalk.yellow('Phase 5')} Start local development environment
-  ${chalk.cyan('stop')}           ${chalk.yellow('Phase 5')} Stop local development environment
-  ${chalk.cyan('restart')}        ${chalk.yellow('Phase 5')} Restart local development environment
+  ${chalk.cyan('start')}          ${chalk.green('✓')} Start local development environment
+  ${chalk.cyan('stop')}           ${chalk.green('✓')} Stop local development environment
+  ${chalk.cyan('restart')}        ${chalk.green('✓')} Restart local development environment
   ${chalk.cyan('refresh')}        ${chalk.yellow('Phase 6')} Refresh database from production
   ${chalk.cyan('reset')}          ${chalk.yellow('Phase 6')} Reset entire local environment
   ${chalk.cyan('config')}         ${chalk.yellow('Phase 7')} Configure local development settings
@@ -571,9 +571,43 @@ localCommand
   .description('Start local development environment')
   .option('-s, --site <site-id>', 'Start specific site only')
   .action(async (options) => {
-    console.log(chalk.yellow('Start command will be implemented in Phase 5'));
-    if (options.site) {
-      console.log(chalk.dim(`Site: ${options.site}`));
+    try {
+      console.log(chalk.bold('\n🚀 Starting Local Development Environment\n'));
+      const manager = new DDEVManager();
+      const result = manager.startProject(options.site);
+      if (result.success) {
+        console.log(chalk.green(`✅ ${result.message}`));
+        if (!options.site) {
+          const status = manager.getStatus();
+          if (status.projects.length > 0) {
+            console.log(chalk.bold('\n📋 Active Projects:'));
+            for (const project of status.projects.filter(
+              (p) => p.status === 'running'
+            )) {
+              console.log(
+                `  ${chalk.cyan(project.name)} - ${chalk.green(project.url || 'No URL')}`
+              );
+            }
+          }
+        }
+      } else {
+        console.log(chalk.red(`❌ ${result.message}`));
+        if (result.message.includes('Docker is not running')) {
+          console.log(
+            chalk.dim('\n💡 Try: Open Docker Desktop and wait for it to start')
+          );
+        } else if (result.message.includes('DDEV is not installed')) {
+          console.log(chalk.dim('\n💡 Try: wfuwp local install dependencies'));
+        }
+        process.exit(1);
+      }
+    } catch (error) {
+      console.log(
+        chalk.red(
+          `❌ Failed to start: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      );
+      process.exit(1);
     }
   });
 
@@ -582,9 +616,45 @@ localCommand
   .description('Stop local development environment')
   .option('-s, --site <site-id>', 'Stop specific site only')
   .action(async (options) => {
-    console.log(chalk.yellow('Stop command will be implemented in Phase 5'));
-    if (options.site) {
-      console.log(chalk.dim(`Site: ${options.site}`));
+    try {
+      console.log(chalk.bold('\n🛑 Stopping Local Development Environment\n'));
+      const manager = new DDEVManager();
+      const result = manager.stopProject(options.site);
+      if (result.success) {
+        console.log(chalk.green(`✅ ${result.message}`));
+        if (!options.site) {
+          const status = manager.getStatus();
+          const runningProjects = status.projects.filter(
+            (p) => p.status === 'running'
+          );
+          if (runningProjects.length > 0) {
+            console.log(chalk.yellow('\n⚠️ Some projects are still running:'));
+            for (const project of runningProjects) {
+              console.log(
+                `  ${chalk.cyan(project.name)} - ${chalk.yellow('Still running')}`
+              );
+            }
+            console.log(
+              chalk.dim(
+                '\n💡 Use "wfuwp local stop --site <site-id>" to stop specific sites'
+              )
+            );
+          }
+        }
+      } else {
+        console.log(chalk.red(`❌ ${result.message}`));
+        if (result.message.includes('DDEV is not installed')) {
+          console.log(chalk.dim('\n💡 Try: wfuwp local install dependencies'));
+        }
+        process.exit(1);
+      }
+    } catch (error) {
+      console.log(
+        chalk.red(
+          `❌ Failed to stop: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      );
+      process.exit(1);
     }
   });
 
@@ -593,9 +663,45 @@ localCommand
   .description('Restart local development environment')
   .option('-s, --site <site-id>', 'Restart specific site only')
   .action(async (options) => {
-    console.log(chalk.yellow('Restart command will be implemented in Phase 5'));
-    if (options.site) {
-      console.log(chalk.dim(`Site: ${options.site}`));
+    try {
+      console.log(
+        chalk.bold('\n🔄 Restarting Local Development Environment\n')
+      );
+      const manager = new DDEVManager();
+      const result = manager.restartProject(options.site);
+      if (result.success) {
+        console.log(chalk.green(`✅ ${result.message}`));
+        if (!options.site) {
+          const status = manager.getStatus();
+          if (status.projects.length > 0) {
+            console.log(chalk.bold('\n📋 Active Projects:'));
+            for (const project of status.projects.filter(
+              (p) => p.status === 'running'
+            )) {
+              console.log(
+                `  ${chalk.cyan(project.name)} - ${chalk.green(project.url || 'No URL')}`
+              );
+            }
+          }
+        }
+      } else {
+        console.log(chalk.red(`❌ ${result.message}`));
+        if (result.message.includes('Docker is not running')) {
+          console.log(
+            chalk.dim('\n💡 Try: Open Docker Desktop and wait for it to start')
+          );
+        } else if (result.message.includes('DDEV is not installed')) {
+          console.log(chalk.dim('\n💡 Try: wfuwp local install dependencies'));
+        }
+        process.exit(1);
+      }
+    } catch (error) {
+      console.log(
+        chalk.red(
+          `❌ Failed to restart: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      );
+      process.exit(1);
     }
   });
 
