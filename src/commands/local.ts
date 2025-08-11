@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { LocalHostsManager } from '../utils/local-hosts-manager.js';
+import { LocalHostsManager } from '../utils/local-hosts-manager';
+import { DDEVManager } from '../utils/ddev-manager';
 
 export const localCommand = new Command('local')
   .description('Manage local development environment for WFU WordPress sites')
@@ -15,7 +16,7 @@ ${chalk.bold('Examples:')}
 
 ${chalk.bold('Available Subcommands:')}
   ${chalk.cyan('domain')}         ${chalk.green('✓')} Manage local development domains (/etc/hosts)
-  ${chalk.cyan('status')}         ${chalk.yellow('Phase 3')} Show environment status and health checks
+  ${chalk.cyan('status')}         ${chalk.green('✓')} Show environment status and health checks
   ${chalk.cyan('install')}        ${chalk.yellow('Phase 4')} Install and setup development dependencies
   ${chalk.cyan('start')}          ${chalk.yellow('Phase 5')} Start local development environment
   ${chalk.cyan('stop')}           ${chalk.yellow('Phase 5')} Stop local development environment
@@ -34,9 +35,158 @@ localCommand
   .description('Show local development environment status')
   .option('-v, --verbose', 'Show detailed status information', false)
   .action(async (options) => {
-    console.log(chalk.yellow('Status command will be implemented in Phase 3'));
-    if (options.verbose) {
-      console.log(chalk.dim('Verbose mode enabled'));
+    try {
+      const manager = new DDEVManager();
+      const health = manager.checkEnvironmentHealth();
+
+      console.log(chalk.bold('\n🔧 Local Development Environment Status\n'));
+
+      const statusIcon =
+        health.overall === 'healthy'
+          ? '✅'
+          : health.overall === 'warning'
+            ? '⚠️'
+            : '❌';
+      const statusColor =
+        health.overall === 'healthy'
+          ? chalk.green
+          : health.overall === 'warning'
+            ? chalk.yellow
+            : chalk.red;
+
+      console.log(
+        `${statusIcon} ${chalk.bold('Overall Status')}: ${statusColor(health.overall.toUpperCase())}`
+      );
+      console.log();
+
+      console.log(chalk.bold('📦 Core Dependencies:'));
+      console.log(
+        `  ${health.docker.isInstalled ? '✅' : '❌'} ${chalk.cyan('Docker')}: ${
+          health.docker.isInstalled
+            ? `${chalk.green('Installed')} ${health.docker.version ? `(${health.docker.version})` : ''}`
+            : chalk.red('Not installed')
+        }`
+      );
+
+      if (health.docker.isInstalled) {
+        console.log(
+          `    ${health.docker.isRunning ? '▶️' : '⏹️'} ${chalk.dim('Status')}: ${
+            health.docker.isRunning
+              ? chalk.green('Running')
+              : chalk.yellow('Stopped')
+          }`
+        );
+        console.log(
+          `    ${health.docker.compose ? '✅' : '❌'} ${chalk.dim('Docker Compose')}: ${
+            health.docker.compose
+              ? chalk.green('Available')
+              : chalk.red('Not available')
+          }`
+        );
+      }
+
+      console.log(
+        `  ${health.ddev.isInstalled ? '✅' : '❌'} ${chalk.cyan('DDEV')}: ${
+          health.ddev.isInstalled
+            ? `${chalk.green('Installed')} ${health.ddev.version ? `(${health.ddev.version})` : ''}`
+            : chalk.red('Not installed')
+        }`
+      );
+
+      console.log();
+
+      console.log(chalk.bold('🛠️ System Tools:'));
+      for (const dep of health.dependencies) {
+        const icon = dep.installed ? '✅' : dep.required ? '❌' : '⚪';
+        const status = dep.installed
+          ? `${chalk.green('Installed')} ${dep.version ? `(${dep.version})` : ''}`
+          : chalk.red('Not installed');
+        const required = dep.required
+          ? chalk.red(' [Required]')
+          : chalk.dim(' [Optional]');
+
+        console.log(`  ${icon} ${chalk.cyan(dep.name)}: ${status}${required}`);
+      }
+
+      console.log();
+
+      if (health.ddev.isInstalled && health.ddev.projects.length > 0) {
+        console.log(chalk.bold('🚀 DDEV Projects:'));
+        for (const project of health.ddev.projects) {
+          const statusIcon = project.status === 'running' ? '▶️' : '⏹️';
+          const statusColor =
+            project.status === 'running' ? chalk.green : chalk.yellow;
+
+          console.log(
+            `  ${statusIcon} ${chalk.cyan(project.name)}: ${statusColor(project.status)}`
+          );
+          if (options.verbose) {
+            if (project.url) {
+              console.log(
+                `    ${chalk.dim('URL')}: ${chalk.blue(project.url)}`
+              );
+            }
+            if (project.type) {
+              console.log(`    ${chalk.dim('Type')}: ${project.type}`);
+            }
+            if (project.location) {
+              console.log(
+                `    ${chalk.dim('Location')}: ${chalk.dim(project.location)}`
+              );
+            }
+          }
+        }
+        console.log();
+      } else if (health.ddev.isInstalled) {
+        console.log(chalk.yellow('📂 No DDEV projects found\n'));
+      }
+
+      if (health.recommendations.length > 0) {
+        console.log(chalk.bold('💡 Recommendations:'));
+        for (const rec of health.recommendations) {
+          console.log(`  ${chalk.yellow('•')} ${rec}`);
+        }
+        console.log();
+      }
+
+      if (options.verbose) {
+        const hostsManager = new LocalHostsManager();
+        const domains = hostsManager.getCurrentDomains();
+
+        if (domains.length > 0) {
+          console.log(chalk.bold('🌐 Local Development Domains:'));
+          for (const domain of domains) {
+            console.log(
+              `  ${chalk.green('•')} Site ${chalk.cyan(domain.siteId)}: ${chalk.blue(domain.domain)} (port ${chalk.yellow(domain.port)})`
+            );
+          }
+          console.log();
+        }
+
+        const wpProjects = manager.findWordPressProjects();
+        if (wpProjects.length > 0) {
+          console.log(chalk.bold('🔍 Found WordPress Projects:'));
+          for (const project of wpProjects) {
+            console.log(`  ${chalk.green('•')} ${chalk.dim(project)}`);
+          }
+          console.log();
+        }
+      }
+
+      if (health.overall !== 'healthy') {
+        console.log(
+          chalk.dim(
+            'Tip: Use "wfuwp local install --help" to set up missing dependencies'
+          )
+        );
+      } else {
+        console.log(
+          chalk.dim('🎉 Your local development environment is ready!')
+        );
+      }
+    } catch (error) {
+      console.error(chalk.red(`Error checking environment status: ${error}`));
+      process.exit(1);
     }
   });
 
