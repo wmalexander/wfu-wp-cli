@@ -290,55 +290,11 @@ export const clickupCommand = new Command('clickup')
       .action(async (taskId: string) => {
         try {
           const { ClickUpClient } = await import('../utils/clickup-client');
+          const { TaskFormatter } = await import('../utils/task-formatter');
           const client = new ClickUpClient();
           const taskData = await client.getTask(taskId);
           const task = taskData.task;
-          console.log(chalk.blue.bold(`Task: ${task.name}`));
-          console.log(`  ID: ${task.id}`);
-          console.log(`  URL: ${task.url}`);
-          console.log(`  Status: ${task.status.status}`);
-          if (task.description) {
-            console.log(`  Description: ${task.description}`);
-          }
-          if (task.assignees && task.assignees.length > 0) {
-            const assigneeNames = task.assignees
-              .map((a: any) => a.username)
-              .join(', ');
-            console.log(`  Assignees: ${assigneeNames}`);
-          }
-          if (task.tags && task.tags.length > 0) {
-            const tagNames = task.tags.map((t: any) => t.name).join(', ');
-            console.log(`  Tags: ${tagNames}`);
-          }
-          if (task.priority && task.priority.priority !== null) {
-            const priorityMap: { [key: string]: string } = {
-              '1': 'Urgent',
-              '2': 'High',
-              '3': 'Normal',
-              '4': 'Low',
-            };
-            console.log(
-              `  Priority: ${priorityMap[task.priority.priority] || task.priority.priority}`
-            );
-          }
-          if (task.due_date) {
-            const dueDate = new Date(
-              parseInt(task.due_date)
-            ).toLocaleDateString();
-            console.log(`  Due Date: ${dueDate}`);
-          }
-          if (task.list) {
-            console.log(`  List: ${task.list.name}`);
-          }
-          if (task.creator) {
-            console.log(`  Created by: ${task.creator.username}`);
-          }
-          if (task.date_created) {
-            const createdDate = new Date(
-              parseInt(task.date_created)
-            ).toLocaleDateString();
-            console.log(`  Created: ${createdDate}`);
-          }
+          TaskFormatter.formatTaskDetails(task);
         } catch (error) {
           console.error(
             chalk.red(
@@ -376,4 +332,174 @@ export const clickupCommand = new Command('clickup')
           process.exit(1);
         }
       })
+  )
+  .addCommand(
+    new Command('tasks')
+      .description('List tasks from a ClickUp list with filtering options')
+      .option('--list <list-id>', 'List ID to get tasks from')
+      .option('--status <statuses>', 'Filter by comma-separated status names')
+      .option('--assignee <assignees>', 'Filter by comma-separated user IDs')
+      .option('--tag <tags>', 'Filter by comma-separated tag names')
+      .option(
+        '--priority <priority>',
+        'Filter by priority (urgent, high, normal, low)'
+      )
+      .option('--due-before <date>', 'Show tasks due before date (YYYY-MM-DD)')
+      .option('--due-after <date>', 'Show tasks due after date (YYYY-MM-DD)')
+      .option(
+        '--created-before <date>',
+        'Show tasks created before date (YYYY-MM-DD)'
+      )
+      .option(
+        '--created-after <date>',
+        'Show tasks created after date (YYYY-MM-DD)'
+      )
+      .option(
+        '--updated-before <date>',
+        'Show tasks updated before date (YYYY-MM-DD)'
+      )
+      .option(
+        '--updated-after <date>',
+        'Show tasks updated after date (YYYY-MM-DD)'
+      )
+      .option('--include-closed', 'Include closed/completed tasks')
+      .option('--include-archived', 'Include archived tasks')
+      .option('--page <number>', 'Page number for pagination (default: 1)')
+      .action(
+        async (options: {
+          list?: string;
+          status?: string;
+          assignee?: string;
+          tag?: string;
+          priority?: string;
+          dueBefore?: string;
+          dueAfter?: string;
+          createdBefore?: string;
+          createdAfter?: string;
+          updatedBefore?: string;
+          updatedAfter?: string;
+          includeClosed?: boolean;
+          includeArchived?: boolean;
+          page?: string;
+        }) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const { TaskFormatter } = await import('../utils/task-formatter');
+            let listId = options.list;
+            if (!listId) {
+              const defaultListId = Config.get('clickup.defaultListId');
+              if (!defaultListId) {
+                throw new Error(
+                  'No list ID provided and no default list configured. Use --list <list-id> or configure a default with: wfuwp clickup config set defaultListId <list-id>'
+                );
+              }
+              listId = defaultListId;
+            }
+            const parseDate = (dateStr: string): number => {
+              const date = new Date(dateStr);
+              if (isNaN(date.getTime())) {
+                throw new Error(
+                  `Invalid date format: ${dateStr}. Use YYYY-MM-DD format.`
+                );
+              }
+              return date.getTime();
+            };
+            const filterOptions: any = {
+              includeClosed: options.includeClosed,
+              includeArchived: options.includeArchived,
+            };
+            if (options.status) {
+              filterOptions.statuses = options.status
+                .split(',')
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0);
+            }
+            if (options.assignee) {
+              filterOptions.assignees = options.assignee
+                .split(',')
+                .map((a) => a.trim())
+                .filter((a) => a.length > 0);
+            }
+            if (options.tag) {
+              filterOptions.tags = options.tag
+                .split(',')
+                .map((t) => t.trim())
+                .filter((t) => t.length > 0);
+            }
+            if (options.dueBefore) {
+              filterOptions.dueDateLt = parseDate(options.dueBefore);
+            }
+            if (options.dueAfter) {
+              filterOptions.dueDateGt = parseDate(options.dueAfter);
+            }
+            if (options.createdBefore) {
+              filterOptions.dateCreatedLt = parseDate(options.createdBefore);
+            }
+            if (options.createdAfter) {
+              filterOptions.dateCreatedGt = parseDate(options.createdAfter);
+            }
+            if (options.updatedBefore) {
+              filterOptions.dateUpdatedLt = parseDate(options.updatedBefore);
+            }
+            if (options.updatedAfter) {
+              filterOptions.dateUpdatedGt = parseDate(options.updatedAfter);
+            }
+            if (options.page) {
+              const pageNum = parseInt(options.page, 10);
+              if (isNaN(pageNum) || pageNum < 1) {
+                throw new Error('Page number must be a positive integer');
+              }
+              filterOptions.page = pageNum;
+            }
+            const client = new ClickUpClient();
+            const response = await client.getTasks(listId, filterOptions);
+            let tasks = response.tasks || [];
+            if (options.priority) {
+              const priorityMap: { [key: string]: string } = {
+                urgent: '1',
+                high: '2',
+                normal: '3',
+                low: '4',
+              };
+              const targetPriority =
+                priorityMap[options.priority.toLowerCase()];
+              if (!targetPriority) {
+                throw new Error(
+                  'Priority must be one of: urgent, high, normal, low'
+                );
+              }
+              tasks = tasks.filter(
+                (task: any) =>
+                  task.priority && task.priority.priority === targetPriority
+              );
+            }
+            if (tasks.length === 0) {
+              console.log(
+                chalk.yellow('No tasks found matching the specified criteria.')
+              );
+              return;
+            }
+            console.log(
+              chalk.blue.bold(`Tasks from List (Page ${options.page || '1'}):`)
+            );
+            console.log('');
+            TaskFormatter.formatTaskList(tasks);
+            if (filterOptions.page) {
+              console.log('');
+              console.log(
+                chalk.gray(
+                  `Use --page ${(filterOptions.page || 1) + 1} to see more tasks`
+                )
+              );
+            }
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
+          }
+        }
+      )
   );

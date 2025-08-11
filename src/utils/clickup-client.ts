@@ -209,6 +209,54 @@ export class ClickUpClient {
     return response.data;
   }
 
+  async getTasks(
+    listId: string,
+    options: {
+      includeArchived?: boolean;
+      includeClosed?: boolean;
+      statuses?: string[];
+      assignees?: string[];
+      tags?: string[];
+      dueDateGt?: number;
+      dueDateLt?: number;
+      dateCreatedGt?: number;
+      dateCreatedLt?: number;
+      dateUpdatedGt?: number;
+      dateUpdatedLt?: number;
+      page?: number;
+    } = {}
+  ): Promise<any> {
+    const params: any = {};
+    if (options.includeArchived) params.archived = true;
+    if (options.includeClosed) params.include_closed = true;
+    if (options.statuses && options.statuses.length > 0) {
+      options.statuses.forEach((status, index) => {
+        params[`statuses[${index}]`] = status;
+      });
+    }
+    if (options.assignees && options.assignees.length > 0) {
+      options.assignees.forEach((assignee, index) => {
+        params[`assignees[${index}]`] = assignee;
+      });
+    }
+    if (options.tags && options.tags.length > 0) {
+      options.tags.forEach((tag, index) => {
+        params[`tags[${index}]`] = tag;
+      });
+    }
+    if (options.dueDateGt) params.due_date_gt = options.dueDateGt;
+    if (options.dueDateLt) params.due_date_lt = options.dueDateLt;
+    if (options.dateCreatedGt) params.date_created_gt = options.dateCreatedGt;
+    if (options.dateCreatedLt) params.date_created_lt = options.dateCreatedLt;
+    if (options.dateUpdatedGt) params.date_updated_gt = options.dateUpdatedGt;
+    if (options.dateUpdatedLt) params.date_updated_lt = options.dateUpdatedLt;
+    if (options.page) params.page = options.page;
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.get(`/list/${listId}/task`, { params })
+    );
+    return response.data;
+  }
+
   // Generic request method for future use
   async request<T = any>(
     method: 'get' | 'post' | 'put' | 'delete',
