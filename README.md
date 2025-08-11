@@ -235,7 +235,7 @@ wfuwp clickup tasks --my-tasks
 wfuwp clickup tasks --export csv
 ```
 
-**📖 Detailed Documentation:** See [docs/CLICKUP.md](docs/CLICKUP.md) for comprehensive usage instructions, batch operations, export formats, and troubleshooting.
+**📖 Detailed Documentation:** See [wp-docs/clickup.md](wp-docs/clickup.md) for comprehensive usage instructions, batch operations, export formats, and troubleshooting.
 
 #### `migrate` - Migrate WordPress multisite database between environments (Phase 1)
 

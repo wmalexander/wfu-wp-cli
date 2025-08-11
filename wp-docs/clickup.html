@@ -1,0 +1,804 @@
+<!-- wp:heading -->
+<h1 class="wp-block-heading">ClickUp Integration</h1>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The WFU WordPress CLI tool includes comprehensive ClickUp integration for managing tasks directly from the command line.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Overview</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The ClickUp integration allows you to:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Create and manage ClickUp tasks</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>View and filter tasks with advanced options</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Export task data in multiple formats</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Batch create tasks from files</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Navigate workspace hierarchies</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Search across your ClickUp workspaces</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Quick Start</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">1. Get Your API Token</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>1. Go to ClickUp Settings → Apps → API Token</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>2. Generate a new API token (starts with <code>pk_</code>)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>3. Copy the token</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">2. Configure the CLI</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Set your API token (encrypted storage)
+wfuwp clickup config set token pk_your_token_here
+
+# Test the connection
+wfuwp clickup test
+
+# Get your user information
+wfuwp clickup whoami
+
+# List available workspaces
+wfuwp clickup lists</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">3. Set Default List (Recommended)</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Find your list ID and set as default
+wfuwp clickup config set defaultListId YOUR_LIST_ID
+
+# Verify configuration
+wfuwp clickup config show</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">4. Start Creating Tasks</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Create a simple task
+wfuwp clickup create "Fix login bug"
+
+# Create with details
+wfuwp clickup create "Fix login bug" --priority high --assignee USER_ID --due 2024-12-31 --tags "bug,urgent"</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Available Commands</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Configuration Commands</h3>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>clickup config</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Manage ClickUp configuration settings.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Set configuration values
+wfuwp clickup config set token pk_your_token
+wfuwp clickup config set defaultListId LIST_ID
+wfuwp clickup config set defaultWorkspaceId WORKSPACE_ID
+
+# Show current configuration
+wfuwp clickup config show</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>clickup test</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Test connectivity to the ClickUp API.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp clickup test</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>clickup whoami</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Display current user information.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp clickup whoami</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Task Management Commands</h3>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>clickup create</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Create new ClickUp tasks with various options.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Basic task creation
+wfuwp clickup create "Task title"
+
+# With full options
+wfuwp clickup create "Task title" \
+  --description "Detailed description" \
+  --priority urgent|high|normal|low \
+  --assignee USER_ID \
+  --due YYYY-MM-DD \
+  --tags "tag1,tag2,tag3" \
+  --list LIST_ID
+
+# Interactive mode (guided creation)
+wfuwp clickup create --interactive
+
+# Batch creation from file
+wfuwp clickup create --from-file tasks.json
+wfuwp clickup create --from-file tasks.txt</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Priority Options:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li><code>urgent</code> (red, priority 1)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><code>high</code> (yellow, priority 2) </li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><code>normal</code> (blue, priority 3)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><code>low</code> (gray, priority 4)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>clickup task</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>View detailed information about a specific task.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp clickup task TASK_ID</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>clickup tasks</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>List and filter tasks with comprehensive options.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Basic task listing
+wfuwp clickup tasks
+
+# Filter options
+wfuwp clickup tasks --status "to do,in progress"
+wfuwp clickup tasks --assignee USER_ID
+wfuwp clickup tasks --tag "urgent,bug"
+wfuwp clickup tasks --priority high
+wfuwp clickup tasks --due-before 2024-12-31
+wfuwp clickup tasks --due-after 2024-01-01
+wfuwp clickup tasks --created-after 2024-01-01
+wfuwp clickup tasks --updated-before 2024-12-31
+
+# Include closed/archived tasks
+wfuwp clickup tasks --include-closed
+wfuwp clickup tasks --include-archived
+
+# Pagination
+wfuwp clickup tasks --page 2
+
+# Quick filters
+wfuwp clickup tasks --my-tasks           # Tasks assigned to you
+wfuwp clickup tasks --overdue            # Overdue tasks
+wfuwp clickup tasks --due-today          # Tasks due today
+wfuwp clickup tasks --due-this-week      # Tasks due this week
+wfuwp clickup tasks --urgent             # Urgent priority tasks
+wfuwp clickup tasks --high-priority      # Urgent + high priority tasks
+wfuwp clickup tasks --recent             # Updated in last 7 days
+
+# Export tasks
+wfuwp clickup tasks --export csv
+wfuwp clickup tasks --export json
+wfuwp clickup tasks --export markdown
+wfuwp clickup tasks --export csv --export-file my-tasks.csv</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Workspace Navigation Commands</h3>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>clickup lists</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Navigate and explore ClickUp workspace hierarchies.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># List all workspaces
+wfuwp clickup lists
+
+# Explore specific workspace
+wfuwp clickup lists --workspace WORKSPACE_ID
+
+# Show complete hierarchy
+wfuwp clickup lists --workspace WORKSPACE_ID --all
+
+# Browse specific space
+wfuwp clickup lists --space SPACE_ID
+
+# Browse specific folder
+wfuwp clickup lists --folder FOLDER_ID</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>clickup search</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Search tasks across your ClickUp workspace.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Basic search
+wfuwp clickup search "login bug"
+
+# Search with pagination
+wfuwp clickup search "bug" --page 2 --limit 50
+
+# Export search results
+wfuwp clickup search "urgent" --export csv</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Batch Operations</h3>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>clickup examples</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Generate example files for batch task creation.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Generate both formats
+wfuwp clickup examples
+
+# Generate specific format
+wfuwp clickup examples --format txt
+wfuwp clickup examples --format json</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Batch Task Creation</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Plain Text Format</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Create a file with one task per line, using <code>|</code> to separate options:</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Example: tasks.txt
+Fix login bug | High priority | @john | Due: 2024-12-31 | Tags: bug,urgent
+Update documentation | Normal priority | Desc: Update API docs
+Refactor auth module | Low priority | @sarah | Tags: refactor,backend
+Add dark mode toggle | Urgent priority | Due: 2024-12-25</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Supported options:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Priority: <code>Urgent priority</code>, <code>High priority</code>, <code>Normal priority</code>, <code>Low priority</code></li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Assignee: <code>@username</code> or <code>@userid</code></li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Due date: <code>Due: YYYY-MM-DD</code></li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Description: <code>Desc: Your description here</code></li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Tags: <code>Tags: tag1,tag2,tag3</code></li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">JSON Format</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Create a structured JSON file:</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>{
+  "tasks": [
+    {
+      "name": "Fix login bug",
+      "description": "Users cannot log in on mobile devices",
+      "priority": "high",
+      "assignee": "john",
+      "dueDate": "2024-12-31",
+      "tags": ["bug", "urgent"]
+    },
+    {
+      "name": "Update documentation",
+      "description": "Update API documentation with new endpoints",
+      "priority": "normal"
+    }
+  ]
+}</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Export Formats</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">CSV Export</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Comma-separated values with headers, suitable for spreadsheets:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>All task metadata in columns</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Proper escaping for commas and quotes</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Time estimates and spent time in human-readable format</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">JSON Export</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Structured JSON with metadata:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>{
+  "exportDate": "2024-08-11T02:30:00.000Z",
+  "taskCount": 25,
+  "tasks": [...]
+}</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Markdown Export</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Formatted markdown document:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Hierarchical structure with headers</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>All task details in readable format</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Clickable links to tasks</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Export metadata</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Configuration</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Encrypted Storage</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>API tokens are encrypted using AES encryption</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Configuration stored in <code>~/.wfuwp/config.json</code></li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Never logs full API tokens (only first/last 4 characters)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Configuration Options</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Required
+clickup.token              # Your ClickUp API token (encrypted)
+
+# Optional but recommended  
+clickup.defaultListId      # Default list for task operations
+clickup.defaultWorkspaceId # Default workspace for searches</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Error Handling</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The integration includes comprehensive error handling:</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">API Errors</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li><strong>401 Unauthorized</strong>: Invalid API token</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><strong>403 Forbidden</strong>: Insufficient permissions</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><strong>404 Not Found</strong>: Invalid task/list/workspace ID</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><strong>429 Rate Limited</strong>: Automatic retry with exponential backoff</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><strong>5xx Server Errors</strong>: Automatic retry with exponential backoff</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Input Validation</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Task titles (required, length limits)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Dates (YYYY-MM-DD format validation)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Priority values (urgent/high/normal/low)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>User IDs and list IDs</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Export formats (csv/json/markdown)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Rate Limiting</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Automatic handling of ClickUp API rate limits</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Exponential backoff retry strategy</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Rate limit warnings when approaching limits</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Up to 3 retry attempts for transient errors</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Advanced Features</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Interactive Mode</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Use <code>--interactive</code> for guided task creation with:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Step-by-step prompts</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Input validation</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Default value suggestions</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Confirmation before creation</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Quick Filters</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Shortcut options for common task queries:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li><code>--my-tasks</code>: Tasks assigned to you</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><code>--overdue</code>: Past due date</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><code>--due-today</code>: Due today</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><code>--due-this-week</code>: Due within 7 days</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><code>--urgent</code>: Urgent priority only</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><code>--high-priority</code>: Urgent and high priority</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><code>--recent</code>: Updated in last 7 days</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Workspace Navigation</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Hierarchical browsing of ClickUp structure:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Workspaces → Spaces → Folders → Lists</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Visual tree formatting with emojis</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Task counts and metadata display</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Support for folderless lists</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Integration with Existing CLI</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>The ClickUp integration follows the same patterns as other CLI commands:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Consistent error handling and output formatting</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Integration with existing configuration system</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Follows project code conventions</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Compatible with existing logging and debugging</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">API Documentation</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>For detailed ClickUp API information:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li><a href="https://developer.clickup.com/">ClickUp API Documentation</a></li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><a href="https://developer.clickup.com/docs/authentication">Authentication Guide</a></li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><a href="https://clickup.com/api/">API Reference</a></li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Troubleshooting</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Common Issues</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p><strong>"ClickUp API token not configured"</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp clickup config set token pk_your_token_here</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>"No list ID provided and no default list configured"</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>wfuwp clickup config set defaultListId YOUR_LIST_ID</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>"Rate limited" errors</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Wait for the specified time before retrying</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Consider reducing request frequency</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Check your ClickUp plan's rate limits</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Connection timeouts</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>Check internet connectivity</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Verify ClickUp service status</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Try again after a short wait</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Getting Help</h3>
+<!-- /wp:heading -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># View available commands
+wfuwp clickup --help
+
+# Get help for specific commands
+wfuwp clickup create --help
+wfuwp clickup tasks --help
+
+# Test your configuration
+wfuwp clickup test
+wfuwp clickup whoami</code></pre>
+<!-- /wp:code -->
