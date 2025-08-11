@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-08-11
+
+### Added
+- **ClickUp Integration**: Complete task management integration with comprehensive CLI commands
+  - Create and manage ClickUp tasks with full metadata support (priority, assignee, due date, tags)
+  - List and filter tasks with advanced filtering options (status, assignee, priority, date ranges)
+  - Export tasks in multiple formats (CSV, JSON, Markdown)
+  - Batch create tasks from plain text or JSON files
+  - Navigate workspace hierarchies and search across workspaces
+  - Interactive task creation mode with guided prompts
+  - Secure encrypted storage of API credentials
+  - Comprehensive error handling with retry logic for API failures
+  - Full documentation in wp-docs/clickup.md with troubleshooting guide
+
+### Enhanced
+- Updated README.md to include ClickUp integration overview with quick start examples
+- Added comprehensive test coverage for ClickUp utilities and validation
+- Improved config system to support ClickUp API token encryption
+
 ## [0.3.2] - 2025-08-06
 
 ### Enhanced
