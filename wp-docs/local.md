@@ -1,16 +1,14 @@
 # local - Local Development Environment Management
 
-Complete local development environment management for WFU WordPress sites with DDEV integration, domain management, and automated setup workflows.
+Simple local development environment management for WFU WordPress sites with DDEV integration.
 
 ## Overview
 
-The local command provides comprehensive local development environment management including:
-- **Domain Management**: Configure local development domains in /etc/hosts
-- **Environment Status**: Monitor Docker, DDEV, and system dependencies
-- **Automated Installation**: Install Docker, DDEV, mkcert, and setup workspace
+The local command provides essential local development environment management:
+- **Environment Status**: Monitor Docker and DDEV health
+- **Automated Installation**: Install Docker, DDEV, and mkcert dependencies
 - **Environment Control**: Start, stop, and restart local development environments
-- **Content Management**: Refresh database from production, reset environments
-- **Configuration**: Interactive setup wizard and advanced settings management
+- **Project Management**: Delete projects and reset to fresh state
 
 ## Usage
 
@@ -18,289 +16,110 @@ The local command provides comprehensive local development environment managemen
 wfuwp local <subcommand> [options]
 ```
 
-## Subcommands Overview
+## Commands
 
-All 8 phases of local development management are complete and ready to use:
+### Environment Setup
 
-- ✅ `domain` - Manage local development domains (/etc/hosts)
-- ✅ `status` - Show environment status and health checks
-- ✅ `install` - Install and setup development dependencies
-- ✅ `start` - Start local development environment
-- ✅ `stop` - Stop local development environment
-- ✅ `restart` - Restart local development environment
-- ✅ `refresh` - Refresh database from production
-- ✅ `reset` - Reset entire local environment
-- ✅ `config` - Configure local development settings
+#### `status`
+Check local development environment health.
 
-## Domain Management
-
-Manage local development domains through /etc/hosts modification with separate markers from DNS spoofing functionality.
-
-### Usage
 ```bash
-# Add domain for site (requires sudo)
-sudo wfuwp local domain add <site-id> [--port 8443]
-
-# Remove domain for site (requires sudo)
-sudo wfuwp local domain remove <site-id>
-
-# List all configured domains
-wfuwp local domain list
-
-# Remove all domains (requires sudo)
-sudo wfuwp local domain reset
-```
-
-### Examples
-```bash
-# Add domain for site 43
-sudo wfuwp local domain add 43
-
-# Add domain with custom port
-sudo wfuwp local domain add 43 --port 8080
-
-# Remove domain for site 43
-sudo wfuwp local domain remove 43
-
-# List all domains
-wfuwp local domain list
-
-# Remove all local development domains
-sudo wfuwp local domain reset
-```
-
-### Domain Format
-- Domains follow format: `site-{ID}.local.wfu.edu`
-- Example: Site 43 becomes `site43.local.wfu.edu`
-- Default port: 8443 (DDEV HTTPS)
-- Points to: 127.0.0.1 (localhost)
-
-## Environment Status
-
-Monitor local development environment health with comprehensive dependency checking.
-
-### Usage
-```bash
-# Basic status check
+# Check environment status
 wfuwp local status
-
-# Detailed status with verbose information
-wfuwp local status --verbose
 ```
 
-### Status Information
-- **Overall Health**: Healthy, Warning, or Error status
-- **Core Dependencies**: Docker installation and status, DDEV availability
-- **System Tools**: git, mkcert, PHP (optional dependencies)
-- **DDEV Projects**: Running projects with URLs and status
-- **Local Domains**: Configured development domains (verbose mode)
-- **WordPress Projects**: Discovered WordPress projects (verbose mode)
+**Status Information:**
+- Overall health (Healthy, Warning, or Error)
+- Docker installation and running status
+- DDEV availability and running projects
 
-### Health Assessment
-- **Healthy**: All required dependencies available and running
-- **Warning**: Some optional tools missing or Docker stopped
-- **Error**: Critical dependencies missing (Docker or DDEV)
+#### `install`
+Install all required dependencies (Docker, DDEV, mkcert).
 
-## Installation & Setup
-
-Automated installation of development dependencies with cross-platform support.
-
-### Usage
 ```bash
-# Install all dependencies interactively
+# Install all dependencies
 wfuwp local install
 
-# Install specific dependency
-wfuwp local install docker
-wfuwp local install ddev
-wfuwp local install mkcert
-
-# Setup workspace and clone repositories
-wfuwp local install workspace
-
-# Download and setup database
-wfuwp local install database [--environment prod]
-
-# Force reinstall existing dependencies
+# Force reinstallation
 wfuwp local install --force
 ```
 
-### Supported Platforms
-- **macOS**: Homebrew-based installation
-- **Linux**: Native package managers (apt, yum, pacman)
-- **Windows**: Manual download links and guidance
-
-### Installation Components
-- **Docker**: Container platform for DDEV
-- **DDEV**: Local development environment manager
+**What gets installed:**
+- **Docker Desktop**: Container platform for DDEV
+- **DDEV**: Local development environment manager  
 - **mkcert**: Local SSL certificate generation
-- **Workspace**: ~/wfu-wp-local directory structure
-- **Database**: S3 backup download and import
 
-## Environment Control
+### Project Control
 
-Start, stop, and restart local development environments with health checking.
+#### `start`
+Start the local development environment.
 
-### Usage
 ```bash
-# Start specific project
-wfuwp local start [project-name]
-
-# Start project by site ID
-wfuwp local start 43
-
-# Start all projects
-wfuwp local start --all
-
-# Stop specific project
-wfuwp local stop [project-name]
-
-# Stop project by site ID
-wfuwp local stop 43
-
-# Stop all projects
-wfuwp local stop --all
-
-# Restart specific project
-wfuwp local restart [project-name]
-
-# Restart all projects
-wfuwp local restart --all
+# Start local development environment
+wfuwp local start
 ```
 
-### Features
-- **Pre-flight Checks**: Docker status, DDEV installation validation
-- **Project Discovery**: Find projects by name or site ID matching
-- **Health Monitoring**: Verify successful start/stop operations
-- **URL Display**: Show accessible URLs after successful start
-- **Error Recovery**: Actionable troubleshooting hints
+Shows active projects with URLs after successful start.
 
-## Content Management
+#### `stop`
+Stop the local development environment.
 
-Refresh database content from production and reset local environments.
-
-### Database Refresh
 ```bash
-# Refresh from production (default)
-wfuwp local refresh database [project-name]
-
-# Refresh from specific environment
-wfuwp local refresh database --environment uat [project-name]
-
-# Skip backup before refresh
-wfuwp local refresh database --no-backup [project-name]
+# Stop local development environment
+wfuwp local stop
 ```
 
-### Environment Reset
+#### `restart` 
+Restart the local development environment.
+
 ```bash
-# Standard reset (removes containers, keeps code)
-wfuwp local reset [project-name]
-
-# Deep reset (removes everything including code)
-wfuwp local reset --deep [project-name]
-
-# Reset with custom backup directory
-wfuwp local reset --backup-dir /path/to/backups [project-name]
+# Restart local development environment
+wfuwp local restart
 ```
 
-### Build Operations
-```bash
-# Run full build pipeline
-wfuwp local refresh build [project-name]
+### Project Management
 
-# Skip specific build steps
-wfuwp local refresh build --no-composer [project-name]
-wfuwp local refresh build --no-npm [project-name]
+#### `delete`
+Completely delete the local DDEV project.
+
+```bash
+# Delete DDEV project (with confirmation)
+wfuwp local delete
+
+# Delete without confirmation
+wfuwp local delete --force
 ```
 
-### Features
-- **Automatic Backups**: Database backups before major operations
-- **Environment Selection**: Choose source environment for refresh
-- **Build Pipeline**: Composer, npm, cache clearing, WordPress updates
-- **Progress Tracking**: Step-by-step progress with file counts
-- **Safety Confirmations**: Confirmation prompts for destructive operations
+**What gets deleted:**
+- DDEV project containers and databases
+- DDEV project configuration
+- **Note**: Local code files are NOT deleted
 
-## Configuration Management
+#### `reset`
+Reset to a fresh, known-good state.
 
-Interactive setup wizard and advanced configuration management.
-
-### Configuration Wizard
 ```bash
-# Run interactive setup wizard
-wfuwp local config wizard
+# Reset to fresh state (with confirmation)
+wfuwp local reset
+
+# Reset without confirmation  
+wfuwp local reset --force
 ```
 
-### Configuration Settings
-```bash
-# View all settings
-wfuwp local config show
+**Reset process:**
+1. Switch to main branch and pull latest changes (`git checkout main && git pull`)
+2. Update Composer dependencies (`composer update`)
+3. Import initial multisite database with all sites
 
-# Get specific setting
-wfuwp local config get workspaceDir
-wfuwp local config get defaultPort
-
-# Set specific setting
-wfuwp local config set workspaceDir /path/to/workspace
-wfuwp local config set defaultPort 8443
-wfuwp local config set defaultEnvironment prod
-wfuwp local config set autoStart true
-wfuwp local config set backupBeforeRefresh false
-
-# Reset to defaults
-wfuwp local config reset
-```
-
-### Available Settings
-- **workspaceDir**: Local development workspace directory
-- **defaultPort**: Default port for new domains (8443)
-- **defaultEnvironment**: Default source environment for refresh (prod)
-- **autoStart**: Auto-start projects after refresh (true)
-- **backupBeforeRefresh**: Create backups before refresh (true)
-
-### Configuration Wizard Features
-- **Intelligent Defaults**: Platform-appropriate default values
-- **Validation**: Path validation, port range checking
-- **Error Handling**: Attempt limits and fallback defaults
-- **Integration**: Uses existing Config system encryption
-
-## Integration with Existing Features
-
-### Hosts File Management
-- **Separate Markers**: Uses "Local Development" markers distinct from DNS spoofing
-- **No Conflicts**: Compatible with existing spoof/unspoof commands
-- **Sudo Requirements**: All domain operations require sudo privileges
-
-### Configuration System
-- **Encrypted Storage**: Uses existing Config class encryption
-- **Environment Support**: Integrates with dev/uat/pprd/prod environments
-- **S3 Integration**: Uses existing S3 utilities for database downloads
-
-### WordPress Multisite
-- **Site ID Support**: All commands support WordPress multisite site IDs
-- **Project Naming**: Follows `site{ID}` naming convention
-- **Database Integration**: Compatible with existing migration workflows
-
-## Common Workflows
+## Quick Start Workflow
 
 ### First-Time Setup
 ```bash
 # 1. Install dependencies
 wfuwp local install
 
-# 2. Setup workspace
-wfuwp local install workspace
-
-# 3. Configure settings
-wfuwp local config wizard
-
-# 4. Add domain for site
-sudo wfuwp local domain add 43
-
-# 5. Download database
-wfuwp local install database
-
-# 6. Start environment
-wfuwp local start 43
+# 2. Start environment
+wfuwp local start
 ```
 
 ### Daily Development
@@ -308,53 +127,40 @@ wfuwp local start 43
 # Check status
 wfuwp local status
 
-# Start development environment
-wfuwp local start 43
+# Start development
+wfuwp local start
 
-# Refresh with latest production data
-wfuwp local refresh database site43 --environment prod
-
-# Stop when done
-wfuwp local stop 43
+# When done working
+wfuwp local stop
 ```
 
-### Troubleshooting Reset
+### Troubleshooting
 ```bash
 # Check what's wrong
-wfuwp local status --verbose
+wfuwp local status
 
-# Reset environment
-wfuwp local reset site43
+# Reset to fresh state
+wfuwp local reset --force
 
-# Fresh database
-wfuwp local refresh database site43
-
-# Restart everything
-wfuwp local restart 43
+# If issues persist, delete and reinstall
+wfuwp local delete --force
+wfuwp local install
+wfuwp local start
 ```
 
 ## System Requirements
 
 ### Required Dependencies
-- **Docker**: Container platform (required)
-- **DDEV**: Local development environment manager (required)
+- **Docker Desktop**: Container platform (auto-installed)
+- **DDEV**: Local development environment manager (auto-installed)
 
 ### Optional Dependencies
-- **git**: Version control (recommended)
-- **mkcert**: Local SSL certificates (recommended)
-- **PHP**: CLI tools (optional)
+- **mkcert**: Local SSL certificates (auto-installed)
 
-### Workspace Structure
-```
-~/wfu-wp-local/              # Default workspace directory
-├── projects/                # DDEV project directories
-│   ├── site43/             # Individual site projects
-│   └── site12/
-├── backups/                 # Local database backups
-│   ├── 2024-01-15/         # Date-organized backups
-│   └── site43-backup.sql
-└── downloads/               # Temporary download directory
-```
+### Supported Platforms
+- **macOS**: Homebrew-based installation
+- **Linux**: Native package managers
+- **Windows**: Manual installation guidance
 
 ## Troubleshooting
 
@@ -364,76 +170,42 @@ wfuwp local restart 43
 wfuwp local status
 
 # Install Docker if missing
-wfuwp local install docker
+wfuwp local install
 
 # Start Docker Desktop manually if stopped
 ```
 
 ### DDEV Issues
 ```bash
-# Install DDEV
-wfuwp local install ddev
-
 # Check DDEV projects
-ddev list
+wfuwp local status
 
 # Reset DDEV project
-wfuwp local reset site43
+wfuwp local reset --force
 ```
 
-### Domain Access Issues
+### Complete Reset
 ```bash
-# Check configured domains
-wfuwp local domain list
-
-# Remove and re-add domain
-sudo wfuwp local domain remove 43
-sudo wfuwp local domain add 43
-
-# Verify hosts file
-cat /etc/hosts | grep "Local Development"
+# Nuclear option - delete everything and start fresh
+wfuwp local delete --force
+wfuwp local install
+wfuwp local start
 ```
 
-### Database Issues
-```bash
-# Download fresh database
-wfuwp local install database --environment prod
+## Database
 
-# Reset environment completely
-wfuwp local reset --deep site43
+The reset command automatically imports an initial multisite database that includes:
+- Complete WordPress multisite network setup
+- Home site and key subsites
+- Production content for development
 
-# Check DDEV database
-ddev ssh -s db
-```
+No manual database configuration required.
 
-### Permission Issues
-```bash
-# Domain management requires sudo
-sudo wfuwp local domain add 43
+## Security
 
-# Check file permissions in workspace
-ls -la ~/wfu-wp-local/
-
-# Fix workspace permissions
-chmod -R 755 ~/wfu-wp-local/
-```
-
-## Security Considerations
-
-### Sudo Requirements
-- Domain management modifies /etc/hosts and requires sudo
-- Other operations run as regular user for security
-- Clear error messages when sudo required
-
-### Local-Only Development
-- All domains point to 127.0.0.1 (localhost)
+- All development happens locally (127.0.0.1)
 - No external network exposure
-- Database credentials stored encrypted
+- Automatic SSL certificates via mkcert
+- Safe reset operations with confirmation prompts
 
-### Safe Reset Operations
-- Automatic backups before destructive operations
-- Confirmation prompts for dangerous operations
-- Rollback capability for failed operations
-
-For detailed configuration help, see: `wfuwp config --help`
-For migration workflows, see: `wfuwp migrate --help`
+For other WFU WordPress CLI features, see: `wfuwp --help`

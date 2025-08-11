@@ -14,23 +14,21 @@ export const localCommand = new Command('local')
     'after',
     `
 ${chalk.bold('Examples:')}
-  ${chalk.green('sudo wfuwp local domain add test.wfu.local')}     Add local domain
-  ${chalk.green('wfuwp local domain list')}                       List all configured domains
-  ${chalk.green('sudo wfuwp local domain remove test.wfu.local')}  Remove local domain
-  ${chalk.green('wfuwp local status')}                            Show development environment status
+  ${chalk.green('wfuwp local install')}                           Install Docker, DDEV, and mkcert
+  ${chalk.green('wfuwp local start')}                             Start development environment  
+  ${chalk.green('wfuwp local status')}                            Check environment health
+  ${chalk.green('wfuwp local reset --force')}                     Reset to fresh state
 
-${chalk.bold('Available Subcommands:')}
-  ${chalk.cyan('domain')}         ${chalk.green('✓')} Manage local development domains (/etc/hosts)
-  ${chalk.cyan('status')}         ${chalk.green('✓')} Show environment status and health checks
-  ${chalk.cyan('install')}        ${chalk.green('✓')} Install and setup development dependencies
-  ${chalk.cyan('start')}          ${chalk.green('✓')} Start local development environment
-  ${chalk.cyan('stop')}           ${chalk.green('✓')} Stop local development environment
-  ${chalk.cyan('restart')}        ${chalk.green('✓')} Restart local development environment
-  ${chalk.cyan('refresh')}        ${chalk.green('✓')} Refresh database from production
-  ${chalk.cyan('reset')}          ${chalk.green('✓')} Reset entire local environment
-  ${chalk.cyan('config')}         ${chalk.green('✓')} Configure local development settings
+${chalk.bold('Core Commands:')}
+  ${chalk.cyan('status')}         ${chalk.green('✓')} Check environment health
+  ${chalk.cyan('install')}        ${chalk.green('✓')} Install Docker, DDEV, and mkcert
+  ${chalk.cyan('start')}          ${chalk.green('✓')} Start development environment
+  ${chalk.cyan('stop')}           ${chalk.green('✓')} Stop development environment
+  ${chalk.cyan('restart')}        ${chalk.green('✓')} Restart development environment
+  ${chalk.cyan('delete')}         ${chalk.green('✓')} Delete DDEV project completely
+  ${chalk.cyan('reset')}          ${chalk.green('✓')} Reset to fresh state (git main + database)
 
-${chalk.dim('Note: Domain management requires sudo privileges to modify /etc/hosts')}
+${chalk.dim('💡 Simple workflow: install → start → [develop] → stop → reset')}
 Use "${chalk.green('wfuwp local <subcommand> --help')}" for detailed help on each subcommand.
 `
   );
@@ -384,167 +382,65 @@ localCommand
 
 localCommand
   .command('install')
-  .description('Install and setup local development dependencies')
-  .option('--docker', 'Install Docker Desktop', false)
-  .option('--ddev', 'Install DDEV', false)
-  .option('--mkcert', 'Install mkcert for SSL certificates', false)
-  .option('--all', 'Install all dependencies', false)
+  .description('Install local development dependencies (Docker, DDEV, mkcert)')
   .option('-f, --force', 'Force reinstallation of existing dependencies', false)
-  .option('--guide', 'Show installation guide', false)
-  .option('--setup-workspace [dir]', 'Setup local workspace directory')
-  .option('--setup-database <site-id>', 'Download database backup for site')
-  .option(
-    '--from <env>',
-    'Source environment for database (prod, uat, pprd, dev)',
-    'prod'
-  )
   .action(async (options) => {
     try {
+      console.log(
+        chalk.blue('\n🚀 Installing Local Development Dependencies\n')
+      );
+
       const installer = new LocalInstaller();
 
-      if (options.guide) {
-        installer.showInstallationGuide();
-        return;
-      }
+      // Always install all dependencies (Docker, DDEV, mkcert)
+      const result = await installer.installDependencies({
+        docker: true,
+        ddev: true,
+        mkcert: true,
+        all: true,
+        force: options.force,
+      });
 
-      const hasInstallOptions =
-        options.docker || options.ddev || options.mkcert || options.all;
-      const hasSetupOptions =
-        options.setupWorkspace !== undefined || options.setupDatabase;
-
-      if (!hasInstallOptions && !hasSetupOptions) {
-        console.log(chalk.blue('\n🔧 Local Development Environment Setup\n'));
-        console.log('Choose an option:');
+      console.log(chalk.bold('\n📊 Installation Summary:'));
+      if (result.installed.length > 0) {
         console.log(
-          chalk.green('  --all                     ') +
-            chalk.dim('Install all dependencies')
-        );
-        console.log(
-          chalk.green('  --guide                   ') +
-            chalk.dim('Show installation guide')
-        );
-        console.log(
-          chalk.green('  --setup-workspace         ') +
-            chalk.dim('Setup workspace directory')
-        );
-        console.log(
-          chalk.green('  --setup-database <site-id>') +
-            chalk.dim('Download database backup')
-        );
-        console.log();
-        console.log(chalk.dim('Use "--help" for detailed options'));
-        return;
-      }
-
-      if (hasInstallOptions) {
-        console.log(
-          chalk.blue('\n🚀 Installing Local Development Dependencies\n')
-        );
-
-        const result = await installer.installDependencies({
-          docker: options.docker,
-          ddev: options.ddev,
-          mkcert: options.mkcert,
-          all: options.all,
-          force: options.force,
-        });
-
-        console.log(chalk.bold('\n📊 Installation Summary:'));
-
-        if (result.installed.length > 0) {
-          console.log(
-            chalk.green(
-              `✅ Installed (${result.installed.length}): ${result.installed.join(', ')}`
-            )
-          );
-        }
-
-        if (result.skipped.length > 0) {
-          console.log(
-            chalk.yellow(
-              `⚠️  Skipped (${result.skipped.length}): ${result.skipped.join(', ')}`
-            )
-          );
-        }
-
-        if (result.failed.length > 0) {
-          console.log(
-            chalk.red(
-              `❌ Failed (${result.failed.length}): ${result.failed.join(', ')}`
-            )
-          );
-          for (const error of result.errors) {
-            console.log(chalk.red(`   ${error}`));
-          }
-        }
-
-        console.log();
-
-        if (result.success) {
-          console.log(chalk.green('🎉 Installation completed successfully!'));
-          console.log(chalk.dim('Verify with: wfuwp local status'));
-        } else {
-          console.log(chalk.red('❌ Installation completed with errors.'));
-          console.log(
-            chalk.dim('See installation guide: wfuwp local install --guide')
-          );
-          process.exit(1);
-        }
-      }
-
-      if (options.setupWorkspace !== undefined) {
-        console.log(chalk.blue('\n📁 Setting up workspace...\n'));
-
-        const workspaceResult = await installer.setupWorkspace({
-          workspaceDir:
-            typeof options.setupWorkspace === 'string'
-              ? options.setupWorkspace
-              : undefined,
-          force: options.force,
-        });
-
-        if (workspaceResult.success) {
-          console.log(chalk.green('✅ Workspace setup complete'));
-        } else {
-          console.error(
-            chalk.red(`❌ Workspace setup failed: ${workspaceResult.error}`)
-          );
-          process.exit(1);
-        }
-      }
-
-      if (options.setupDatabase) {
-        if (!/^\d+$/.test(options.setupDatabase)) {
-          console.error(chalk.red('Error: Site ID must be a positive integer'));
-          process.exit(1);
-        }
-
-        console.log(
-          chalk.blue(
-            `\n🗄️  Setting up database for site ${options.setupDatabase}...\n`
+          chalk.green(
+            `✅ Installed (${result.installed.length}): ${result.installed.join(', ')}`
           )
         );
+      }
 
-        const dbResult = await installer.setupDatabase({
-          siteId: options.setupDatabase,
-          environment: options.from,
-          force: options.force,
-        });
+      if (result.skipped.length > 0) {
+        console.log(
+          chalk.yellow(
+            `⚠️  Skipped (${result.skipped.length}): ${result.skipped.join(', ')}`
+          )
+        );
+      }
 
-        if (dbResult.success) {
-          console.log(chalk.green('✅ Database setup complete'));
-          console.log(
-            chalk.dim(
-              'Import the database using DDEV when your project is ready'
-            )
-          );
-        } else {
-          console.error(
-            chalk.red(`❌ Database setup failed: ${dbResult.error}`)
-          );
-          process.exit(1);
+      if (result.failed.length > 0) {
+        console.log(
+          chalk.red(
+            `❌ Failed (${result.failed.length}): ${result.failed.join(', ')}`
+          )
+        );
+        for (const error of result.errors) {
+          console.log(chalk.red(`   ${error}`));
         }
       }
+
+      console.log();
+
+      if (result.success) {
+        console.log(chalk.green('🎉 Installation completed successfully!'));
+        console.log();
+        console.log(chalk.dim('💡 Next: Start your development environment'));
+        console.log(chalk.dim('      wfuwp local start'));
+      } else {
+        console.log(chalk.red('❌ Installation completed with errors.'));
+        process.exit(1);
+      }
+
     } catch (error) {
       console.error(chalk.red(`Error during installation: ${error}`));
       process.exit(1);
@@ -554,25 +450,22 @@ localCommand
 localCommand
   .command('start')
   .description('Start local development environment')
-  .option('-s, --site <site-id>', 'Start specific site only')
   .action(async (options) => {
     try {
       console.log(chalk.bold('\n🚀 Starting Local Development Environment\n'));
       const manager = new DDEVManager();
-      const result = manager.startProject(options.site);
+      const result = manager.startProject();
       if (result.success) {
         console.log(chalk.green(`✅ ${result.message}`));
-        if (!options.site) {
-          const status = manager.getStatus();
-          if (status.projects.length > 0) {
-            console.log(chalk.bold('\n📋 Active Projects:'));
-            for (const project of status.projects.filter(
-              (p) => p.status === 'running'
-            )) {
-              console.log(
-                `  ${chalk.cyan(project.name)} - ${chalk.green(project.url || 'No URL')}`
-              );
-            }
+        const status = manager.getStatus();
+        if (status.projects.length > 0) {
+          console.log(chalk.bold('\n📋 Active Projects:'));
+          for (const project of status.projects.filter(
+            (p) => p.status === 'running'
+          )) {
+            console.log(
+              `  ${chalk.cyan(project.name)} - ${chalk.green(project.url || 'No URL')}`
+            );
           }
         }
       } else {
@@ -599,30 +492,22 @@ localCommand
 localCommand
   .command('stop')
   .description('Stop local development environment')
-  .option('-s, --site <site-id>', 'Stop specific site only')
   .action(async (options) => {
     try {
       console.log(chalk.bold('\n🛑 Stopping Local Development Environment\n'));
       const manager = new DDEVManager();
-      const result = manager.stopProject(options.site);
+      const result = manager.stopProject();
       if (result.success) {
         console.log(chalk.green(`✅ ${result.message}`));
-        if (!options.site) {
-          const status = manager.getStatus();
-          const runningProjects = status.projects.filter(
-            (p) => p.status === 'running'
-          );
-          if (runningProjects.length > 0) {
-            console.log(chalk.yellow('\n⚠️ Some projects are still running:'));
-            for (const project of runningProjects) {
-              console.log(
-                `  ${chalk.cyan(project.name)} - ${chalk.yellow('Still running')}`
-              );
-            }
+        const status = manager.getStatus();
+        const runningProjects = status.projects.filter(
+          (p) => p.status === 'running'
+        );
+        if (runningProjects.length > 0) {
+          console.log(chalk.yellow('\n⚠️ Some projects are still running:'));
+          for (const project of runningProjects) {
             console.log(
-              chalk.dim(
-                '\n💡 Use "wfuwp local stop --site <site-id>" to stop specific sites'
-              )
+              `  ${chalk.cyan(project.name)} - ${chalk.yellow('Still running')}`
             );
           }
         }
@@ -646,27 +531,24 @@ localCommand
 localCommand
   .command('restart')
   .description('Restart local development environment')
-  .option('-s, --site <site-id>', 'Restart specific site only')
   .action(async (options) => {
     try {
       console.log(
         chalk.bold('\n🔄 Restarting Local Development Environment\n')
       );
       const manager = new DDEVManager();
-      const result = manager.restartProject(options.site);
+      const result = manager.restartProject();
       if (result.success) {
         console.log(chalk.green(`✅ ${result.message}`));
-        if (!options.site) {
-          const status = manager.getStatus();
-          if (status.projects.length > 0) {
-            console.log(chalk.bold('\n📋 Active Projects:'));
-            for (const project of status.projects.filter(
-              (p) => p.status === 'running'
-            )) {
-              console.log(
-                `  ${chalk.cyan(project.name)} - ${chalk.green(project.url || 'No URL')}`
-              );
-            }
+        const status = manager.getStatus();
+        if (status.projects.length > 0) {
+          console.log(chalk.bold('\n📋 Active Projects:'));
+          for (const project of status.projects.filter(
+            (p) => p.status === 'running'
+          )) {
+            console.log(
+              `  ${chalk.cyan(project.name)} - ${chalk.green(project.url || 'No URL')}`
+            );
           }
         }
       } else {
@@ -684,6 +566,52 @@ localCommand
       console.log(
         chalk.red(
           `❌ Failed to restart: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      );
+      process.exit(1);
+    }
+  });
+
+localCommand
+  .command('delete')
+  .description('Delete local development environment project')
+  .option('-f, --force', 'Skip confirmation prompts', false)
+  .action(async (options) => {
+    try {
+      if (!options.force) {
+        console.log(chalk.yellow(`\n⚠️  Delete Local Development Environment`));
+        console.log(
+          `This will ${chalk.red('COMPLETELY DELETE')} the local DDEV project including all data and containers.`
+        );
+        console.log(
+          `Local code files will ${chalk.green('NOT')} be deleted, only the DDEV project.`
+        );
+        console.log();
+        console.log(chalk.dim('Use --force to skip this confirmation'));
+        console.log(chalk.red('Cancelled - use --force flag to proceed'));
+        process.exit(1);
+      }
+
+      console.log(chalk.bold('\n🗑️  Deleting Local Development Environment\n'));
+      
+      try {
+        const { execSync } = require('child_process');
+        execSync('ddev delete wfu-local -Oy', { 
+          stdio: 'inherit',
+          encoding: 'utf8'
+        });
+        console.log(chalk.green('✅ Local development environment deleted successfully'));
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('Could not find a project')) {
+          console.log(chalk.yellow('⚠️ No DDEV project found to delete'));
+        } else {
+          throw error;
+        }
+      }
+    } catch (error) {
+      console.log(
+        chalk.red(
+          `❌ Failed to delete: ${error instanceof Error ? error.message : 'Unknown error'}`
         )
       );
       process.exit(1);
@@ -823,81 +751,63 @@ localCommand
 
 localCommand
   .command('reset')
-  .description('Reset entire local development environment')
+  .description('Reset to fresh state (git main, composer update, initial database)')
   .option('-f, --force', 'Skip confirmation prompts', false)
-  .option('--keep-config', 'Keep configuration settings (domains, etc.)', false)
-  .option(
-    '--deep',
-    'Deep reset including DDEV config and workspace directory',
-    false
-  )
   .action(async (options) => {
     try {
       if (!options.force) {
-        console.log(chalk.red(`\n💥 Environment Reset Confirmation`));
-        console.log(
-          'This will remove temporary files and reset your local development environment.'
-        );
+        console.log(chalk.yellow(`\n🔄 Reset to Fresh State`));
+        console.log('This will restore your local development environment to a fresh state:');
+        console.log('  • Switch to main branch and pull latest changes');
+        console.log('  • Update Composer dependencies');
+        console.log('  • Import initial multisite database');
 
-        if (options.deep) {
-          console.log(chalk.red('⚠️  DEEP RESET will also remove:'));
-          console.log('  • DDEV global configuration');
-          console.log('  • Local workspace directory (~/wfu-wp-local)');
-          console.log('  • All local WordPress projects');
-        }
-
-        if (!options.keepConfig) {
-          console.log('  • Local development domains (/etc/hosts entries)');
-        }
-
-        console.log();
-        console.log(chalk.red('⚠️  This action cannot be undone!'));
         console.log();
         console.log(chalk.dim('Use --force to proceed with reset'));
         console.log(chalk.red('Cancelled - use --force flag to proceed'));
         process.exit(1);
       }
 
-      const contentManager = new LocalContentManager();
-      const result = await contentManager.resetEnvironment({
-        force: options.force,
-        keepConfig: options.keepConfig,
-        deepReset: options.deep,
-      });
+      console.log(chalk.bold('\n🔄 Resetting to Fresh State\n'));
 
-      console.log(chalk.bold('\n📊 Reset Summary:'));
-      if (result.removedItems.length > 0) {
-        console.log(
-          chalk.green(`✅ Removed (${result.removedItems.length} items):`)
-        );
-        for (const item of result.removedItems) {
-          console.log(`  ${chalk.green('•')} ${item}`);
+      const { execSync } = require('child_process');
+      
+      try {
+        // Step 1: Git reset to main
+        console.log(chalk.blue('📥 1. Syncing with remote main branch...'));
+        execSync('git checkout main', { stdio: 'inherit' });
+        execSync('git pull origin main', { stdio: 'inherit' });
+        console.log(chalk.green('✅ Git synced to latest main'));
+
+        // Step 2: Update dependencies  
+        console.log(chalk.blue('\n📦 2. Updating Composer dependencies...'));
+        execSync('composer update', { stdio: 'inherit' });
+        console.log(chalk.green('✅ Composer dependencies updated'));
+
+        // Step 3: Import initial database
+        console.log(chalk.blue('\n🗄️  3. Importing initial multisite database...'));
+        const contentManager = new LocalContentManager();
+        const dbResult = await contentManager.setupInitialDatabase({
+          force: true,
+          backup: false,
+          keepFiles: false,
+        });
+
+        if (dbResult.success) {
+          console.log(chalk.green('✅ Initial database imported'));
+        } else {
+          console.log(chalk.yellow('⚠️  Database import failed, but continuing...'));
+          console.log(chalk.dim(`   ${dbResult.message}`));
         }
-      } else {
-        console.log(chalk.yellow('⚪ No items needed to be removed'));
-      }
 
-      console.log();
-
-      if (result.success) {
-        console.log(
-          chalk.green('🎉 Environment reset completed successfully!')
-        );
+        console.log(chalk.green('\n🎉 Fresh state reset completed successfully!'));
         console.log();
-        console.log(
-          chalk.dim('Your local development environment has been reset.')
-        );
-        console.log(
-          chalk.dim('Use "wfuwp local status" to verify the current state.')
-        );
-        console.log(
-          chalk.dim('Use "wfuwp local install" to set up dependencies again.')
-        );
-      } else {
-        console.log(chalk.red('❌ Environment reset failed.'));
-        if (result.error) {
-          console.log(chalk.red(`Error: ${result.error}`));
-        }
+        console.log(chalk.dim('💡 Your environment is now in a clean, known-good state'));
+        console.log(chalk.dim('💡 Use "wfuwp local start" to begin development'));
+
+      } catch (error) {
+        console.log(chalk.red('\n❌ Reset failed during execution'));
+        console.log(chalk.red(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
         process.exit(1);
       }
     } catch (error) {
