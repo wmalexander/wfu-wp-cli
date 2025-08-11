@@ -21,6 +21,13 @@ export interface ResetOptions {
   deepReset?: boolean;
 }
 
+export interface InitialDatabaseOptions {
+  force: boolean;
+  backup: boolean;
+  workDir?: string;
+  keepFiles?: boolean;
+}
+
 export interface RefreshResult {
   success: boolean;
   message: string;
@@ -281,6 +288,118 @@ export class LocalContentManager {
     }
   }
 
+  async setupInitialDatabase(options: InitialDatabaseOptions): Promise<RefreshResult> {
+    try {
+      const workDir = options.workDir || this.defaultWorkDir;
+      this.ensureWorkDir(workDir);
+
+      console.log(
+        chalk.blue(
+          '🔄 Setting up initial multisite database with all sites...\n'
+        )
+      );
+
+      const health = this.ddevManager.checkEnvironmentHealth();
+      if (health.overall === 'error') {
+        return {
+          success: false,
+          message:
+            'Local development environment is not healthy. Run "wfuwp local status" for details.',
+          error: 'Environment not ready',
+        };
+      }
+
+      let backupFile: string | null = null;
+      if (options.backup) {
+        console.log(chalk.blue('💾 Creating backup of current database...'));
+        backupFile = this.createBackup('multisite', workDir);
+      }
+
+      console.log(
+        chalk.blue(
+          '📥 Downloading complete multisite database from S3...'
+        )
+      );
+
+      const backupFileName = `wfu-local-default-${Date.now()}.sql.gz`;
+      const localBackupPath = path.join(workDir, backupFileName);
+
+      const s3Url = 'https://wfu-cer-wordpress-dev-us-east-1.s3.us-east-1.amazonaws.com/wfu-local/wfu-local-default.sql.gz';
+      
+      try {
+        this.runCommand(
+          `curl -o "${localBackupPath}" "${s3Url}"`,
+          { silent: false }
+        );
+      } catch (error) {
+        return {
+          success: false,
+          message: `Failed to download initial database: ${error}`,
+          error: 'Download failed',
+        };
+      }
+
+      if (!existsSync(localBackupPath)) {
+        return {
+          success: false,
+          message: 'Initial database download failed - file not found',
+          error: 'Download verification failed',
+        };
+      }
+
+      console.log(chalk.blue('📤 Importing initial database to DDEV...'));
+
+      const ddevProjects = this.ddevManager.getProjects();
+      const runningProject = ddevProjects.find((p) => p.status === 'running');
+      
+      if (!runningProject) {
+        return {
+          success: false,
+          message: 'No running DDEV project found. Start a project first with "wfuwp local start".',
+          error: 'No running project',
+        };
+      }
+
+      const decompressedPath = localBackupPath.replace('.gz', '');
+      if (localBackupPath.endsWith('.gz')) {
+        this.runCommand(`gunzip -f "${localBackupPath}"`);
+      }
+
+      this.runCommand(
+        `ddev import-db --file="${decompressedPath}" --project="${runningProject.name}"`,
+        { silent: false }
+      );
+
+      console.log(
+        chalk.green(
+          '✅ Initial multisite database imported successfully!'
+        )
+      );
+
+      if (!options.keepFiles) {
+        if (existsSync(decompressedPath)) {
+          rmSync(decompressedPath);
+        }
+        if (existsSync(localBackupPath)) {
+          rmSync(localBackupPath);
+        }
+      }
+
+      return {
+        success: true,
+        message: 'Initial multisite database setup completed successfully',
+        databaseFile: options.keepFiles ? decompressedPath : undefined,
+        backupFile: backupFile || undefined,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Initial database setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
   async resetEnvironment(options: ResetOptions): Promise<ResetResult> {
     try {
       const removedItems: string[] = [];
@@ -298,6 +417,18 @@ export class LocalContentManager {
           console.log(
             chalk.yellow(
               `⚠️ Some projects may still be running: ${stopResult.message}`
+            )
+          );
+        }
+        console.log(chalk.blue(`🗑️  Deleting WFU local DDEV project...`));
+        try {
+          this.runCommand('ddev delete wfu-local -Oy', { silent: false });
+          removedItems.push('WFU local DDEV project');
+          console.log(chalk.green(`✅ WFU local DDEV project deleted`));
+        } catch (error) {
+          console.log(
+            chalk.yellow(
+              `⚠️ Could not delete WFU local project (may not exist): ${error instanceof Error ? error.message : 'Unknown error'}`
             )
           );
         }

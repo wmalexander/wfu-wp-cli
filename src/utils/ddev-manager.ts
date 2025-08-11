@@ -49,10 +49,11 @@ export class DDEVManager {
     options: { silent?: boolean } = {}
   ): string {
     try {
-      return execSync(command, {
+      const result = execSync(command, {
         encoding: 'utf8',
         stdio: options.silent ? 'pipe' : 'inherit',
-      }).trim();
+      });
+      return result?.trim() || '';
     } catch (error) {
       if (!options.silent) {
         throw error;

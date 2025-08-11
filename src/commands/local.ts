@@ -692,19 +692,27 @@ localCommand
 
 localCommand
   .command('refresh')
-  .description('Refresh database from production S3 bucket')
-  .argument('<site-id>', 'Numeric site identifier (e.g., 43)')
+  .description('Refresh database from production S3 bucket or reset to initial multisite setup')
+  .argument('[site-id]', 'Numeric site identifier (e.g., 43) - optional when using --initial-db')
   .option('-f, --force', 'Skip confirmation prompts', false)
   .option('--no-backup', 'Skip creating backup before refresh', false)
   .option('--from <env>', 'Source environment (prod, uat, pprd, dev)', 'prod')
   .option('--keep-files', 'Keep downloaded database files', false)
   .option('--work-dir <dir>', 'Custom work directory for temporary files')
   .option('--build', 'Run build operations after refresh', false)
+  .option('--initial-db', 'Reset to initial multisite database with all sites', false)
   .action(async (siteId, options) => {
     try {
-      if (!/^\d+$/.test(siteId)) {
-        console.error(chalk.red('Error: Site ID must be a positive integer'));
-        process.exit(1);
+      if (options.initialDb) {
+        if (siteId) {
+          console.error(chalk.red('Error: Site ID should not be specified when using --initial-db'));
+          process.exit(1);
+        }
+      } else {
+        if (!siteId || !/^\d+$/.test(siteId)) {
+          console.error(chalk.red('Error: Site ID must be a positive integer (or use --initial-db for complete multisite setup)'));
+          process.exit(1);
+        }
       }
 
       if (!['prod', 'uat', 'pprd', 'dev'].includes(options.from)) {
@@ -716,9 +724,15 @@ localCommand
 
       if (!options.force) {
         console.log(chalk.yellow(`\n⚠️  Database Refresh Confirmation`));
-        console.log(
-          `This will replace the local database for site ${chalk.cyan(siteId)} with data from ${chalk.cyan(options.from)}.`
-        );
+        if (options.initialDb) {
+          console.log(
+            `This will replace the local database with the ${chalk.cyan('complete multisite setup')} including all sites.`
+          );
+        } else {
+          console.log(
+            `This will replace the local database for site ${chalk.cyan(siteId)} with data from ${chalk.cyan(options.from)}.`
+          );
+        }
         console.log(
           `Current local data will be ${options.backup ? 'backed up and then ' : ''}${chalk.red('REPLACED')}.`
         );
@@ -729,26 +743,35 @@ localCommand
       }
 
       const contentManager = new LocalContentManager();
-      const result = await contentManager.refreshDatabase({
-        siteId,
-        environment: options.from,
-        force: options.force,
-        backup: options.backup,
-        workDir: options.workDir,
-        keepFiles: options.keepFiles,
-      });
+      const result = options.initialDb 
+        ? await contentManager.setupInitialDatabase({
+            force: options.force,
+            backup: options.backup,
+            workDir: options.workDir,
+            keepFiles: options.keepFiles,
+          })
+        : await contentManager.refreshDatabase({
+            siteId,
+            environment: options.from,
+            force: options.force,
+            backup: options.backup,
+            workDir: options.workDir,
+            keepFiles: options.keepFiles,
+          });
 
-      contentManager.generateRefreshSummary(
-        {
-          siteId,
-          environment: options.from,
-          force: options.force,
-          backup: options.backup,
-          workDir: options.workDir,
-          keepFiles: options.keepFiles,
-        },
-        result
-      );
+      if (!options.initialDb) {
+        contentManager.generateRefreshSummary(
+          {
+            siteId,
+            environment: options.from,
+            force: options.force,
+            backup: options.backup,
+            workDir: options.workDir,
+            keepFiles: options.keepFiles,
+          },
+          result
+        );
+      }
 
       if (result.success && options.build) {
         console.log(chalk.blue('\n🔨 Running build operations...'));
