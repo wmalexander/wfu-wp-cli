@@ -14,10 +14,10 @@ export const localCommand = new Command('local')
     'after',
     `
 ${chalk.bold('Examples:')}
-  ${chalk.green('sudo wfuwp local domain add 43')}     Add local domain for site 43
-  ${chalk.green('wfuwp local domain list')}            List all configured domains
-  ${chalk.green('sudo wfuwp local domain remove 43')}  Remove domain for site 43
-  ${chalk.green('wfuwp local status')}                 Show development environment status
+  ${chalk.green('sudo wfuwp local domain add test.wfu.local')}     Add local domain
+  ${chalk.green('wfuwp local domain list')}                       List all configured domains
+  ${chalk.green('sudo wfuwp local domain remove test.wfu.local')}  Remove local domain
+  ${chalk.green('wfuwp local status')}                            Show development environment status
 
 ${chalk.bold('Available Subcommands:')}
   ${chalk.cyan('domain')}         ${chalk.green('✓')} Manage local development domains (/etc/hosts)
@@ -162,7 +162,7 @@ localCommand
           console.log(chalk.bold('🌐 Local Development Domains:'));
           for (const domain of domains) {
             console.log(
-              `  ${chalk.green('•')} Site ${chalk.cyan(domain.siteId)}: ${chalk.blue(domain.domain)} (port ${chalk.yellow(domain.port)})`
+              `  ${chalk.green('•')} ${chalk.blue(domain.domain)} → ${chalk.dim(domain.ipAddress)}`
             );
           }
           console.log();
@@ -200,31 +200,20 @@ localCommand
   .description('Manage local development domains')
   .addCommand(
     new Command('add')
-      .description('Add local development domain for a site')
-      .argument('<site-id>', 'Numeric site identifier (e.g., 43)')
-      .option('-p, --port <port>', 'Port number for local development', '8443')
-      .action(async (siteId, options) => {
+      .description('Add local development domain')
+      .argument('<domain>', 'Domain name (e.g., test.wfu.local)')
+      .action(async (domainName) => {
         try {
-          if (!/^\d+$/.test(siteId)) {
-            console.error(
-              chalk.red('Error: Site ID must be a positive integer')
-            );
-            process.exit(1);
-          }
-
           const manager = new LocalHostsManager();
-          const domain = manager.addDomain(siteId, options.port);
+          const domain = manager.addDomain(domainName);
 
           console.log(
             chalk.green(`Successfully added local development domain:`)
           );
-          console.log(`  Site ID: ${chalk.cyan(domain.siteId)}`);
           console.log(`  Domain: ${chalk.blue(domain.domain)}`);
-          console.log(`  Port: ${chalk.yellow(domain.port)}`);
           console.log(`  IP: ${chalk.dim(domain.ipAddress)}`);
           console.log();
-          console.log(chalk.dim('You can now access your local site at:'));
-          console.log(chalk.green(`  https://${domain.domain}:${domain.port}`));
+          console.log(chalk.dim('Domain added to /etc/hosts file'));
         } catch (error) {
           console.error(chalk.red(`Error: ${error}`));
           if (
@@ -233,7 +222,7 @@ localCommand
           ) {
             console.error(
               chalk.yellow(
-                'Hint: Run with sudo - example: sudo wfuwp local domain add 43'
+                'Hint: Run with sudo - example: sudo wfuwp local domain add test.wfu.local'
               )
             );
           }
@@ -243,41 +232,34 @@ localCommand
   )
   .addCommand(
     new Command('remove')
-      .description('Remove local development domain for a site')
-      .argument('<site-id>', 'Numeric site identifier (e.g., 43)')
-      .action(async (siteId) => {
+      .description('Remove local development domain')
+      .argument('<domain>', 'Domain name (e.g., test.wfu.local)')
+      .action(async (domainName) => {
         try {
-          if (!/^\d+$/.test(siteId)) {
-            console.error(
-              chalk.red('Error: Site ID must be a positive integer')
-            );
-            process.exit(1);
-          }
-
           const manager = new LocalHostsManager();
-          const domain = manager.getDomain(siteId);
+          const domain = manager.getDomain(domainName);
 
           if (!domain) {
             console.log(
               chalk.yellow(
-                `No local development domain found for site ${siteId}`
+                `No local development domain found: ${domainName}`
               )
             );
             return;
           }
 
-          const removed = manager.removeDomain(siteId);
+          const removed = manager.removeDomain(domainName);
 
           if (removed) {
             console.log(
               chalk.green(`Successfully removed local development domain:`)
             );
-            console.log(`  Site ID: ${chalk.cyan(domain.siteId)}`);
             console.log(`  Domain: ${chalk.blue(domain.domain)}`);
+            console.log(`  IP: ${chalk.dim(domain.ipAddress)}`);
           } else {
             console.log(
               chalk.yellow(
-                `No local development domain found for site ${siteId}`
+                `Failed to remove domain: ${domainName}`
               )
             );
           }
@@ -289,7 +271,7 @@ localCommand
           ) {
             console.error(
               chalk.yellow(
-                'Hint: Run with sudo - example: sudo wfuwp local domain remove 43'
+                'Hint: Run with sudo - example: sudo wfuwp local domain remove test.wfu.local'
               )
             );
           }
@@ -311,19 +293,18 @@ localCommand
             );
             console.log();
             console.log(chalk.dim('Add a domain with:'));
-            console.log(chalk.green('  sudo wfuwp local domain add <site-id>'));
+            console.log(chalk.green('  sudo wfuwp local domain add <domain>'));
             return;
           }
 
           console.log(chalk.bold('\nLocal Development Domains:'));
           console.log();
-          console.log(chalk.dim('Site ID | Domain | Port | Access URL'));
-          console.log(chalk.dim('--------|--------|------|----------'));
+          console.log(chalk.dim('Domain | IP Address'));
+          console.log(chalk.dim('-------|----------'));
 
           for (const domain of domains) {
-            const url = `https://${domain.domain}:${domain.port}`;
             console.log(
-              `${chalk.cyan(domain.siteId.padEnd(7))} | ${chalk.blue(domain.domain)} | ${chalk.yellow(domain.port.padEnd(4))} | ${chalk.green(url)}`
+              `${chalk.blue(domain.domain.padEnd(25))} | ${chalk.dim(domain.ipAddress)}`
             );
           }
 
@@ -362,7 +343,7 @@ localCommand
             console.log();
             for (const domain of domains) {
               console.log(
-                `  ${chalk.dim('•')} Site ${chalk.cyan(domain.siteId)}: ${chalk.blue(domain.domain)} (port ${chalk.yellow(domain.port)})`
+                `  ${chalk.dim('•')} ${chalk.blue(domain.domain)} → ${chalk.dim(domain.ipAddress)}`
               );
             }
             console.log();

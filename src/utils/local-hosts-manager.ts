@@ -5,9 +5,7 @@ const MARKER_START = '# WFU WordPress CLI - Local Development Start';
 const MARKER_END = '# WFU WordPress CLI - Local Development End';
 
 export interface LocalDomain {
-  siteId: string;
   domain: string;
-  port: string;
   ipAddress: string;
 }
 
@@ -36,8 +34,9 @@ export class LocalHostsManager {
     }
   }
 
-  private generateLocalDomain(siteId: string): string {
-    return `site${siteId}.local.wfu.edu`;
+  private validateDomain(domain: string): boolean {
+    // Accept wfu.local and any subdomain of wfu.local
+    return domain === 'wfu.local' || domain.endsWith('.wfu.local');
   }
 
   private getLocalIpAddress(): string {
@@ -88,12 +87,10 @@ export class LocalHostsManager {
           if (parts.length >= 2) {
             const ipAddress = parts[0];
             const domain = parts[1];
-            const siteIdMatch = domain.match(/^site(\d+)\.local\.wfu\.edu$/);
-            if (siteIdMatch) {
+            // Accept any .wfu.local domain
+            if (domain.endsWith('.wfu.local') || domain === 'wfu.local') {
               domains.push({
-                siteId: siteIdMatch[1],
                 domain: domain,
-                port: '8443',
                 ipAddress: ipAddress,
               });
             }
@@ -106,21 +103,26 @@ export class LocalHostsManager {
     return domains;
   }
 
-  addDomain(siteId: string, port: string = '8443'): LocalDomain {
+  addDomain(domain: string): LocalDomain {
     this.requiresAdminRights();
-    const domain = this.generateLocalDomain(siteId);
+    
+    if (!this.validateDomain(domain)) {
+      throw new Error(
+        `Invalid domain: ${domain}. Must be wfu.local or *.wfu.local`
+      );
+    }
+    
     const ipAddress = this.getLocalIpAddress();
     const localDomain: LocalDomain = {
-      siteId,
       domain,
-      port,
       ipAddress,
     };
+    
     const currentDomains = this.getCurrentDomains();
-    const existingDomain = currentDomains.find((d) => d.siteId === siteId);
+    const existingDomain = currentDomains.find((d) => d.domain === domain);
     if (existingDomain) {
       throw new Error(
-        `Local domain for site ${siteId} already exists: ${existingDomain.domain}`
+        `Domain ${domain} already exists in hosts file`
       );
     }
     const hostsContent = this.readHostsFile();
@@ -135,14 +137,14 @@ export class LocalHostsManager {
     return localDomain;
   }
 
-  removeDomain(siteId: string): boolean {
+  removeDomain(domain: string): boolean {
     this.requiresAdminRights();
     const currentDomains = this.getCurrentDomains();
-    const domainExists = currentDomains.some((d) => d.siteId === siteId);
+    const domainExists = currentDomains.some((d) => d.domain === domain);
     if (!domainExists) {
       return false;
     }
-    const updatedDomains = currentDomains.filter((d) => d.siteId !== siteId);
+    const updatedDomains = currentDomains.filter((d) => d.domain !== domain);
     const hostsContent = this.readHostsFile();
     const cleanedContent = this.removeExistingLocalSection(hostsContent);
     if (updatedDomains.length === 0) {
@@ -183,13 +185,13 @@ export class LocalHostsManager {
     return lines.join('\n') + '\n';
   }
 
-  domainExists(siteId: string): boolean {
+  domainExists(domain: string): boolean {
     const currentDomains = this.getCurrentDomains();
-    return currentDomains.some((d) => d.siteId === siteId);
+    return currentDomains.some((d) => d.domain === domain);
   }
 
-  getDomain(siteId: string): LocalDomain | null {
+  getDomain(domain: string): LocalDomain | null {
     const currentDomains = this.getCurrentDomains();
-    return currentDomains.find((d) => d.siteId === siteId) || null;
+    return currentDomains.find((d) => d.domain === domain) || null;
   }
 }

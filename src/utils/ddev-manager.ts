@@ -136,11 +136,14 @@ export class DDEVManager {
       });
       const projectsData = JSON.parse(output);
 
-      if (Array.isArray(projectsData)) {
-        return projectsData.map((project) => ({
+      // Handle the new DDEV JSON output format with 'raw' field
+      const projects = projectsData.raw || projectsData;
+
+      if (Array.isArray(projects)) {
+        return projects.map((project) => ({
           name: project.name || 'unknown',
           status: project.status === 'running' ? 'running' : 'stopped',
-          url: project.httpurl || project.httpsurl,
+          url: project.httpsurl || project.httpurl,
           type: project.type || 'unknown',
           location: project.approot || 'unknown',
           siteId: this.extractSiteIdFromProject(project.name),
