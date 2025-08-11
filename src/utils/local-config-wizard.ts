@@ -161,7 +161,7 @@ export class LocalConfigWizard {
     }
     console.log(chalk.dim(`  Default: ${defaultDir}`));
 
-    let workspaceDir: string;
+    let workspaceDir: string = defaultDir;
     let attempts = 0;
     while (attempts < 5) {
       const input = await this.question(
@@ -197,7 +197,7 @@ export class LocalConfigWizard {
     }
     console.log(chalk.dim(`  Default: ${defaultPort}`));
 
-    let port: number;
+    let port: number = defaultPort;
     let attempts = 0;
     while (attempts < 5) {
       const input = await this.question(
@@ -240,7 +240,7 @@ export class LocalConfigWizard {
     console.log(chalk.dim(`  Options: dev, uat, pprd, prod`));
     console.log(chalk.dim(`  Default: ${defaultEnv}`));
 
-    let environment: string;
+    let environment: string = defaultEnv;
     let attempts = 0;
     while (attempts < 5) {
       const input = await this.question(
@@ -279,7 +279,7 @@ export class LocalConfigWizard {
     }
     console.log(chalk.dim(`  Default: ${defaultValue ? 'Yes' : 'No'}`));
 
-    let autoStart: boolean;
+    let autoStart: boolean = defaultValue;
     let attempts = 0;
     while (attempts < 5) {
       const input = await this.question(
@@ -323,7 +323,7 @@ export class LocalConfigWizard {
     }
     console.log(chalk.dim(`  Default: ${defaultValue ? 'Yes' : 'No'}`));
 
-    let backup: boolean;
+    let backup: boolean = defaultValue;
     let attempts = 0;
     while (attempts < 5) {
       const input = await this.question(

@@ -312,6 +312,73 @@ wfuwp migrate 43 --from uat --to pprd --log-dir /custom/logs
 5. Manually backup target environment tables
 6. Manually import transformed tables to target environment
 
+#### `local` - Local Development Environment Management
+
+Complete local development environment management for WFU WordPress sites with DDEV integration, domain management, and automated setup workflows.
+
+**✅ All phases complete:**
+- Domain management (modify /etc/hosts)
+- Environment status and health checks
+- Automated dependency installation
+- Environment control (start/stop/restart)
+- Content management (refresh/reset)
+- Configuration management
+
+```bash
+wfuwp local <subcommand> [options]
+```
+
+**Available Subcommands:**
+- `domain` - Manage local development domains (/etc/hosts)
+- `status` - Show environment status and health checks
+- `install` - Install and setup development dependencies
+- `start` - Start local development environment
+- `stop` - Stop local development environment
+- `restart` - Restart local development environment
+- `refresh` - Refresh database from production
+- `reset` - Reset entire local environment
+- `config` - Configure local development settings
+
+**Key Features:**
+- **Cross-platform support**: macOS, Linux, Windows/WSL
+- **Docker/DDEV integration**: Automated container management
+- **Domain management**: Separate /etc/hosts markers from DNS spoofing
+- **Environment health**: Comprehensive dependency checking
+- **Database refresh**: Download from S3 production backups
+- **Interactive setup**: Configuration wizard for first-time users
+
+**Examples:**
+
+```bash
+# First-time setup workflow
+wfuwp local install              # Install Docker, DDEV, dependencies
+wfuwp local config wizard        # Configure settings
+sudo wfuwp local domain add 43   # Add domain for site 43
+wfuwp local install database     # Download production database
+wfuwp local start 43             # Start development environment
+
+# Daily development workflow
+wfuwp local status               # Check environment health
+wfuwp local start 43             # Start site 43
+wfuwp local refresh database     # Refresh with latest prod data
+wfuwp local stop 43              # Stop when done
+
+# Environment management
+wfuwp local domain list          # Show configured domains
+wfuwp local reset site43 --deep  # Complete environment reset
+wfuwp local install --force      # Reinstall dependencies
+```
+
+**Prerequisites:**
+- Docker (will be installed automatically if missing)
+- DDEV (will be installed automatically if missing)
+- Sudo access (for domain management only)
+
+**System Requirements:**
+- macOS: Homebrew for automated installation
+- Linux: Native package managers (apt, yum, pacman)
+- Windows: WSL recommended, manual installation links provided
+
 ## Safety Features
 
 ### Input Validation
