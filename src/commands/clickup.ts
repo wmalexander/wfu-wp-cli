@@ -470,7 +470,7 @@ export const clickupCommand = new Command('clickup')
             if (options.myTasks && !options.assignee) {
               try {
                 const user = await client.getUser();
-                options.assignee = user.id;
+                options.assignee = user.id.toString();
               } catch (error) {
                 throw new Error(
                   'Could not get current user ID for --my-tasks filter'
