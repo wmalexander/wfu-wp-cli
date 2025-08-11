@@ -18,7 +18,11 @@ export const restoreCommand = new Command('restore')
   .option('--dry-run', 'Preview restore without executing', false)
   .option('-f, --force', 'Skip confirmation prompts', false)
   .option('-v, --verbose', 'Show detailed output', false)
-  .option('--timeout <minutes>', 'Custom timeout in minutes for large databases (default: 20)', '20')
+  .option(
+    '--timeout <minutes>',
+    'Custom timeout in minutes for large databases (default: 20)',
+    '20'
+  )
   .action(async (sqlFile: string, options: RestoreOptions) => {
     try {
       await runRestore(sqlFile, options);
@@ -50,7 +54,7 @@ async function runRestore(
 
   // Import required utilities
   const { DatabaseOperations } = await import('../utils/database');
-  
+
   console.log(chalk.blue.bold('Starting database restore'));
   console.log(chalk.cyan(`SQL File: ${sqlFile}`));
   console.log(chalk.cyan(`Target Environment: ${options.to}`));
@@ -72,17 +76,17 @@ async function runRestore(
 
   if (!options.dryRun) {
     console.log(chalk.blue('Importing SQL file to target environment...'));
-    
+
     const timeoutMinutes = parseInt(options.timeout || '20', 10);
     const targetConfig = Config.getEnvironmentConfig(options.to);
-    
+
     const importResult = await DatabaseOperations.importSqlFile(
       sqlFile,
       targetConfig,
       options.verbose,
       timeoutMinutes
     );
-    
+
     if (importResult.success) {
       console.log(
         chalk.green(`✓ Successfully restored ${importResult.tableCount} tables`)
@@ -93,7 +97,9 @@ async function runRestore(
     }
   } else {
     console.log(chalk.gray('  Would import SQL file to target environment'));
-    console.log(chalk.green('\n🎭 Restore dry run completed - no changes made'));
+    console.log(
+      chalk.green('\n🎭 Restore dry run completed - no changes made')
+    );
   }
 }
 
@@ -114,9 +120,15 @@ async function runPreflightChecks(
   console.log(chalk.gray(`  Testing ${environment} database connection...`));
   const connectionTest = await DatabaseOperations.testConnection(environment);
   if (!connectionTest) {
-    console.log(chalk.yellow(`  Warning: Connection test failed for ${environment}, but proceeding anyway`));
+    console.log(
+      chalk.yellow(
+        `  Warning: Connection test failed for ${environment}, but proceeding anyway`
+      )
+    );
   } else {
-    console.log(chalk.green(`  ✓ ${environment} database connection successful`));
+    console.log(
+      chalk.green(`  ✓ ${environment} database connection successful`)
+    );
   }
 
   console.log(chalk.green('✓ Pre-flight checks passed'));
@@ -133,8 +145,8 @@ async function confirmRestore(
 
   const message = chalk.yellow(
     `⚠️  This will OVERWRITE the existing ${environment} database with data from:\n` +
-    `   ${sqlFile}\n\n` +
-    `Are you sure you want to continue? (y/N): `
+      `   ${sqlFile}\n\n` +
+      `Are you sure you want to continue? (y/N): `
   );
 
   return new Promise((resolve) => {

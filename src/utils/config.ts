@@ -31,6 +31,11 @@ interface ConfigData {
   backup?: {
     localPath?: string;
   };
+  clickup?: {
+    token?: string; // encrypted
+    defaultListId?: string;
+    defaultWorkspaceId?: string;
+  };
 }
 
 export class Config {
@@ -93,7 +98,7 @@ export class Config {
 
     if (keys.length < 2) {
       throw new Error(
-        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, or s3.<key>'
+        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, or clickup.<key>'
       );
     }
 
@@ -107,9 +112,11 @@ export class Config {
       this.setS3Config(config, keys, value);
     } else if (section === 'backup') {
       this.setBackupConfig(config, keys, value);
+    } else if (section === 'clickup') {
+      this.setClickUpConfig(config, keys, value);
     } else {
       throw new Error(
-        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, or backup.<key>'
+        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, or clickup.<key>'
       );
     }
 
@@ -238,9 +245,7 @@ export class Config {
     const backupKey = keys[1];
 
     if (!['localPath'].includes(backupKey)) {
-      throw new Error(
-        'Invalid backup config key. Valid keys: localPath'
-      );
+      throw new Error('Invalid backup config key. Valid keys: localPath');
     }
 
     if (!config.backup) {
@@ -250,13 +255,45 @@ export class Config {
     config.backup[backupKey as keyof NonNullable<ConfigData['backup']>] = value;
   }
 
+  private static setClickUpConfig(
+    config: ConfigData,
+    keys: string[],
+    value: string
+  ): void {
+    if (keys.length !== 2) {
+      throw new Error('Invalid ClickUp config key. Use format: clickup.<key>');
+    }
+
+    const clickupKey = keys[1];
+
+    if (
+      !['token', 'defaultListId', 'defaultWorkspaceId'].includes(clickupKey)
+    ) {
+      throw new Error(
+        'Invalid ClickUp config key. Valid keys: token, defaultListId, defaultWorkspaceId'
+      );
+    }
+
+    if (!config.clickup) {
+      config.clickup = {};
+    }
+
+    if (clickupKey === 'token') {
+      config.clickup[clickupKey as keyof NonNullable<ConfigData['clickup']>] =
+        this.encrypt(value);
+    } else {
+      config.clickup[clickupKey as keyof NonNullable<ConfigData['clickup']>] =
+        value;
+    }
+  }
+
   static get(key: string): string | undefined {
     const config = this.loadConfig();
     const keys = key.split('.');
 
     if (keys.length < 2) {
       throw new Error(
-        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, or s3.<key>'
+        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, or clickup.<key>'
       );
     }
 
@@ -270,9 +307,11 @@ export class Config {
       return this.getS3ConfigValue(config, keys);
     } else if (section === 'backup') {
       return this.getBackupConfigValue(config, keys);
+    } else if (section === 'clickup') {
+      return this.getClickUpConfigValue(config, keys);
     } else {
       throw new Error(
-        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, or backup.<key>'
+        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, or clickup.<key>'
       );
     }
   }
@@ -382,6 +421,34 @@ export class Config {
     return config.backup[backupKey as keyof NonNullable<ConfigData['backup']>];
   }
 
+  private static getClickUpConfigValue(
+    config: ConfigData,
+    keys: string[]
+  ): string | undefined {
+    if (keys.length !== 2) {
+      throw new Error('Invalid ClickUp config key. Use format: clickup.<key>');
+    }
+
+    const clickupKey = keys[1];
+
+    if (!config.clickup) {
+      return undefined;
+    }
+
+    const value =
+      config.clickup[clickupKey as keyof NonNullable<ConfigData['clickup']>];
+
+    if (!value) {
+      return undefined;
+    }
+
+    if (clickupKey === 'token') {
+      return this.decrypt(value);
+    }
+
+    return value;
+  }
+
   static list(): ConfigData {
     const config = this.loadConfig();
 
@@ -401,6 +468,11 @@ export class Config {
     // Mask password in migration config
     if (config.migration?.password) {
       config.migration.password = '****';
+    }
+
+    // Mask token in ClickUp config
+    if (config.clickup?.token) {
+      config.clickup.token = '****';
     }
 
     return config;
@@ -500,5 +572,29 @@ export class Config {
 
   static getValidEnvironments(): string[] {
     return ['dev', 'uat', 'pprd', 'prod'];
+  }
+
+  static getClickUpConfig(): {
+    token?: string;
+    defaultListId?: string;
+    defaultWorkspaceId?: string;
+  } {
+    const config = this.loadConfig();
+    if (!config.clickup) {
+      return {};
+    }
+
+    return {
+      token: config.clickup.token
+        ? this.decrypt(config.clickup.token)
+        : undefined,
+      defaultListId: config.clickup.defaultListId,
+      defaultWorkspaceId: config.clickup.defaultWorkspaceId,
+    };
+  }
+
+  static hasClickUpToken(): boolean {
+    const clickupConfig = this.getClickUpConfig();
+    return !!clickupConfig.token;
   }
 }

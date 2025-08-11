@@ -48,7 +48,11 @@ export const migrateCommand = new Command('migrate')
   .option('--work-dir <path>', 'Custom working directory', undefined)
   .option('--keep-files', 'Do not delete local SQL files', false)
   .option('--homepage', 'Include homepage tables (default: exclude)', false)
-  .option('--timeout <minutes>', 'Custom timeout in minutes for large databases (default: 20)', '20')
+  .option(
+    '--timeout <minutes>',
+    'Custom timeout in minutes for large databases (default: 20)',
+    '20'
+  )
   .option(
     '--custom-domain <mapping>',
     'Custom domain replacement (format: source:target)'
@@ -246,7 +250,7 @@ async function runCompleteMigration(
       siteId,
       environment: options.from,
       purpose: 'initial-export',
-      siteName
+      siteName,
     });
 
     if (!options.dryRun) {
@@ -305,7 +309,7 @@ async function runCompleteMigration(
         siteId,
         environment: options.to,
         purpose: 'backup-export',
-        siteName
+        siteName,
       });
 
       if (!options.dryRun) {
@@ -338,7 +342,7 @@ async function runCompleteMigration(
       siteId,
       environment: options.to, // Target environment for migrated export
       purpose: 'migrated-export',
-      siteName
+      siteName,
     });
 
     if (!options.dryRun) {
@@ -438,113 +442,116 @@ async function runCompleteMigration(
               metadata,
               options.verbose
             );
-            
+
             if (s3Result.files.length > 0) {
               console.log(
                 chalk.green(`✓ Archived ${s3Result.files.length} files to S3`)
               );
               console.log(
-                chalk.cyan(`   S3 location: s3://${s3Result.bucket}/${s3Result.path}`)
+                chalk.cyan(
+                  `   S3 location: s3://${s3Result.bucket}/${s3Result.path}`
+                )
               );
             } else {
               console.log(
                 chalk.yellow(`✓ S3 upload failed, falling back to local backup`)
               );
-              
+
               // Fall back to local backup when S3 fails
               const backupDir = Config.getBackupPath();
               const timestampDir = join(backupDir, timestamp);
-              
+
               if (!existsSync(timestampDir)) {
                 mkdirSync(timestampDir, { recursive: true });
               }
-              
+
               const fs = require('fs');
               let copiedFiles = 0;
-              
+
               for (const [fileName, filePath] of Object.entries(sqlFiles)) {
                 const backupPath = join(timestampDir, fileName);
                 fs.copyFileSync(filePath, backupPath);
                 copiedFiles++;
               }
-              
-              const metadataPath = join(timestampDir, 'migration-metadata.json');
+
+              const metadataPath = join(
+                timestampDir,
+                'migration-metadata.json'
+              );
               fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
-              
+
               console.log(
                 chalk.green(`✓ Archived ${copiedFiles} files to local backup`)
               );
-              console.log(
-                chalk.cyan(`   Local location: ${timestampDir}`)
-              );
+              console.log(chalk.cyan(`   Local location: ${timestampDir}`));
             }
           } catch (error) {
             console.log(
               chalk.yellow(`✓ S3 archival failed, using local backup instead`)
             );
-            
+
             // Fall back to local backup when S3 completely fails
             const backupDir = Config.getBackupPath();
             const timestampDir = join(backupDir, timestamp);
-            
+
             if (!existsSync(timestampDir)) {
               mkdirSync(timestampDir, { recursive: true });
             }
-            
+
             const fs = require('fs');
             let copiedFiles = 0;
-            
+
             for (const [fileName, filePath] of Object.entries(sqlFiles)) {
               const backupPath = join(timestampDir, fileName);
               fs.copyFileSync(filePath, backupPath);
               copiedFiles++;
             }
-            
+
             const metadataPath = join(timestampDir, 'migration-metadata.json');
             fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
-            
+
             console.log(
               chalk.green(`✓ Archived ${copiedFiles} files to local backup`)
             );
-            console.log(
-              chalk.cyan(`   Local location: ${timestampDir}`)
-            );
+            console.log(chalk.cyan(`   Local location: ${timestampDir}`));
           }
         } else {
           // Archive to local backup directory
           const backupDir = Config.getBackupPath();
           const timestampDir = join(backupDir, timestamp);
-          
+
           if (!existsSync(timestampDir)) {
             mkdirSync(timestampDir, { recursive: true });
           }
-          
+
           // Copy SQL files to backup directory
           const fs = require('fs');
           let copiedFiles = 0;
-          
+
           for (const [fileName, filePath] of Object.entries(sqlFiles)) {
             const backupPath = join(timestampDir, fileName);
             fs.copyFileSync(filePath, backupPath);
             copiedFiles++;
           }
-          
+
           // Save metadata
           const metadataPath = join(timestampDir, 'migration-metadata.json');
           fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
-          
+
           console.log(
             chalk.green(`✓ Archived ${copiedFiles} files to local backup`)
           );
-          console.log(
-            chalk.cyan(`   Local location: ${timestampDir}`)
-          );
+          console.log(chalk.cyan(`   Local location: ${timestampDir}`));
         }
       } else {
         if (Config.hasS3Config()) {
           console.log(chalk.gray('  Would archive SQL files to S3'));
         } else {
-          console.log(chalk.gray(`  Would archive SQL files to local backup: ${Config.getBackupPath()}`));
+          console.log(
+            chalk.gray(
+              `  Would archive SQL files to local backup: ${Config.getBackupPath()}`
+            )
+          );
         }
       }
     } else if (options.skipS3) {
@@ -668,12 +675,18 @@ async function runPreflightChecks(
 
   // Check S3 configuration and backup path
   if (!options.skipS3 && !Config.hasS3Config()) {
-    console.log(chalk.yellow(`  S3 not configured - will use local backups in: ${Config.getBackupPath()}`));
+    console.log(
+      chalk.yellow(
+        `  S3 not configured - will use local backups in: ${Config.getBackupPath()}`
+      )
+    );
     // Ensure local backup directory exists
     const backupDir = Config.getBackupPath();
     if (!existsSync(backupDir)) {
       mkdirSync(backupDir, { recursive: true });
-      console.log(chalk.green(`  ✓ Created local backup directory: ${backupDir}`));
+      console.log(
+        chalk.green(`  ✓ Created local backup directory: ${backupDir}`)
+      );
     }
   } else if (!options.skipS3) {
     console.log(chalk.gray(`  S3 configuration found - testing access...`));
@@ -681,19 +694,33 @@ async function runPreflightChecks(
 
   // Test database connections
   console.log(chalk.gray(`  Testing ${options.from} database connection...`));
-  const fromConnectionTest = await DatabaseOperations.testConnection(options.from);
+  const fromConnectionTest = await DatabaseOperations.testConnection(
+    options.from
+  );
   if (!fromConnectionTest) {
-    console.log(chalk.yellow(`  Warning: Connection test failed for ${options.from}, but proceeding anyway`));
+    console.log(
+      chalk.yellow(
+        `  Warning: Connection test failed for ${options.from}, but proceeding anyway`
+      )
+    );
   } else {
-    console.log(chalk.green(`  ✓ ${options.from} database connection successful`));
+    console.log(
+      chalk.green(`  ✓ ${options.from} database connection successful`)
+    );
   }
 
   console.log(chalk.gray(`  Testing ${options.to} database connection...`));
   const toConnectionTest = await DatabaseOperations.testConnection(options.to);
   if (!toConnectionTest) {
-    console.log(chalk.yellow(`  Warning: Connection test failed for ${options.to}, but proceeding anyway`));
+    console.log(
+      chalk.yellow(
+        `  Warning: Connection test failed for ${options.to}, but proceeding anyway`
+      )
+    );
   } else {
-    console.log(chalk.green(`  ✓ ${options.to} database connection successful`));
+    console.log(
+      chalk.green(`  ✓ ${options.to} database connection successful`)
+    );
   }
 
   // Check that site exists in source
@@ -712,17 +739,27 @@ async function runPreflightChecks(
   // Test S3 access if configured and not skipped
   if (!options.skipS3 && Config.hasS3Config()) {
     if (!(await S3Operations.testS3Access())) {
-      console.log(chalk.yellow('  Warning: S3 access failed - will use local backups instead'));
+      console.log(
+        chalk.yellow(
+          '  Warning: S3 access failed - will use local backups instead'
+        )
+      );
       // Ensure local backup directory exists when S3 fails
       const backupDir = Config.getBackupPath();
       if (!existsSync(backupDir)) {
         mkdirSync(backupDir, { recursive: true });
-        console.log(chalk.green(`  ✓ Created local backup directory: ${backupDir}`));
+        console.log(
+          chalk.green(`  ✓ Created local backup directory: ${backupDir}`)
+        );
       } else {
-        console.log(chalk.cyan(`  ✓ Local backup directory ready: ${backupDir}`));
+        console.log(
+          chalk.cyan(`  ✓ Local backup directory ready: ${backupDir}`)
+        );
       }
     } else {
-      console.log(chalk.green('  ✓ S3 access verified - will use S3 for backups'));
+      console.log(
+        chalk.green('  ✓ S3 access verified - will use S3 for backups')
+      );
     }
   }
 
@@ -749,7 +786,7 @@ async function runSqlSearchReplace(
   // Combine URL and S3 replacements
   const allReplacements = [
     ...environmentMapping.urlReplacements,
-    ...environmentMapping.s3Replacements
+    ...environmentMapping.s3Replacements,
   ];
 
   // Add custom domain replacement if specified
@@ -958,7 +995,7 @@ async function executeWpCliCommand(
     'cd /var/www/html',
     'wp core download',
     'wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST"',
-    `${wpCliCommand} --log=/logs/${basename(options.logFile)}`
+    `${wpCliCommand} --log=/logs/${basename(options.logFile)}`,
   ].join(' && ');
 
   if (options.verbose) {
@@ -970,7 +1007,8 @@ async function executeWpCliCommand(
   }
 
   try {
-    const output = execSync(`docker run --rm \\
+    const output = execSync(
+      `docker run --rm \\
       --memory=4g \\
       -v "${resolve(dirname(options.logFile))}:/logs" \\
       -e WORDPRESS_DB_HOST="${options.dbConfig.host}" \\
@@ -980,11 +1018,13 @@ async function executeWpCliCommand(
       -e WP_CLI_PHP_ARGS="-d memory_limit=2048M -d max_execution_time=600" \\
       -e PHP_MEMORY_LIMIT=2048M \\
       wordpress:cli \\
-      bash -c '${bashScript}'`, {
-      encoding: 'utf8',
-      stdio: options.verbose ? 'inherit' : 'pipe',
-      shell: '/bin/bash'
-    });
+      bash -c '${bashScript}'`,
+      {
+        encoding: 'utf8',
+        stdio: options.verbose ? 'inherit' : 'pipe',
+        shell: '/bin/bash',
+      }
+    );
 
     if (!options.verbose && output) {
       console.log(output);

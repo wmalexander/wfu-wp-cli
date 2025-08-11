@@ -1,13 +1,25 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { readFileSync, writeFileSync, existsSync, statSync, readdirSync } from 'fs';
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  statSync,
+  readdirSync,
+} from 'fs';
 import { join, extname, basename, dirname } from 'path';
 import { convertMarkdownToWpBlocks } from '../utils/markdown-to-wp-blocks';
 
 export const md2wpblockCommand = new Command('md2wpblock')
   .description('Convert Markdown files to WordPress block editor HTML format')
-  .argument('<path>', 'Path to Markdown file or directory containing Markdown files')
-  .option('-o, --output <filename>', 'Custom output filename (single file mode only)')
+  .argument(
+    '<path>',
+    'Path to Markdown file or directory containing Markdown files'
+  )
+  .option(
+    '-o, --output <filename>',
+    'Custom output filename (single file mode only)'
+  )
   .option('--dry-run', 'Preview operations without creating files')
   .option('-v, --verbose', 'Show detailed output')
   .option('--escape-html', 'Escape HTML entities in output')
@@ -73,11 +85,13 @@ class Md2WpBlockProcessor {
 
     const files = readdirSync(dirPath);
     const markdownFiles = files
-      .filter(file => this.isMarkdownFile(file))
-      .map(file => join(dirPath, file));
+      .filter((file) => this.isMarkdownFile(file))
+      .map((file) => join(dirPath, file));
 
     if (markdownFiles.length === 0) {
-      console.log(chalk.yellow(`No Markdown files found in directory: ${dirPath}`));
+      console.log(
+        chalk.yellow(`No Markdown files found in directory: ${dirPath}`)
+      );
       return;
     }
 
@@ -111,7 +125,10 @@ class Md2WpBlockProcessor {
     );
   }
 
-  private async convertFile(inputPath: string, outputPath: string): Promise<void> {
+  private async convertFile(
+    inputPath: string,
+    outputPath: string
+  ): Promise<void> {
     if (this.options.verbose) {
       console.log(chalk.blue(`Converting: ${basename(inputPath)}`));
     }
@@ -137,9 +154,7 @@ class Md2WpBlockProcessor {
       console.log(chalk.green(`✓ Created: ${basename(outputPath)}`));
     } else {
       console.log(
-        chalk.green(
-          `✓ ${basename(inputPath)} → ${basename(outputPath)}`
-        )
+        chalk.green(`✓ ${basename(inputPath)} → ${basename(outputPath)}`)
       );
     }
   }
@@ -169,7 +184,9 @@ class Md2WpBlockProcessor {
 }
 
 // Add help examples
-md2wpblockCommand.addHelpText('after', `
+md2wpblockCommand.addHelpText(
+  'after',
+  `
 Examples:
   $ wfuwp md2wpblock document.md                    # Convert single file
   $ wfuwp md2wpblock wp-docs/                      # Convert all .md files in directory
@@ -177,4 +194,5 @@ Examples:
   $ wfuwp md2wpblock directory/ --dry-run          # Preview what would be converted
   $ wfuwp md2wpblock file.md --verbose             # Show detailed progress
   $ wfuwp md2wpblock file.md --escape-html         # Escape HTML entities
-`);
+`
+);

@@ -1,7 +1,7 @@
 # ClickUp API Integration Specification for CLI Tool
 
 ## Overview
-Add ClickUp task creation functionality to the existing CLI tool, allowing users to create tasks directly from the command line without leaving their development workflow.
+Add ClickUp task management functionality to the existing CLI tool, allowing users to create, retrieve, and manage tasks directly from the command line without leaving their development workflow.
 
 ## Core Requirements
 
@@ -79,6 +79,39 @@ Add a new command group for ClickUp operations:
   }
   ```
 
+#### Get Tasks Endpoint
+- **Endpoint**: `GET /list/{list_id}/task`
+- **Required**: `list_id` in URL path
+- **Response Limit**: 100 tasks per page
+- **Query Parameters**:
+  - `include_closed=true` - Include completed/closed tasks
+  - `archived=true` - Include archived tasks
+  - `statuses[]=status_name` - Filter by specific status(es)
+  - `assignees[]=user_id` - Filter by assignee(s)
+  - `tags[]=tag_name` - Filter by tag(s)
+  - `due_date_gt=unix_timestamp` - Due after date
+  - `due_date_lt=unix_timestamp` - Due before date
+  - `date_created_gt=unix_timestamp` - Created after date
+  - `date_created_lt=unix_timestamp` - Created before date
+  - `date_updated_gt=unix_timestamp` - Updated after date
+  - `date_updated_lt=unix_timestamp` - Updated before date
+  - `page=number` - Page number for pagination
+
+#### Get Single Task Endpoint  
+- **Endpoint**: `GET /task/{task_id}`
+- **Required**: `task_id` in URL path
+- **Returns**: Complete task details including comments, time tracking, custom fields
+
+#### Response Data Structure
+Task objects include:
+- Basic info: `id`, `name`, `description`, `status`, `priority`
+- Dates: `date_created`, `date_updated`, `due_date`, `start_date`
+- Assignment: `assignees`, `watchers`, `creator`
+- Organization: `tags`, `list`, `folder`, `space`
+- Progress: `time_estimate`, `time_spent` (in milliseconds)
+- Relationships: `parent`, `subtasks`, `dependencies`
+- Custom fields and attachments
+
 #### Priority Mapping
 - 1 = Urgent (red)
 - 2 = High (yellow)
@@ -99,8 +132,19 @@ Add a new command group for ClickUp operations:
 <cli-tool> clickup config set default-list <list-id>
 <cli-tool> clickup config show
 
-# Search/list tasks
-<cli-tool> clickup tasks --list <list-id> [--status open]
+# List tasks from a specific list
+<cli-tool> clickup tasks --list <list-id>
+<cli-tool> clickup tasks --list <list-id> --status open
+<cli-tool> clickup tasks --list <list-id> --assignee <user-id>
+<cli-tool> clickup tasks --list <list-id> --tag urgent
+<cli-tool> clickup tasks --list <list-id> --due-before "2024-12-31"
+
+# Get detailed task information
+<cli-tool> clickup task <task-id>
+
+# List tasks with various filters
+<cli-tool> clickup tasks --list <list-id> --include-closed --priority high
+<cli-tool> clickup tasks --list <list-id> --created-after "2024-01-01"
 ```
 
 ### 6. Error Handling
@@ -150,7 +194,70 @@ Update documentation
 Refactor auth module | Due: 2024-12-31
 ```
 
-### 8. Optional Enhancements
+### 8. Task Display and Formatting
+
+#### List View Output Format
+When displaying task lists, show:
+```
+ID       | Title                    | Status    | Priority | Assignee     | Due Date
+---------|--------------------------|-----------|----------|--------------|----------
+abc123   | Fix login bug            | In Prog   | High     | @john        | Dec 25
+def456   | Update documentation     | To Do     | Normal   | @sarah       | -
+ghi789   | Refactor auth module     | Complete  | Low      | @mike        | Dec 20
+```
+
+#### Task Detail View
+When showing individual task details:
+```
+Task: Fix login bug (abc123xyz)
+Status: In Progress
+Priority: High (2)
+Assignee: John Doe (@john)
+Created: Dec 15, 2024 10:30 AM
+Updated: Dec 20, 2024 2:15 PM
+Due: Dec 25, 2024
+Time Estimate: 4h 30m
+Time Spent: 2h 15m
+
+Description:
+Users cannot log in on mobile devices when using 2FA. 
+Error occurs after entering verification code.
+
+Tags: bug, mobile, urgent
+Link: https://app.clickup.com/t/abc123xyz
+```
+
+#### Export Options
+Support exporting task lists to different formats:
+```bash
+<cli-tool> clickup tasks --list <list-id> --export csv
+<cli-tool> clickup tasks --list <list-id> --export json
+<cli-tool> clickup tasks --list <list-id> --export markdown
+```
+
+### 9. Search and Filtering
+
+#### Advanced Search
+```bash
+# Search across multiple criteria
+<cli-tool> clickup search "login bug" --priority high --status "in progress"
+<cli-tool> clickup search --assignee @me --due-today
+<cli-tool> clickup search --tag urgent --created-this-week
+
+# Saved searches
+<cli-tool> clickup search --save "my-bugs" --assignee @me --tag bug
+<cli-tool> clickup search --load "my-bugs"
+```
+
+#### Quick Filters
+```bash
+<cli-tool> clickup my-tasks  # Tasks assigned to me
+<cli-tool> clickup overdue   # Overdue tasks I can see
+<cli-tool> clickup today     # Tasks due today
+<cli-tool> clickup this-week # Tasks due this week
+```
+
+### 10. Optional Enhancements
 
 #### Templates
 Support task templates for common task types:
@@ -170,6 +277,15 @@ Shortcuts for common workflows:
 ```bash
 <cli-tool> clickup bug "Title" # Creates with bug template
 <cli-tool> clickup feature "Title" # Creates with feature template
+```
+
+#### Task Updates
+Basic task management operations:
+```bash
+<cli-tool> clickup update <task-id> --status "in progress"
+<cli-tool> clickup assign <task-id> --to @john
+<cli-tool> clickup close <task-id>
+<cli-tool> clickup comment <task-id> "Progress update here"
 ```
 
 ## Implementation Notes
@@ -201,11 +317,17 @@ After implementation, users would:
 - Main docs: https://developer.clickup.com/
 - Authentication: https://developer.clickup.com/docs/authentication
 - Create task: https://developer.clickup.com/reference/createtask
+- Get tasks: https://developer.clickup.com/reference/gettasks
+- Get task: https://developer.clickup.com/reference/gettask
 - API Reference: https://clickup.com/api/
 
 ## Success Criteria
-- Users can create tasks with minimal friction
+- Users can create and retrieve tasks with minimal friction
 - Configuration persists between sessions
 - Clear error messages guide users to resolution
-- Common task creation workflows require minimal typing
+- Common task creation and viewing workflows require minimal typing
+- Task lists display clearly with relevant information
+- Filtering and search functionality works intuitively
 - Integration feels native to the existing CLI tool
+- Export functionality works for multiple formats
+- Pagination handles large task lists gracefully

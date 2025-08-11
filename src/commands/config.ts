@@ -191,7 +191,9 @@ async function runConfigWizard(): Promise<void> {
 
     // Configure S3 (optional)
     console.log(chalk.yellow('\n--- S3 Configuration (Optional) ---'));
-    console.log(chalk.gray('Leave S3 bucket empty to use local backups instead'));
+    console.log(
+      chalk.gray('Leave S3 bucket empty to use local backups instead')
+    );
     const s3Bucket = await question(
       'S3 bucket for backups (leave empty for local backups): '
     );
@@ -219,7 +221,9 @@ async function runConfigWizard(): Promise<void> {
         Config.set('backup.localPath', backupPath);
       }
 
-      console.log(chalk.green(`✓ Local backups configured: ${Config.getBackupPath()}`));
+      console.log(
+        chalk.green(`✓ Local backups configured: ${Config.getBackupPath()}`)
+      );
     }
     console.log(chalk.blue.bold('\n🎉 Configuration wizard complete!'));
     console.log(

@@ -145,7 +145,7 @@ export class S3Operations {
       // Fallback to regular Date parsing
       date = new Date(timestamp);
     }
-    
+
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
     const year = date.getFullYear();
@@ -153,10 +153,10 @@ export class S3Operations {
 
     // Use provided site name or fallback to site{ID}
     const siteNameForPath = siteName || `site${siteId}`;
-    
+
     // Create directory name: {siteName}-{siteId}-{from}-to-{to}-{date}
     const directoryName = `${siteNameForPath}-${siteId}-${from}-to-${to}-${dateStr}`;
-    
+
     return `${prefix}/${directoryName}/`;
   }
 

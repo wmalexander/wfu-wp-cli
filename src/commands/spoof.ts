@@ -14,24 +14,26 @@ interface SpoofOptions {
 function getNewsWfuEduIps(): string[] {
   try {
     const output = execSync('host news.wfu.edu', { encoding: 'utf8' });
-    
+
     // Extract all IP addresses from the output
     const ipMatches = output.match(/has address ([\d.]+)/g);
-    
+
     if (!ipMatches || ipMatches.length === 0) {
       throw new Error('Could not parse IP addresses from host command output');
     }
-    
+
     // Extract just the IP addresses from the matches
-    const ips = ipMatches.map(match => {
-      const ipMatch = match.match(/([\d.]+)/);
-      return ipMatch ? ipMatch[1] : '';
-    }).filter(ip => ip !== '');
-    
+    const ips = ipMatches
+      .map((match) => {
+        const ipMatch = match.match(/([\d.]+)/);
+        return ipMatch ? ipMatch[1] : '';
+      })
+      .filter((ip) => ip !== '');
+
     if (ips.length === 0) {
       throw new Error('No valid IP addresses found in host command output');
     }
-    
+
     return ips;
   } catch (error) {
     throw new Error(`Failed to get IP addresses for news.wfu.edu: ${error}`);
@@ -85,7 +87,9 @@ async function spoofDomain(
 
   console.log(chalk.blue(`Getting IP addresses for news.wfu.edu...`));
   const ipAddresses = getNewsWfuEduIps();
-  console.log(chalk.green(`Found ${ipAddresses.length} IPs: ${ipAddresses.join(', ')}`));
+  console.log(
+    chalk.green(`Found ${ipAddresses.length} IPs: ${ipAddresses.join(', ')}`)
+  );
 
   console.log(chalk.blue(`Updating hosts file to spoof ${targetDomain}...`));
 
@@ -93,7 +97,9 @@ async function spoofDomain(
   hostsContent = removeExistingWfuEntries(hostsContent);
 
   // Create entries for all IP addresses
-  const spoofEntries = ipAddresses.map(ip => `${ip} ${targetDomain}`).join('\n');
+  const spoofEntries = ipAddresses
+    .map((ip) => `${ip} ${targetDomain}`)
+    .join('\n');
   const spoofEntry = `\n${MARKER_START}\n${spoofEntries}\n${MARKER_END}\n`;
 
   if (!hostsContent.endsWith('\n')) {
@@ -105,7 +111,9 @@ async function spoofDomain(
   writeHostsFile(hostsContent);
 
   console.log(
-    chalk.green(`Successfully spoofed ${targetDomain} with ${ipAddresses.length} IP addresses`)
+    chalk.green(
+      `Successfully spoofed ${targetDomain} with ${ipAddresses.length} IP addresses`
+    )
   );
   console.log(
     chalk.yellow(
