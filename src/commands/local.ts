@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { LocalHostsManager } from '../utils/local-hosts-manager.js';
 
 export const localCommand = new Command('local')
   .description('Manage local development environment for WFU WordPress sites')
@@ -7,22 +8,23 @@ export const localCommand = new Command('local')
     'after',
     `
 ${chalk.bold('Examples:')}
-  ${chalk.green('wfuwp local status')}          Show current local development environment status
-  ${chalk.green('wfuwp local domain add 43')}  Add local domain for site 43
-  ${chalk.green('wfuwp local start')}           Start local development environment
-  ${chalk.green('wfuwp local install')}        Install local development dependencies
+  ${chalk.green('sudo wfuwp local domain add 43')}     Add local domain for site 43
+  ${chalk.green('wfuwp local domain list')}            List all configured domains
+  ${chalk.green('sudo wfuwp local domain remove 43')}  Remove domain for site 43
+  ${chalk.green('wfuwp local status')}                 Show development environment status
 
-${chalk.bold('Subcommands:')}
-  ${chalk.cyan('status')}         Show environment status and health checks
-  ${chalk.cyan('domain')}         Manage local development domains (/etc/hosts)
-  ${chalk.cyan('install')}        Install and setup development dependencies
-  ${chalk.cyan('start')}          Start local development environment
-  ${chalk.cyan('stop')}           Stop local development environment
-  ${chalk.cyan('restart')}        Restart local development environment
-  ${chalk.cyan('refresh')}        Refresh database from production
-  ${chalk.cyan('reset')}          Reset entire local environment
-  ${chalk.cyan('config')}         Configure local development settings
+${chalk.bold('Available Subcommands:')}
+  ${chalk.cyan('domain')}         ${chalk.green('✓')} Manage local development domains (/etc/hosts)
+  ${chalk.cyan('status')}         ${chalk.yellow('Phase 3')} Show environment status and health checks
+  ${chalk.cyan('install')}        ${chalk.yellow('Phase 4')} Install and setup development dependencies
+  ${chalk.cyan('start')}          ${chalk.yellow('Phase 5')} Start local development environment
+  ${chalk.cyan('stop')}           ${chalk.yellow('Phase 5')} Stop local development environment
+  ${chalk.cyan('restart')}        ${chalk.yellow('Phase 5')} Restart local development environment
+  ${chalk.cyan('refresh')}        ${chalk.yellow('Phase 6')} Refresh database from production
+  ${chalk.cyan('reset')}          ${chalk.yellow('Phase 6')} Reset entire local environment
+  ${chalk.cyan('config')}         ${chalk.yellow('Phase 7')} Configure local development settings
 
+${chalk.dim('Note: Domain management requires sudo privileges to modify /etc/hosts')}
 Use "${chalk.green('wfuwp local <subcommand> --help')}" for detailed help on each subcommand.
 `
   );
@@ -47,12 +49,41 @@ localCommand
       .argument('<site-id>', 'Numeric site identifier (e.g., 43)')
       .option('-p, --port <port>', 'Port number for local development', '8443')
       .action(async (siteId, options) => {
-        console.log(
-          chalk.yellow(
-            `Domain add for site ${siteId} will be implemented in Phase 2`
-          )
-        );
-        console.log(chalk.dim(`Port: ${options.port}`));
+        try {
+          if (!/^\d+$/.test(siteId)) {
+            console.error(
+              chalk.red('Error: Site ID must be a positive integer')
+            );
+            process.exit(1);
+          }
+
+          const manager = new LocalHostsManager();
+          const domain = manager.addDomain(siteId, options.port);
+
+          console.log(
+            chalk.green(`Successfully added local development domain:`)
+          );
+          console.log(`  Site ID: ${chalk.cyan(domain.siteId)}`);
+          console.log(`  Domain: ${chalk.blue(domain.domain)}`);
+          console.log(`  Port: ${chalk.yellow(domain.port)}`);
+          console.log(`  IP: ${chalk.dim(domain.ipAddress)}`);
+          console.log();
+          console.log(chalk.dim('You can now access your local site at:'));
+          console.log(chalk.green(`  https://${domain.domain}:${domain.port}`));
+        } catch (error) {
+          console.error(chalk.red(`Error: ${error}`));
+          if (
+            error instanceof Error &&
+            error.message.includes('Administrator privileges')
+          ) {
+            console.error(
+              chalk.yellow(
+                'Hint: Run with sudo - example: sudo wfuwp local domain add 43'
+              )
+            );
+          }
+          process.exit(1);
+        }
       })
   )
   .addCommand(
@@ -60,18 +91,97 @@ localCommand
       .description('Remove local development domain for a site')
       .argument('<site-id>', 'Numeric site identifier (e.g., 43)')
       .action(async (siteId) => {
-        console.log(
-          chalk.yellow(
-            `Domain remove for site ${siteId} will be implemented in Phase 2`
-          )
-        );
+        try {
+          if (!/^\d+$/.test(siteId)) {
+            console.error(
+              chalk.red('Error: Site ID must be a positive integer')
+            );
+            process.exit(1);
+          }
+
+          const manager = new LocalHostsManager();
+          const domain = manager.getDomain(siteId);
+
+          if (!domain) {
+            console.log(
+              chalk.yellow(
+                `No local development domain found for site ${siteId}`
+              )
+            );
+            return;
+          }
+
+          const removed = manager.removeDomain(siteId);
+
+          if (removed) {
+            console.log(
+              chalk.green(`Successfully removed local development domain:`)
+            );
+            console.log(`  Site ID: ${chalk.cyan(domain.siteId)}`);
+            console.log(`  Domain: ${chalk.blue(domain.domain)}`);
+          } else {
+            console.log(
+              chalk.yellow(
+                `No local development domain found for site ${siteId}`
+              )
+            );
+          }
+        } catch (error) {
+          console.error(chalk.red(`Error: ${error}`));
+          if (
+            error instanceof Error &&
+            error.message.includes('Administrator privileges')
+          ) {
+            console.error(
+              chalk.yellow(
+                'Hint: Run with sudo - example: sudo wfuwp local domain remove 43'
+              )
+            );
+          }
+          process.exit(1);
+        }
       })
   )
   .addCommand(
     new Command('list')
       .description('List all local development domains')
       .action(async () => {
-        console.log(chalk.yellow('Domain list will be implemented in Phase 2'));
+        try {
+          const manager = new LocalHostsManager();
+          const domains = manager.getCurrentDomains();
+
+          if (domains.length === 0) {
+            console.log(
+              chalk.yellow('No local development domains configured')
+            );
+            console.log();
+            console.log(chalk.dim('Add a domain with:'));
+            console.log(chalk.green('  sudo wfuwp local domain add <site-id>'));
+            return;
+          }
+
+          console.log(chalk.bold('\nLocal Development Domains:'));
+          console.log();
+          console.log(chalk.dim('Site ID | Domain | Port | Access URL'));
+          console.log(chalk.dim('--------|--------|------|----------'));
+
+          for (const domain of domains) {
+            const url = `https://${domain.domain}:${domain.port}`;
+            console.log(
+              `${chalk.cyan(domain.siteId.padEnd(7))} | ${chalk.blue(domain.domain)} | ${chalk.yellow(domain.port.padEnd(4))} | ${chalk.green(url)}`
+            );
+          }
+
+          console.log();
+          console.log(
+            chalk.dim(
+              `Total: ${domains.length} domain${domains.length === 1 ? '' : 's'} configured`
+            )
+          );
+        } catch (error) {
+          console.error(chalk.red(`Error: ${error}`));
+          process.exit(1);
+        }
       })
   )
   .addCommand(
@@ -79,11 +189,59 @@ localCommand
       .description('Remove all local development domains')
       .option('-f, --force', 'Skip confirmation prompt', false)
       .action(async (options) => {
-        console.log(
-          chalk.yellow('Domain reset will be implemented in Phase 2')
-        );
-        if (options.force) {
-          console.log(chalk.dim('Force mode enabled'));
+        try {
+          const manager = new LocalHostsManager();
+          const domains = manager.getCurrentDomains();
+
+          if (domains.length === 0) {
+            console.log(chalk.yellow('No local development domains to remove'));
+            return;
+          }
+
+          if (!options.force) {
+            console.log(
+              chalk.yellow(
+                `This will remove ${domains.length} local development domain${domains.length === 1 ? '' : 's'}:`
+              )
+            );
+            console.log();
+            for (const domain of domains) {
+              console.log(
+                `  ${chalk.dim('•')} Site ${chalk.cyan(domain.siteId)}: ${chalk.blue(domain.domain)} (port ${chalk.yellow(domain.port)})`
+              );
+            }
+            console.log();
+            console.error(
+              chalk.red(
+                'Use --force flag to confirm removal of all local development domains'
+              )
+            );
+            console.error(
+              chalk.dim('Example: sudo wfuwp local domain reset --force')
+            );
+            process.exit(1);
+          }
+
+          const removedCount = manager.removeAllDomains();
+
+          console.log(
+            chalk.green(
+              `Successfully removed ${removedCount} local development domain${removedCount === 1 ? '' : 's'}`
+            )
+          );
+        } catch (error) {
+          console.error(chalk.red(`Error: ${error}`));
+          if (
+            error instanceof Error &&
+            error.message.includes('Administrator privileges')
+          ) {
+            console.error(
+              chalk.yellow(
+                'Hint: Run with sudo - example: sudo wfuwp local domain reset --force'
+              )
+            );
+          }
+          process.exit(1);
         }
       })
   );
