@@ -34,10 +34,10 @@ wfuwp local status
 - DDEV availability and running projects
 
 #### `install`
-Install all required dependencies (Docker, DDEV, mkcert).
+Complete local development environment setup (dependencies + database).
 
 ```bash
-# Install all dependencies
+# Complete setup (dependencies + database)
 wfuwp local install
 
 # Force reinstallation
@@ -48,6 +48,7 @@ wfuwp local install --force
 - **Docker Desktop**: Container platform for DDEV
 - **DDEV**: Local development environment manager  
 - **mkcert**: Local SSL certificate generation
+- **Initial Database**: Complete multisite database with all sites
 
 ### Project Control
 
@@ -115,7 +116,7 @@ wfuwp local reset --force
 
 ### First-Time Setup
 ```bash
-# 1. Install dependencies
+# 1. Complete setup (dependencies + database)
 wfuwp local install
 
 # 2. Start environment
@@ -194,12 +195,12 @@ wfuwp local start
 
 ## Database
 
-The reset command automatically imports an initial multisite database that includes:
+The install command automatically sets up an initial multisite database that includes:
 - Complete WordPress multisite network setup
 - Home site and key subsites
 - Production content for development
 
-No manual database configuration required.
+The reset command can also restore this database if needed. No manual database configuration required.
 
 ## Security
 

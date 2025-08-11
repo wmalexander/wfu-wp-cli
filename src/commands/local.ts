@@ -14,14 +14,14 @@ export const localCommand = new Command('local')
     'after',
     `
 ${chalk.bold('Examples:')}
-  ${chalk.green('wfuwp local install')}                           Install Docker, DDEV, and mkcert
+  ${chalk.green('wfuwp local install')}                           Complete setup (Docker, DDEV, mkcert, database)
   ${chalk.green('wfuwp local start')}                             Start development environment  
   ${chalk.green('wfuwp local status')}                            Check environment health
   ${chalk.green('wfuwp local reset --force')}                     Reset to fresh state
 
 ${chalk.bold('Core Commands:')}
   ${chalk.cyan('status')}         ${chalk.green('✓')} Check environment health
-  ${chalk.cyan('install')}        ${chalk.green('✓')} Install Docker, DDEV, and mkcert
+  ${chalk.cyan('install')}        ${chalk.green('✓')} Complete setup (Docker, DDEV, mkcert, database)
   ${chalk.cyan('start')}          ${chalk.green('✓')} Start development environment
   ${chalk.cyan('stop')}           ${chalk.green('✓')} Stop development environment
   ${chalk.cyan('restart')}        ${chalk.green('✓')} Restart development environment
@@ -382,12 +382,12 @@ localCommand
 
 localCommand
   .command('install')
-  .description('Install local development dependencies (Docker, DDEV, mkcert)')
+  .description('Install dependencies and setup database (Docker, DDEV, mkcert, initial database)')
   .option('-f, --force', 'Force reinstallation of existing dependencies', false)
   .action(async (options) => {
     try {
       console.log(
-        chalk.blue('\n🚀 Installing Local Development Dependencies\n')
+        chalk.blue('\n🚀 Setting up Local Development Environment\n')
       );
 
       const installer = new LocalInstaller();
@@ -401,7 +401,7 @@ localCommand
         force: options.force,
       });
 
-      console.log(chalk.bold('\n📊 Installation Summary:'));
+      console.log(chalk.bold('\n📊 Step 1/2 - Dependencies Installation:'));
       if (result.installed.length > 0) {
         console.log(
           chalk.green(
@@ -432,10 +432,32 @@ localCommand
       console.log();
 
       if (result.success) {
-        console.log(chalk.green('🎉 Installation completed successfully!'));
-        console.log();
-        console.log(chalk.dim('💡 Next: Start your development environment'));
-        console.log(chalk.dim('      wfuwp local start'));
+        console.log(chalk.green('🎉 Dependencies installed successfully!'));
+        
+        // Step 2: Import initial database
+        console.log(chalk.blue('\n🗄️  Step 2/2 - Setting up initial multisite database...'));
+        const contentManager = new LocalContentManager();
+        const dbResult = await contentManager.setupInitialDatabase({
+          force: true,
+          backup: false,
+          keepFiles: false,
+        });
+
+        if (dbResult.success) {
+          console.log(chalk.green('✅ Initial database imported'));
+          console.log(chalk.green('\n🎉 Complete setup finished successfully!'));
+          console.log();
+          console.log(chalk.dim('💡 Next: Start your development environment'));
+          console.log(chalk.dim('      wfuwp local start'));
+        } else {
+          console.log(chalk.yellow('⚠️  Database import failed, but continuing...'));
+          console.log(chalk.dim(`   ${dbResult.message}`));
+          console.log(chalk.green('\n🎉 Dependencies installed successfully!'));
+          console.log();
+          console.log(chalk.dim('💡 Next: Start your development environment'));
+          console.log(chalk.dim('      wfuwp local start'));
+          console.log(chalk.dim('💡 Note: You can import the database later with "wfuwp local reset --force"'));
+        }
       } else {
         console.log(chalk.red('❌ Installation completed with errors.'));
         process.exit(1);
