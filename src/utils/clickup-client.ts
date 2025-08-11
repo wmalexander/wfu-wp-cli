@@ -178,6 +178,37 @@ export class ClickUpClient {
     return this.rateLimitInfo;
   }
 
+  async createTask(
+    listId: string,
+    taskData: {
+      name: string;
+      description?: string;
+      assignees?: string[];
+      tags?: string[];
+      priority?: number;
+      dueDate?: number;
+    }
+  ): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.post(`/list/${listId}/task`, {
+        name: taskData.name,
+        description: taskData.description,
+        assignees: taskData.assignees,
+        tags: taskData.tags,
+        priority: taskData.priority,
+        due_date: taskData.dueDate,
+      })
+    );
+    return response.data;
+  }
+
+  async getTask(taskId: string): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.get(`/task/${taskId}`)
+    );
+    return response.data;
+  }
+
   // Generic request method for future use
   async request<T = any>(
     method: 'get' | 'post' | 'put' | 'delete',
