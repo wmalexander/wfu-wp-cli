@@ -808,59 +808,6 @@ async function runSqlSearchReplace(
   );
 }
 
-async function runSearchReplace(
-  siteId: string,
-  options: MigrateOptions
-): Promise<void> {
-  const migrationConfig = Config.getMigrationDbConfig();
-  const environmentMapping = getEnvironmentMapping(options.from, options.to);
-  const skipTables = getSkipTables(options.homepage || false);
-  const logFile = setupLogging(options.logDir || './logs');
-
-  for (const replacement of environmentMapping.urlReplacements) {
-    await executeWpCliCommand(
-      'search-replace',
-      [replacement.from, replacement.to],
-      {
-        skipTables,
-        dbConfig: migrationConfig,
-        logFile,
-        dryRun: options.dryRun,
-        verbose: options.verbose,
-      }
-    );
-  }
-
-  for (const replacement of environmentMapping.s3Replacements) {
-    await executeWpCliCommand(
-      'search-replace',
-      [replacement.from, replacement.to],
-      {
-        skipTables,
-        dbConfig: migrationConfig,
-        logFile,
-        dryRun: options.dryRun,
-        verbose: options.verbose,
-      }
-    );
-  }
-
-  if (options.customDomain) {
-    const [sourceDomain, targetDomain] = options.customDomain.split(':');
-    if (!sourceDomain || !targetDomain) {
-      throw new Error('Custom domain must be in format: source:target');
-    }
-
-    await executeWpCliCommand('search-replace', [sourceDomain, targetDomain], {
-      skipTables,
-      dbConfig: migrationConfig,
-      logFile,
-      dryRun: options.dryRun,
-      verbose: options.verbose,
-    });
-  }
-}
-
 function getEnvironmentMapping(from: string, to: string): EnvironmentMapping {
   const mappings: Record<string, EnvironmentMapping> = {
     'prod->pprd': {

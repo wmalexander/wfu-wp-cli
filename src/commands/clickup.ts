@@ -127,6 +127,10 @@ export const clickupCommand = new Command('clickup')
       .option('--due <date>', 'Due date (YYYY-MM-DD format)')
       .option('--tags <tags>', 'Comma-separated tags')
       .option('--interactive', 'Use interactive mode for guided task creation')
+      .option(
+        '--from-file <filepath>',
+        'Create multiple tasks from file (JSON, TXT, MD)'
+      )
       .action(
         async (
           title: string | undefined,
@@ -138,10 +142,56 @@ export const clickupCommand = new Command('clickup')
             due?: string;
             tags?: string;
             interactive?: boolean;
+            fromFile?: string;
           }
         ) => {
           try {
             const { ClickUpClient } = await import('../utils/clickup-client');
+
+            // Handle batch creation from file
+            if (options.fromFile) {
+              const { BatchTaskCreator } = await import(
+                '../utils/batch-task-creator'
+              );
+              let listId = options.list;
+              if (!listId) {
+                const defaultListId = Config.get('clickup.defaultListId');
+                if (!defaultListId) {
+                  throw new Error(
+                    'No list ID provided and no default list configured. Use --list <list-id> or configure a default with: wfuwp clickup config set defaultListId <list-id>'
+                  );
+                }
+                listId = defaultListId;
+              }
+              try {
+                console.log(
+                  chalk.blue.bold(`Reading tasks from: ${options.fromFile}`)
+                );
+                const tasks = await BatchTaskCreator.parseFile(
+                  options.fromFile
+                );
+                console.log(
+                  chalk.green(`✓ Parsed ${tasks.length} tasks from file`)
+                );
+                console.log('');
+                const client = new ClickUpClient();
+                const results = await BatchTaskCreator.createTasksBatch(
+                  client,
+                  listId,
+                  tasks
+                );
+                BatchTaskCreator.displayBatchResults(results);
+                return;
+              } catch (error) {
+                if (
+                  error instanceof Error &&
+                  error.message.includes('ENOENT')
+                ) {
+                  throw new Error(`File not found: ${options.fromFile}`);
+                }
+                throw error;
+              }
+            }
 
             // Handle interactive mode
             if (options.interactive) {
@@ -375,6 +425,8 @@ export const clickupCommand = new Command('clickup')
         'Quick filter: Show urgent and high priority tasks'
       )
       .option('--recent', 'Quick filter: Show tasks updated in last 7 days')
+      .option('--export <format>', 'Export tasks to file (csv, json, markdown)')
+      .option('--export-file <filename>', 'Custom filename for export')
       .action(
         async (options: {
           list?: string;
@@ -398,6 +450,8 @@ export const clickupCommand = new Command('clickup')
           urgent?: boolean;
           highPriority?: boolean;
           recent?: boolean;
+          export?: string;
+          exportFile?: string;
         }) => {
           try {
             const { ClickUpClient } = await import('../utils/clickup-client');
@@ -544,6 +598,29 @@ export const clickupCommand = new Command('clickup')
                 chalk.yellow('No tasks found matching the specified criteria.')
               );
               return;
+            }
+            if (options.export) {
+              const { TaskExporter } = await import('../utils/task-exporter');
+              try {
+                const filename = await TaskExporter.exportTasks(
+                  tasks,
+                  options.export,
+                  options.exportFile
+                );
+                TaskExporter.displayExportSuccess(
+                  filename,
+                  tasks.length,
+                  options.export
+                );
+                return;
+              } catch (error) {
+                console.error(
+                  chalk.red(
+                    `Export Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+                  )
+                );
+                process.exit(1);
+              }
             }
             console.log(
               chalk.blue.bold(`Tasks from List (Page ${options.page || '1'}):`)
@@ -751,6 +828,11 @@ export const clickupCommand = new Command('clickup')
       .option('--workspace <workspace-id>', 'Workspace to search in')
       .option('--page <number>', 'Page number for pagination (default: 1)')
       .option('--limit <number>', 'Number of results per page (max: 100)')
+      .option(
+        '--export <format>',
+        'Export search results to file (csv, json, markdown)'
+      )
+      .option('--export-file <filename>', 'Custom filename for export')
       .action(
         async (
           query: string,
@@ -758,6 +840,8 @@ export const clickupCommand = new Command('clickup')
             workspace?: string;
             page?: string;
             limit?: string;
+            export?: string;
+            exportFile?: string;
           }
         ) => {
           try {
@@ -801,6 +885,29 @@ export const clickupCommand = new Command('clickup')
               console.log(chalk.yellow(`No tasks found matching "${query}".`));
               return;
             }
+            if (options.export) {
+              const { TaskExporter } = await import('../utils/task-exporter');
+              try {
+                const filename = await TaskExporter.exportTasks(
+                  tasks,
+                  options.export,
+                  options.exportFile
+                );
+                TaskExporter.displayExportSuccess(
+                  filename,
+                  tasks.length,
+                  options.export
+                );
+                return;
+              } catch (error) {
+                console.error(
+                  chalk.red(
+                    `Export Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+                  )
+                );
+                process.exit(1);
+              }
+            }
             console.log(
               chalk.blue.bold(
                 `Search Results for "${query}" (Page ${options.page || '1'}):`
@@ -826,4 +933,56 @@ export const clickupCommand = new Command('clickup')
           }
         }
       )
+  )
+  .addCommand(
+    new Command('examples')
+      .description('Generate example batch task files')
+      .option('--format <format>', 'File format (txt, json, both)', 'both')
+      .action(async (options: { format?: string }) => {
+        try {
+          const { BatchTaskCreator } = await import(
+            '../utils/batch-task-creator'
+          );
+          const { writeFile } = await import('fs/promises');
+          const examples = BatchTaskCreator.generateExampleFiles();
+          const format = (options.format || 'both').toLowerCase();
+          if (format === 'txt' || format === 'both') {
+            await writeFile(
+              'clickup-tasks-example.txt',
+              examples.plainText,
+              'utf8'
+            );
+            console.log(chalk.green('✓ Created: clickup-tasks-example.txt'));
+          }
+          if (format === 'json' || format === 'both') {
+            await writeFile(
+              'clickup-tasks-example.json',
+              examples.json,
+              'utf8'
+            );
+            console.log(chalk.green('✓ Created: clickup-tasks-example.json'));
+          }
+          console.log('');
+          console.log(chalk.blue.bold('Example files created!'));
+          console.log('');
+          console.log('Usage:');
+          console.log(
+            chalk.gray(
+              '  wfuwp clickup create --from-file clickup-tasks-example.txt'
+            )
+          );
+          console.log(
+            chalk.gray(
+              '  wfuwp clickup create --from-file clickup-tasks-example.json'
+            )
+          );
+        } catch (error) {
+          console.error(
+            chalk.red(
+              `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+            )
+          );
+          process.exit(1);
+        }
+      })
   );
