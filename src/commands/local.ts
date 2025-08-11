@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { LocalHostsManager } from '../utils/local-hosts-manager';
 import { DDEVManager } from '../utils/ddev-manager';
 import { LocalInstaller } from '../utils/local-installer';
+import { LocalContentManager } from '../utils/local-content-manager';
 
 export const localCommand = new Command('local')
   .description('Manage local development environment for WFU WordPress sites')
@@ -22,8 +23,8 @@ ${chalk.bold('Available Subcommands:')}
   ${chalk.cyan('start')}          ${chalk.green('✓')} Start local development environment
   ${chalk.cyan('stop')}           ${chalk.green('✓')} Stop local development environment
   ${chalk.cyan('restart')}        ${chalk.green('✓')} Restart local development environment
-  ${chalk.cyan('refresh')}        ${chalk.yellow('Phase 6')} Refresh database from production
-  ${chalk.cyan('reset')}          ${chalk.yellow('Phase 6')} Reset entire local environment
+  ${chalk.cyan('refresh')}        ${chalk.green('✓')} Refresh database from production
+  ${chalk.cyan('reset')}          ${chalk.green('✓')} Reset entire local environment
   ${chalk.cyan('config')}         ${chalk.yellow('Phase 7')} Configure local development settings
 
 ${chalk.dim('Note: Domain management requires sudo privileges to modify /etc/hosts')}
@@ -710,13 +711,106 @@ localCommand
   .description('Refresh database from production S3 bucket')
   .argument('<site-id>', 'Numeric site identifier (e.g., 43)')
   .option('-f, --force', 'Skip confirmation prompts', false)
-  .option('--backup', 'Create backup before refresh', true)
+  .option('--no-backup', 'Skip creating backup before refresh', false)
+  .option('--from <env>', 'Source environment (prod, uat, pprd, dev)', 'prod')
+  .option('--keep-files', 'Keep downloaded database files', false)
+  .option('--work-dir <dir>', 'Custom work directory for temporary files')
+  .option('--build', 'Run build operations after refresh', false)
   .action(async (siteId, options) => {
-    console.log(
-      chalk.yellow(`Refresh for site ${siteId} will be implemented in Phase 6`)
-    );
-    if (options.force) {
-      console.log(chalk.dim('Force mode enabled'));
+    try {
+      if (!/^\d+$/.test(siteId)) {
+        console.error(chalk.red('Error: Site ID must be a positive integer'));
+        process.exit(1);
+      }
+
+      if (!['prod', 'uat', 'pprd', 'dev'].includes(options.from)) {
+        console.error(
+          chalk.red('Error: Invalid environment. Use prod, uat, pprd, or dev')
+        );
+        process.exit(1);
+      }
+
+      if (!options.force) {
+        console.log(chalk.yellow(`\n⚠️  Database Refresh Confirmation`));
+        console.log(
+          `This will replace the local database for site ${chalk.cyan(siteId)} with data from ${chalk.cyan(options.from)}.`
+        );
+        console.log(
+          `Current local data will be ${options.backup ? 'backed up and then ' : ''}${chalk.red('REPLACED')}.`
+        );
+        console.log();
+        console.log(chalk.dim('Use --force to skip this confirmation'));
+        console.log(chalk.red('Cancelled - use --force flag to proceed'));
+        process.exit(1);
+      }
+
+      const contentManager = new LocalContentManager();
+      const result = await contentManager.refreshDatabase({
+        siteId,
+        environment: options.from,
+        force: options.force,
+        backup: options.backup,
+        workDir: options.workDir,
+        keepFiles: options.keepFiles,
+      });
+
+      contentManager.generateRefreshSummary(
+        {
+          siteId,
+          environment: options.from,
+          force: options.force,
+          backup: options.backup,
+          workDir: options.workDir,
+          keepFiles: options.keepFiles,
+        },
+        result
+      );
+
+      if (result.success && options.build) {
+        console.log(chalk.blue('\n🔨 Running build operations...'));
+        const buildResult = contentManager.performBuildOperations(siteId);
+
+        console.log(chalk.bold('\n🔧 Build Summary:'));
+        if (buildResult.operations.length > 0) {
+          console.log(
+            chalk.green(`✅ Completed (${buildResult.operations.length}):`)
+          );
+          for (const op of buildResult.operations) {
+            console.log(`  ${chalk.green('•')} ${op}`);
+          }
+        }
+
+        if (buildResult.errors.length > 0) {
+          console.log(
+            chalk.yellow(`⚠️  Warnings/Errors (${buildResult.errors.length}):`)
+          );
+          for (const error of buildResult.errors) {
+            console.log(`  ${chalk.yellow('•')} ${error}`);
+          }
+        }
+
+        console.log();
+        if (buildResult.success) {
+          console.log(
+            chalk.green('🎉 Build operations completed successfully!')
+          );
+        } else {
+          console.log(
+            chalk.yellow('⚠️ Build completed with some warnings/errors')
+          );
+        }
+      }
+
+      if (!result.success) {
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error(
+        chalk.red(
+          `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      );
+      process.exit(1);
     }
   });
 
@@ -724,11 +818,88 @@ localCommand
   .command('reset')
   .description('Reset entire local development environment')
   .option('-f, --force', 'Skip confirmation prompts', false)
-  .option('--keep-config', 'Keep configuration settings', false)
+  .option('--keep-config', 'Keep configuration settings (domains, etc.)', false)
+  .option(
+    '--deep',
+    'Deep reset including DDEV config and workspace directory',
+    false
+  )
   .action(async (options) => {
-    console.log(chalk.yellow('Reset command will be implemented in Phase 6'));
-    if (options.force) {
-      console.log(chalk.dim('Force mode enabled'));
+    try {
+      if (!options.force) {
+        console.log(chalk.red(`\n💥 Environment Reset Confirmation`));
+        console.log(
+          'This will remove temporary files and reset your local development environment.'
+        );
+
+        if (options.deep) {
+          console.log(chalk.red('⚠️  DEEP RESET will also remove:'));
+          console.log('  • DDEV global configuration');
+          console.log('  • Local workspace directory (~/wfu-wp-local)');
+          console.log('  • All local WordPress projects');
+        }
+
+        if (!options.keepConfig) {
+          console.log('  • Local development domains (/etc/hosts entries)');
+        }
+
+        console.log();
+        console.log(chalk.red('⚠️  This action cannot be undone!'));
+        console.log();
+        console.log(chalk.dim('Use --force to proceed with reset'));
+        console.log(chalk.red('Cancelled - use --force flag to proceed'));
+        process.exit(1);
+      }
+
+      const contentManager = new LocalContentManager();
+      const result = await contentManager.resetEnvironment({
+        force: options.force,
+        keepConfig: options.keepConfig,
+        deepReset: options.deep,
+      });
+
+      console.log(chalk.bold('\n📊 Reset Summary:'));
+      if (result.removedItems.length > 0) {
+        console.log(
+          chalk.green(`✅ Removed (${result.removedItems.length} items):`)
+        );
+        for (const item of result.removedItems) {
+          console.log(`  ${chalk.green('•')} ${item}`);
+        }
+      } else {
+        console.log(chalk.yellow('⚪ No items needed to be removed'));
+      }
+
+      console.log();
+
+      if (result.success) {
+        console.log(
+          chalk.green('🎉 Environment reset completed successfully!')
+        );
+        console.log();
+        console.log(
+          chalk.dim('Your local development environment has been reset.')
+        );
+        console.log(
+          chalk.dim('Use "wfuwp local status" to verify the current state.')
+        );
+        console.log(
+          chalk.dim('Use "wfuwp local install" to set up dependencies again.')
+        );
+      } else {
+        console.log(chalk.red('❌ Environment reset failed.'));
+        if (result.error) {
+          console.log(chalk.red(`Error: ${result.error}`));
+        }
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error(
+        chalk.red(
+          `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      );
+      process.exit(1);
     }
   });
 
