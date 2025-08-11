@@ -401,7 +401,7 @@ localCommand
         force: options.force,
       });
 
-      console.log(chalk.bold('\n📊 Step 1/2 - Dependencies Installation:'));
+      console.log(chalk.bold('\n📊 Step 1/3 - Dependencies Installation:'));
       if (result.installed.length > 0) {
         console.log(
           chalk.green(
@@ -434,29 +434,52 @@ localCommand
       if (result.success) {
         console.log(chalk.green('🎉 Dependencies installed successfully!'));
         
-        // Step 2: Import initial database
-        console.log(chalk.blue('\n🗄️  Step 2/2 - Setting up initial multisite database...'));
-        const contentManager = new LocalContentManager();
-        const dbResult = await contentManager.setupInitialDatabase({
-          force: true,
-          backup: false,
-          keepFiles: false,
-        });
+        // Step 2: Start DDEV before importing database
+        console.log(chalk.blue('\n🚀 Step 2/3 - Starting DDEV environment...'));
+        const manager = new DDEVManager();
+        const startResult = manager.startProject();
+        
+        if (startResult.success) {
+          console.log(chalk.green('✅ DDEV environment started'));
+          
+          // Step 3: Import initial database
+          console.log(chalk.blue('\n🗄️  Step 3/3 - Setting up initial multisite database...'));
+          const contentManager = new LocalContentManager();
+          const dbResult = await contentManager.setupInitialDatabase({
+            force: true,
+            backup: false,
+            keepFiles: false,
+          });
 
-        if (dbResult.success) {
-          console.log(chalk.green('✅ Initial database imported'));
-          console.log(chalk.green('\n🎉 Complete setup finished successfully!'));
-          console.log();
-          console.log(chalk.dim('💡 Next: Start your development environment'));
-          console.log(chalk.dim('      wfuwp local start'));
+          if (dbResult.success) {
+            console.log(chalk.green('✅ Initial database imported'));
+            console.log(chalk.green('\n🎉 Complete setup finished successfully!'));
+            console.log();
+            console.log(chalk.dim('💡 Your development environment is ready and running!'));
+            
+            const status = manager.getStatus();
+            if (status.projects.length > 0) {
+              console.log(chalk.bold('\n📋 Active Projects:'));
+              for (const project of status.projects.filter((p) => p.status === 'running')) {
+                console.log(`  ${chalk.cyan(project.name)} - ${chalk.green(project.url || 'No URL')}`);
+              }
+            }
+          } else {
+            console.log(chalk.yellow('⚠️  Database import failed, but continuing...'));
+            console.log(chalk.dim(`   ${dbResult.message}`));
+            console.log(chalk.green('\n🎉 Dependencies installed and DDEV started!'));
+            console.log();
+            console.log(chalk.dim('💡 Your environment is running (without database)'));
+            console.log(chalk.dim('💡 You can import the database later with "wfuwp local reset --force"'));
+          }
         } else {
-          console.log(chalk.yellow('⚠️  Database import failed, but continuing...'));
-          console.log(chalk.dim(`   ${dbResult.message}`));
+          console.log(chalk.yellow('⚠️  Could not start DDEV environment'));
+          console.log(chalk.dim(`   ${startResult.message}`));
           console.log(chalk.green('\n🎉 Dependencies installed successfully!'));
           console.log();
-          console.log(chalk.dim('💡 Next: Start your development environment'));
+          console.log(chalk.dim('💡 Next: Start your development environment manually'));
           console.log(chalk.dim('      wfuwp local start'));
-          console.log(chalk.dim('💡 Note: You can import the database later with "wfuwp local reset --force"'));
+          console.log(chalk.dim('💡 Then: Import database with "wfuwp local reset --force"'));
         }
       } else {
         console.log(chalk.red('❌ Installation completed with errors.'));
