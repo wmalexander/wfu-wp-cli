@@ -239,9 +239,7 @@ localCommand
 
           if (!domain) {
             console.log(
-              chalk.yellow(
-                `No local development domain found: ${domainName}`
-              )
+              chalk.yellow(`No local development domain found: ${domainName}`)
             );
             return;
           }
@@ -255,11 +253,7 @@ localCommand
             console.log(`  Domain: ${chalk.blue(domain.domain)}`);
             console.log(`  IP: ${chalk.dim(domain.ipAddress)}`);
           } else {
-            console.log(
-              chalk.yellow(
-                `Failed to remove domain: ${domainName}`
-              )
-            );
+            console.log(chalk.yellow(`Failed to remove domain: ${domainName}`));
           }
         } catch (error) {
           console.error(chalk.red(`Error: ${error}`));
@@ -382,7 +376,9 @@ localCommand
 
 localCommand
   .command('install')
-  .description('Install dependencies and setup database (repo clone, Docker, DDEV, mkcert, initial database)')
+  .description(
+    'Install dependencies and setup database (repo clone, Docker, DDEV, mkcert, initial database)'
+  )
   .option('-f, --force', 'Force reinstallation of existing dependencies', false)
   .action(async (options) => {
     try {
@@ -395,14 +391,20 @@ localCommand
       // Step 0: Ensure we're in a WordPress repository
       console.log(chalk.blue('🔍 Step 0/3 - Checking WordPress repository...'));
       const repoResult = await installer.ensureWordPressRepo();
-      
+
       if (!repoResult.success) {
-        console.log(chalk.red(`❌ Repository setup failed: ${repoResult.error}`));
+        console.log(
+          chalk.red(`❌ Repository setup failed: ${repoResult.error}`)
+        );
         process.exit(1);
       }
-      
+
       if (repoResult.cloned) {
-        console.log(chalk.green('✅ WordPress repository cloned and dependencies installed'));
+        console.log(
+          chalk.green(
+            '✅ WordPress repository cloned and dependencies installed'
+          )
+        );
       } else {
         console.log(chalk.green('✅ Already in WordPress repository'));
       }
@@ -448,17 +450,37 @@ localCommand
 
       if (result.success) {
         console.log(chalk.green('🎉 Dependencies installed successfully!'));
-        
-        // Step 2: Start DDEV before importing database
+      } else {
+        console.log(chalk.red('❌ Installation completed with errors.'));
+        process.exit(1);
+      }
+
+      // Step 2: Ensure Docker is running before starting DDEV (always run this)
+      const dockerResult = await installer.startDockerIfNeeded();
+      if (!dockerResult.success) {
+        console.log(chalk.yellow(`⚠️  ${dockerResult.message}`));
+        console.log(
+          chalk.dim(
+            'Please start Docker manually and then run "wfuwp local start"'
+          )
+        );
+      }
+
+      // Step 3: Start DDEV before importing database (only if Docker is running)
+      if (dockerResult.success) {
         console.log(chalk.blue('\n🚀 Step 2/3 - Starting DDEV environment...'));
         const manager = new DDEVManager();
         const startResult = manager.startProject();
-        
+
         if (startResult.success) {
           console.log(chalk.green('✅ DDEV environment started'));
-          
+
           // Step 3: Import initial database
-          console.log(chalk.blue('\n🗄️  Step 3/3 - Setting up initial multisite database...'));
+          console.log(
+            chalk.blue(
+              '\n🗄️  Step 3/3 - Setting up initial multisite database...'
+            )
+          );
           const contentManager = new LocalContentManager();
           const dbResult = await contentManager.setupInitialDatabase({
             force: true,
@@ -468,39 +490,65 @@ localCommand
 
           if (dbResult.success) {
             console.log(chalk.green('✅ Initial database imported'));
-            console.log(chalk.green('\n🎉 Complete setup finished successfully!'));
+            console.log(
+              chalk.green('\n🎉 Complete setup finished successfully!')
+            );
             console.log();
-            console.log(chalk.dim('💡 Your development environment is ready and running!'));
-            
+            console.log(
+              chalk.dim('💡 Your development environment is ready and running!')
+            );
+
             const status = manager.getStatus();
             if (status.projects.length > 0) {
               console.log(chalk.bold('\n📋 Active Projects:'));
-              for (const project of status.projects.filter((p) => p.status === 'running')) {
-                console.log(`  ${chalk.cyan(project.name)} - ${chalk.green(project.url || 'No URL')}`);
+              for (const project of status.projects.filter(
+                (p) => p.status === 'running'
+              )) {
+                console.log(
+                  `  ${chalk.cyan(project.name)} - ${chalk.green(project.url || 'No URL')}`
+                );
               }
             }
           } else {
-            console.log(chalk.yellow('⚠️  Database import failed, but continuing...'));
+            console.log(
+              chalk.yellow('⚠️  Database import failed, but continuing...')
+            );
             console.log(chalk.dim(`   ${dbResult.message}`));
-            console.log(chalk.green('\n🎉 Dependencies installed and DDEV started!'));
+            console.log(
+              chalk.green('\n🎉 Dependencies installed and DDEV started!')
+            );
             console.log();
-            console.log(chalk.dim('💡 Your environment is running (without database)'));
-            console.log(chalk.dim('💡 You can import the database later with "wfuwp local reset --force"'));
+            console.log(
+              chalk.dim('💡 Your environment is running (without database)')
+            );
+            console.log(
+              chalk.dim(
+                '💡 You can import the database later with "wfuwp local reset --force"'
+              )
+            );
           }
         } else {
           console.log(chalk.yellow('⚠️  Could not start DDEV environment'));
           console.log(chalk.dim(`   ${startResult.message}`));
           console.log(chalk.green('\n🎉 Dependencies installed successfully!'));
           console.log();
-          console.log(chalk.dim('💡 Next: Start your development environment manually'));
+          console.log(
+            chalk.dim('💡 Next: Start your development environment manually')
+          );
           console.log(chalk.dim('      wfuwp local start'));
-          console.log(chalk.dim('💡 Then: Import database with "wfuwp local reset --force"'));
+          console.log(
+            chalk.dim(
+              '💡 Then: Import database with "wfuwp local reset --force"'
+            )
+          );
         }
       } else {
-        console.log(chalk.red('❌ Installation completed with errors.'));
-        process.exit(1);
+        console.log(chalk.green('\n🎉 Dependencies installed successfully!'));
+        console.log();
+        console.log(
+          chalk.dim('💡 Next: Start Docker manually, then run "wfuwp local start"')
+        );
       }
-
     } catch (error) {
       console.error(chalk.red(`Error during installation: ${error}`));
       process.exit(1);
@@ -513,6 +561,15 @@ localCommand
   .action(async (options) => {
     try {
       console.log(chalk.bold('\n🚀 Starting Local Development Environment\n'));
+
+      // Ensure Docker is running first
+      const installer = new LocalInstaller();
+      const dockerResult = await installer.startDockerIfNeeded();
+      if (!dockerResult.success) {
+        console.log(chalk.red(`❌ ${dockerResult.message}`));
+        process.exit(1);
+      }
+
       const manager = new DDEVManager();
       const result = manager.startProject();
       if (result.success) {
@@ -596,6 +653,15 @@ localCommand
       console.log(
         chalk.bold('\n🔄 Restarting Local Development Environment\n')
       );
+
+      // Ensure Docker is running first
+      const installer = new LocalInstaller();
+      const dockerResult = await installer.startDockerIfNeeded();
+      if (!dockerResult.success) {
+        console.log(chalk.red(`❌ ${dockerResult.message}`));
+        process.exit(1);
+      }
+
       const manager = new DDEVManager();
       const result = manager.restartProject();
       if (result.success) {
@@ -653,16 +719,21 @@ localCommand
       }
 
       console.log(chalk.bold('\n🗑️  Deleting Local Development Environment\n'));
-      
+
       try {
         const { execSync } = require('child_process');
-        execSync('ddev delete wfu-local -Oy', { 
+        execSync('ddev delete wfu-local -Oy', {
           stdio: 'inherit',
-          encoding: 'utf8'
+          encoding: 'utf8',
         });
-        console.log(chalk.green('✅ Local development environment deleted successfully'));
+        console.log(
+          chalk.green('✅ Local development environment deleted successfully')
+        );
       } catch (error) {
-        if (error instanceof Error && error.message.includes('Could not find a project')) {
+        if (
+          error instanceof Error &&
+          error.message.includes('Could not find a project')
+        ) {
           console.log(chalk.yellow('⚠️ No DDEV project found to delete'));
         } else {
           throw error;
@@ -680,25 +751,42 @@ localCommand
 
 localCommand
   .command('refresh')
-  .description('Refresh database from production S3 bucket or reset to initial multisite setup')
-  .argument('[site-id]', 'Numeric site identifier (e.g., 43) - optional when using --initial-db')
+  .description(
+    'Refresh database from production S3 bucket or reset to initial multisite setup'
+  )
+  .argument(
+    '[site-id]',
+    'Numeric site identifier (e.g., 43) - optional when using --initial-db'
+  )
   .option('-f, --force', 'Skip confirmation prompts', false)
   .option('--no-backup', 'Skip creating backup before refresh', false)
   .option('--from <env>', 'Source environment (prod, uat, pprd, dev)', 'prod')
   .option('--keep-files', 'Keep downloaded database files', false)
   .option('--work-dir <dir>', 'Custom work directory for temporary files')
   .option('--build', 'Run build operations after refresh', false)
-  .option('--initial-db', 'Reset to initial multisite database with all sites', false)
+  .option(
+    '--initial-db',
+    'Reset to initial multisite database with all sites',
+    false
+  )
   .action(async (siteId, options) => {
     try {
       if (options.initialDb) {
         if (siteId) {
-          console.error(chalk.red('Error: Site ID should not be specified when using --initial-db'));
+          console.error(
+            chalk.red(
+              'Error: Site ID should not be specified when using --initial-db'
+            )
+          );
           process.exit(1);
         }
       } else {
         if (!siteId || !/^\d+$/.test(siteId)) {
-          console.error(chalk.red('Error: Site ID must be a positive integer (or use --initial-db for complete multisite setup)'));
+          console.error(
+            chalk.red(
+              'Error: Site ID must be a positive integer (or use --initial-db for complete multisite setup)'
+            )
+          );
           process.exit(1);
         }
       }
@@ -731,7 +819,7 @@ localCommand
       }
 
       const contentManager = new LocalContentManager();
-      const result = options.initialDb 
+      const result = options.initialDb
         ? await contentManager.setupInitialDatabase({
             force: options.force,
             backup: options.backup,
@@ -811,13 +899,17 @@ localCommand
 
 localCommand
   .command('reset')
-  .description('Reset to fresh state (git main, composer update, initial database)')
+  .description(
+    'Reset to fresh state (git main, composer update, initial database)'
+  )
   .option('-f, --force', 'Skip confirmation prompts', false)
   .action(async (options) => {
     try {
       if (!options.force) {
         console.log(chalk.yellow(`\n🔄 Reset to Fresh State`));
-        console.log('This will restore your local development environment to a fresh state:');
+        console.log(
+          'This will restore your local development environment to a fresh state:'
+        );
         console.log('  • Switch to main branch and pull latest changes');
         console.log('  • Update Composer dependencies');
         console.log('  • Import initial multisite database');
@@ -831,7 +923,7 @@ localCommand
       console.log(chalk.bold('\n🔄 Resetting to Fresh State\n'));
 
       const { execSync } = require('child_process');
-      
+
       try {
         // Step 1: Git reset to main
         console.log(chalk.blue('📥 1. Syncing with remote main branch...'));
@@ -839,13 +931,15 @@ localCommand
         execSync('git pull origin main', { stdio: 'inherit' });
         console.log(chalk.green('✅ Git synced to latest main'));
 
-        // Step 2: Update dependencies  
+        // Step 2: Update dependencies
         console.log(chalk.blue('\n📦 2. Updating Composer dependencies...'));
         execSync('composer update', { stdio: 'inherit' });
         console.log(chalk.green('✅ Composer dependencies updated'));
 
         // Step 3: Import initial database
-        console.log(chalk.blue('\n🗄️  3. Importing initial multisite database...'));
+        console.log(
+          chalk.blue('\n🗄️  3. Importing initial multisite database...')
+        );
         const contentManager = new LocalContentManager();
         const dbResult = await contentManager.setupInitialDatabase({
           force: true,
@@ -856,18 +950,29 @@ localCommand
         if (dbResult.success) {
           console.log(chalk.green('✅ Initial database imported'));
         } else {
-          console.log(chalk.yellow('⚠️  Database import failed, but continuing...'));
+          console.log(
+            chalk.yellow('⚠️  Database import failed, but continuing...')
+          );
           console.log(chalk.dim(`   ${dbResult.message}`));
         }
 
-        console.log(chalk.green('\n🎉 Fresh state reset completed successfully!'));
+        console.log(
+          chalk.green('\n🎉 Fresh state reset completed successfully!')
+        );
         console.log();
-        console.log(chalk.dim('💡 Your environment is now in a clean, known-good state'));
-        console.log(chalk.dim('💡 Use "wfuwp local start" to begin development'));
-
+        console.log(
+          chalk.dim('💡 Your environment is now in a clean, known-good state')
+        );
+        console.log(
+          chalk.dim('💡 Use "wfuwp local start" to begin development')
+        );
       } catch (error) {
         console.log(chalk.red('\n❌ Reset failed during execution'));
-        console.log(chalk.red(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        console.log(
+          chalk.red(
+            `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+          )
+        );
         process.exit(1);
       }
     } catch (error) {

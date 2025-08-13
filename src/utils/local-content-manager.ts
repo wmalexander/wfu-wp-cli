@@ -120,10 +120,9 @@ export class LocalContentManager {
 
       console.log(chalk.blue(`📦 Creating backup of current database...`));
 
-      this.runCommand(
-        `ddev export-db --file="${backupPath}"`,
-        { silent: false }
-      );
+      this.runCommand(`ddev export-db --file="${backupPath}"`, {
+        silent: false,
+      });
 
       if (existsSync(backupPath)) {
         console.log(
@@ -260,10 +259,9 @@ export class LocalContentManager {
         this.runCommand(`gunzip -f "${localBackupPath}"`);
       }
 
-      this.runCommand(
-        `ddev import-db --file="${decompressedPath}"`,
-        { silent: false }
-      );
+      this.runCommand(`ddev import-db --file="${decompressedPath}"`, {
+        silent: false,
+      });
 
       if (!options.keepFiles) {
         if (existsSync(decompressedPath)) {
@@ -289,7 +287,9 @@ export class LocalContentManager {
     }
   }
 
-  async setupInitialDatabase(options: InitialDatabaseOptions): Promise<RefreshResult> {
+  async setupInitialDatabase(
+    options: InitialDatabaseOptions
+  ): Promise<RefreshResult> {
     try {
       const workDir = options.workDir || this.defaultWorkDir;
       this.ensureWorkDir(workDir);
@@ -317,21 +317,19 @@ export class LocalContentManager {
       }
 
       console.log(
-        chalk.blue(
-          '📥 Downloading complete multisite database from S3...'
-        )
+        chalk.blue('📥 Downloading complete multisite database from S3...')
       );
 
       const backupFileName = `wfu-local-default-${Date.now()}.sql.gz`;
       const localBackupPath = path.join(workDir, backupFileName);
 
-      const s3Url = 'https://wfu-cer-wordpress-dev-us-east-1.s3.us-east-1.amazonaws.com/wfu-local/wfu-local-default.sql.gz';
-      
+      const s3Url =
+        'https://wfu-cer-wordpress-dev-us-east-1.s3.us-east-1.amazonaws.com/wfu-local/wfu-local-default.sql.gz';
+
       try {
-        this.runCommand(
-          `curl -o "${localBackupPath}" "${s3Url}"`,
-          { silent: false }
-        );
+        this.runCommand(`curl -o "${localBackupPath}" "${s3Url}"`, {
+          silent: false,
+        });
       } catch (error) {
         return {
           success: false,
@@ -352,11 +350,12 @@ export class LocalContentManager {
 
       const ddevProjects = this.ddevManager.getProjects();
       const runningProject = ddevProjects.find((p) => p.status === 'running');
-      
+
       if (!runningProject) {
         return {
           success: false,
-          message: 'No running DDEV project found. Start a project first with "wfuwp local start".',
+          message:
+            'No running DDEV project found. Start a project first with "wfuwp local start".',
           error: 'No running project',
         };
       }
@@ -366,15 +365,12 @@ export class LocalContentManager {
         this.runCommand(`gunzip -f "${localBackupPath}"`);
       }
 
-      this.runCommand(
-        `ddev import-db --file="${decompressedPath}"`,
-        { silent: false }
-      );
+      this.runCommand(`ddev import-db --file="${decompressedPath}"`, {
+        silent: false,
+      });
 
       console.log(
-        chalk.green(
-          '✅ Initial multisite database imported successfully!'
-        )
+        chalk.green('✅ Initial multisite database imported successfully!')
       );
 
       if (!options.keepFiles) {

@@ -105,25 +105,23 @@ export class LocalHostsManager {
 
   addDomain(domain: string): LocalDomain {
     this.requiresAdminRights();
-    
+
     if (!this.validateDomain(domain)) {
       throw new Error(
         `Invalid domain: ${domain}. Must be wfu.local or *.wfu.local`
       );
     }
-    
+
     const ipAddress = this.getLocalIpAddress();
     const localDomain: LocalDomain = {
       domain,
       ipAddress,
     };
-    
+
     const currentDomains = this.getCurrentDomains();
     const existingDomain = currentDomains.find((d) => d.domain === domain);
     if (existingDomain) {
-      throw new Error(
-        `Domain ${domain} already exists in hosts file`
-      );
+      throw new Error(`Domain ${domain} already exists in hosts file`);
     }
     const hostsContent = this.readHostsFile();
     const cleanedContent = this.removeExistingLocalSection(hostsContent);

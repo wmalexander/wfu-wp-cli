@@ -22,7 +22,9 @@
       "Bash(git checkout:*)",
       "Bash(grep:*)",
       "Bash(npm uninstall:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "WebFetch(domain:developer.clickup.com)",
+      "WebFetch(domain:clickup.com)"
     ],
     "deny": []
   }

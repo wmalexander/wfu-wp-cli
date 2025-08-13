@@ -84,12 +84,18 @@ export class LocalInstaller {
     return existsSync('wp-config-ddev.php');
   }
 
-  async ensureWordPressRepo(): Promise<{ success: boolean; error?: string; cloned?: boolean }> {
+  async ensureWordPressRepo(): Promise<{
+    success: boolean;
+    error?: string;
+    cloned?: boolean;
+  }> {
     if (this.isInWordPressRepo()) {
       return { success: true, cloned: false };
     }
 
-    console.log(chalk.blue('🔍 WordPress repository not detected in current directory'));
+    console.log(
+      chalk.blue('🔍 WordPress repository not detected in current directory')
+    );
     console.log(chalk.blue('📥 Cloning WFU WordPress repository...'));
 
     try {
@@ -99,16 +105,22 @@ export class LocalInstaller {
       if (existsSync(targetDir)) {
         return {
           success: false,
-          error: `Directory '${targetDir}' already exists. Please remove it or run from inside the WordPress repository.`
+          error: `Directory '${targetDir}' already exists. Please remove it or run from inside the WordPress repository.`,
         };
       }
 
       this.runCommand(`git clone ${repoUrl} ${targetDir}`);
-      
-      process.chdir(targetDir);
-      console.log(chalk.green(`✅ Repository cloned and changed to directory: ${targetDir}`));
 
-      console.log(chalk.blue('📦 Installing WordPress dependencies with Composer...'));
+      process.chdir(targetDir);
+      console.log(
+        chalk.green(
+          `✅ Repository cloned and changed to directory: ${targetDir}`
+        )
+      );
+
+      console.log(
+        chalk.blue('📦 Installing WordPress dependencies with Composer...')
+      );
       this.runCommand('composer update');
       console.log(chalk.green('✅ Composer dependencies installed'));
 
@@ -116,7 +128,7 @@ export class LocalInstaller {
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -570,6 +582,147 @@ export class LocalInstaller {
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  async startDockerIfNeeded(): Promise<{ success: boolean; message: string }> {
+    const health = this.dddevManager.checkEnvironmentHealth();
+
+    if (!health.docker.isInstalled) {
+      return {
+        success: false,
+        message:
+          'Docker is not installed. Please run "wfuwp local install" first.',
+      };
+    }
+
+    if (health.docker.isRunning) {
+      return {
+        success: true,
+        message: 'Docker is already running',
+      };
+    }
+
+    console.log(
+      chalk.yellow('🐳 Docker is not running. Starting Docker Desktop...')
+    );
+
+    try {
+      if (this.platform === 'darwin') {
+        // On macOS, open Docker Desktop app
+        this.runCommand('open -a Docker', { silent: true });
+
+        // Wait for Docker to start (up to 30 seconds)
+        let attempts = 0;
+        const maxAttempts = 30;
+
+        while (attempts < maxAttempts) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          try {
+            this.runCommand('docker ps', { silent: true });
+            console.log(chalk.green('✅ Docker Desktop started successfully'));
+            return {
+              success: true,
+              message: 'Docker Desktop started successfully',
+            };
+          } catch {
+            attempts++;
+            if (attempts % 5 === 0) {
+              console.log(
+                chalk.dim(`   Waiting for Docker to start... (${attempts}s)`)
+              );
+            }
+          }
+        }
+
+        return {
+          success: false,
+          message:
+            'Docker Desktop failed to start within 30 seconds. Please start it manually.',
+        };
+      } else if (this.platform === 'linux') {
+        // On Linux, try to start Docker service
+        if (this.isCommandAvailable('systemctl')) {
+          this.runCommand('sudo systemctl start docker', { silent: false });
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+
+          try {
+            this.runCommand('docker ps', { silent: true });
+            console.log(chalk.green('✅ Docker service started successfully'));
+            return {
+              success: true,
+              message: 'Docker service started successfully',
+            };
+          } catch {
+            return {
+              success: false,
+              message:
+                'Failed to start Docker service. Please start it manually.',
+            };
+          }
+        } else {
+          return {
+            success: false,
+            message:
+              'Unable to start Docker automatically on this Linux system. Please start it manually.',
+          };
+        }
+      } else if (this.platform === 'win32') {
+        // On Windows, try to start Docker Desktop
+        try {
+          this.runCommand(
+            'start "" "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe"',
+            { silent: true }
+          );
+
+          // Wait for Docker to start
+          let attempts = 0;
+          const maxAttempts = 30;
+
+          while (attempts < maxAttempts) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            try {
+              this.runCommand('docker ps', { silent: true });
+              console.log(
+                chalk.green('✅ Docker Desktop started successfully')
+              );
+              return {
+                success: true,
+                message: 'Docker Desktop started successfully',
+              };
+            } catch {
+              attempts++;
+              if (attempts % 5 === 0) {
+                console.log(
+                  chalk.dim(`   Waiting for Docker to start... (${attempts}s)`)
+                );
+              }
+            }
+          }
+
+          return {
+            success: false,
+            message:
+              'Docker Desktop failed to start within 30 seconds. Please start it manually.',
+          };
+        } catch {
+          return {
+            success: false,
+            message:
+              'Failed to start Docker Desktop. Please start it manually.',
+          };
+        }
+      } else {
+        return {
+          success: false,
+          message: `Unsupported platform: ${this.platform}. Please start Docker manually.`,
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to start Docker: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
