@@ -49,10 +49,11 @@ export class LocalInstaller {
     options: { silent?: boolean } = {}
   ): string {
     try {
-      return execSync(command, {
+      const result = execSync(command, {
         encoding: 'utf8',
         stdio: options.silent ? 'pipe' : 'inherit',
-      }).trim();
+      });
+      return result?.toString().trim() || '';
     } catch (error) {
       if (!options.silent) {
         throw error;
@@ -109,26 +110,56 @@ export class LocalInstaller {
         };
       }
 
-      this.runCommand(`git clone ${repoUrl} ${targetDir}`);
+      // Clone the repository
+      try {
+        this.runCommand(`git clone ${repoUrl} ${targetDir}`);
+      } catch (error) {
+        return {
+          success: false,
+          error: `Failed to clone repository: ${error instanceof Error ? error.message : String(error)}`,
+        };
+      }
 
-      process.chdir(targetDir);
-      console.log(
-        chalk.green(
-          `✅ Repository cloned and changed to directory: ${targetDir}`
-        )
-      );
+      // Change to the cloned directory
+      try {
+        process.chdir(targetDir);
+        console.log(
+          chalk.green(
+            `✅ Repository cloned and changed to directory: ${targetDir}`
+          )
+        );
+      } catch (error) {
+        return {
+          success: false,
+          error: `Failed to change to directory '${targetDir}': ${error instanceof Error ? error.message : String(error)}`,
+        };
+      }
 
+      // Check if composer is available
+      if (!this.isCommandAvailable('composer')) {
+        console.log(chalk.yellow('⚠️  Composer not found, skipping dependency installation'));
+        console.log(chalk.dim('You may need to run "composer update" manually later'));
+        return { success: true, cloned: true };
+      }
+
+      // Install composer dependencies
       console.log(
         chalk.blue('📦 Installing WordPress dependencies with Composer...')
       );
-      this.runCommand('composer update');
-      console.log(chalk.green('✅ Composer dependencies installed'));
+      try {
+        this.runCommand('composer update');
+        console.log(chalk.green('✅ Composer dependencies installed'));
+      } catch (error) {
+        console.log(chalk.yellow('⚠️  Composer update failed, but continuing...'));
+        console.log(chalk.dim(`Composer error: ${error instanceof Error ? error.message : String(error)}`));
+        console.log(chalk.dim('You may need to run "composer update" manually'));
+      }
 
       return { success: true, cloned: true };
     } catch (error) {
       return {
         success: false,
-        error: error instanceof Error ? error.message : String(error),
+        error: `Unexpected error: ${error instanceof Error ? error.message : String(error)}`,
       };
     }
   }
