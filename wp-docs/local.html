@@ -3,7 +3,7 @@
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p>Complete local development environment management for WFU WordPress sites with DDEV integration, domain management, and automated setup workflows.</p>
+<p>Simple local development environment management for WFU WordPress sites with DDEV integration.</p>
 <!-- /wp:paragraph -->
 
 
@@ -13,22 +13,18 @@
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p>The local command provides comprehensive local development environment management including:</p>
+<p>The local command provides essential local development environment management:</p>
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li><strong>Domain Management</strong>: Configure local development domains in /etc/hosts</li>
+<li><strong>Environment Status</strong>: Monitor Docker and DDEV health</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>Environment Status</strong>: Monitor Docker, DDEV, and system dependencies</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>Automated Installation</strong>: Install Docker, DDEV, mkcert, and setup workspace</li>
+<li><strong>Automated Installation</strong>: Install Docker, DDEV, and mkcert dependencies</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
 <li><strong>Environment Control</strong>: Start, stop, and restart local development environments</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>Content Management</strong>: Refresh database from production, reset environments</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>Configuration</strong>: Interactive setup wizard and advanced settings management</li>
+<li><strong>Project Management</strong>: Delete projects and reset to fresh state</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -39,321 +35,229 @@
 <!-- /wp:heading -->
 
 <!-- wp:code -->
-<pre class="wp-block-code"><code>wfuwp local &lt;subcommand&gt; [options]</code></pre>
+<pre class="wp-block-code"><code>wfuwp local <subcommand> [options]</code></pre>
 <!-- /wp:code -->
 
 
 
 <!-- wp:heading {"level":2} -->
-<h2 class="wp-block-heading">Subcommands Overview</h2>
+<h2 class="wp-block-heading">Commands</h2>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Environment Setup</h3>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>status</code></h4>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p>All 8 phases of local development management are complete and ready to use:</p>
+<p>Check local development environment health.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Check environment status
+wfuwp local status</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Status Information:</strong></p>
 <!-- /wp:paragraph -->
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>✅ <code>domain</code> - Manage local development domains (/etc/hosts)</li>
+<li>Overall health (Healthy, Warning, or Error)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>✅ <code>status</code> - Show environment status and health checks</li>
+<li>Docker installation and running status</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>✅ <code>install</code> - Install and setup development dependencies</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li>✅ <code>start</code> - Start local development environment</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li>✅ <code>stop</code> - Stop local development environment</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li>✅ <code>restart</code> - Restart local development environment</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li>✅ <code>refresh</code> - Refresh database from production</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li>✅ <code>reset</code> - Reset entire local environment</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li>✅ <code>config</code> - Configure local development settings</li>
+<li>DDEV availability and running projects</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
 
 
-<!-- wp:heading {"level":2} -->
-<h2 class="wp-block-heading">Domain Management</h2>
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>install</code></h4>
 <!-- /wp:heading -->
 
 <!-- wp:paragraph -->
-<p>Manage local development domains through /etc/hosts modification with separate markers from DNS spoofing functionality.</p>
+<p>Complete local development environment setup (dependencies + database).</p>
 <!-- /wp:paragraph -->
 
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Usage</h3>
-<!-- /wp:heading -->
+
 
 <!-- wp:code -->
-<pre class="wp-block-code"><code># Add domain for site (requires sudo)
-sudo wfuwp local domain add &lt;site-id&gt; [--port 8443]
-
-# Remove domain for site (requires sudo)
-sudo wfuwp local domain remove &lt;site-id&gt;
-
-# List all configured domains
-wfuwp local domain list
-
-# Remove all domains (requires sudo)
-sudo wfuwp local domain reset</code></pre>
-<!-- /wp:code -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Examples</h3>
-<!-- /wp:heading -->
-
-<!-- wp:code -->
-<pre class="wp-block-code"><code># Add domain for site 43
-sudo wfuwp local domain add 43
-
-# Add domain with custom port
-sudo wfuwp local domain add 43 --port 8080
-
-# Remove domain for site 43
-sudo wfuwp local domain remove 43
-
-# List all domains
-wfuwp local domain list
-
-# Remove all local development domains
-sudo wfuwp local domain reset</code></pre>
-<!-- /wp:code -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Domain Format</h3>
-<!-- /wp:heading -->
-
-<!-- wp:list -->
-<ul class="wp-block-list"><!-- wp:list-item -->
-<li>Domains follow format: <code>site-{ID}.local.wfu.edu</code></li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li>Example: Site 43 becomes <code>site43.local.wfu.edu</code></li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li>Default port: 8443 (DDEV HTTPS)</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li>Points to: 127.0.0.1 (localhost)</li>
-<!-- /wp:list-item --></ul>
-<!-- /wp:list -->
-
-
-
-<!-- wp:heading {"level":2} -->
-<h2 class="wp-block-heading">Environment Status</h2>
-<!-- /wp:heading -->
-
-<!-- wp:paragraph -->
-<p>Monitor local development environment health with comprehensive dependency checking.</p>
-<!-- /wp:paragraph -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Usage</h3>
-<!-- /wp:heading -->
-
-<!-- wp:code -->
-<pre class="wp-block-code"><code># Basic status check
-wfuwp local status
-
-# Detailed status with verbose information
-wfuwp local status --verbose</code></pre>
-<!-- /wp:code -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Status Information</h3>
-<!-- /wp:heading -->
-
-<!-- wp:list -->
-<ul class="wp-block-list"><!-- wp:list-item -->
-<li><strong>Overall Health</strong>: Healthy, Warning, or Error status</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>Core Dependencies</strong>: Docker installation and status, DDEV availability</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>System Tools</strong>: git, mkcert, PHP (optional dependencies)</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>DDEV Projects</strong>: Running projects with URLs and status</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>Local Domains</strong>: Configured development domains (verbose mode)</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>WordPress Projects</strong>: Discovered WordPress projects (verbose mode)</li>
-<!-- /wp:list-item --></ul>
-<!-- /wp:list -->
-
-
-
-<!-- wp:heading {"level":2} -->
-<h2 class="wp-block-heading">Installation & Setup</h2>
-<!-- /wp:heading -->
-
-<!-- wp:paragraph -->
-<p>Automated installation of development dependencies with cross-platform support.</p>
-<!-- /wp:paragraph -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Usage</h3>
-<!-- /wp:heading -->
-
-<!-- wp:code -->
-<pre class="wp-block-code"><code># Install all dependencies interactively
+<pre class="wp-block-code"><code># Complete setup (dependencies + database)
 wfuwp local install
 
-# Install specific dependency
-wfuwp local install docker
-wfuwp local install ddev
-wfuwp local install mkcert
-
-# Setup workspace and clone repositories
-wfuwp local install workspace
-
-# Download and setup database
-wfuwp local install database [--environment prod]
-
-# Force reinstall existing dependencies
+# Force reinstallation
 wfuwp local install --force</code></pre>
 <!-- /wp:code -->
 
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Supported Platforms</h3>
-<!-- /wp:heading -->
+
+
+<!-- wp:paragraph -->
+<p><strong>What gets installed:</strong></p>
+<!-- /wp:paragraph -->
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li><strong>macOS</strong>: Homebrew-based installation</li>
+<li><strong>Docker Desktop</strong>: Container platform for DDEV</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>Linux</strong>: Native package managers (apt, yum, pacman)</li>
+<li><strong>DDEV</strong>: Local development environment manager  </li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>Windows</strong>: Manual download links and guidance</li>
+<li><strong>mkcert</strong>: Local SSL certificate generation</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><strong>Initial Database</strong>: Complete multisite database with all sites</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Project Control</h3>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>start</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Start the local development environment.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Start local development environment
+wfuwp local start</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p>Shows active projects with URLs after successful start.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>stop</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Stop the local development environment.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Stop local development environment
+wfuwp local stop</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>restart</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Restart the local development environment.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Restart local development environment
+wfuwp local restart</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Project Management</h3>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>delete</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Completely delete the local DDEV project.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Delete DDEV project (with confirmation)
+wfuwp local delete
+
+# Delete without confirmation
+wfuwp local delete --force</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>What gets deleted:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>DDEV project containers and databases</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>DDEV project configuration</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li><strong>Note</strong>: Local code files are NOT deleted</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading"><code>reset</code></h4>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Reset to a fresh, known-good state.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code># Reset to fresh state (with confirmation)
+wfuwp local reset
+
+# Reset without confirmation  
+wfuwp local reset --force</code></pre>
+<!-- /wp:code -->
+
+
+
+<!-- wp:paragraph -->
+<p><strong>Reset process:</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>1. Switch to main branch and pull latest changes (<code>git checkout main && git pull</code>)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>2. Update Composer dependencies (<code>composer update</code>)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>3. Import initial multisite database with all sites</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
 
 
 <!-- wp:heading {"level":2} -->
-<h2 class="wp-block-heading">Environment Control</h2>
-<!-- /wp:heading -->
-
-<!-- wp:paragraph -->
-<p>Start, stop, and restart local development environments with health checking.</p>
-<!-- /wp:paragraph -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Usage</h3>
-<!-- /wp:heading -->
-
-<!-- wp:code -->
-<pre class="wp-block-code"><code># Start specific project
-wfuwp local start [project-name]
-
-# Start project by site ID
-wfuwp local start 43
-
-# Start all projects
-wfuwp local start --all
-
-# Stop specific project
-wfuwp local stop [project-name]
-
-# Stop project by site ID
-wfuwp local stop 43
-
-# Stop all projects
-wfuwp local stop --all
-
-# Restart specific project
-wfuwp local restart [project-name]
-
-# Restart all projects
-wfuwp local restart --all</code></pre>
-<!-- /wp:code -->
-
-
-
-<!-- wp:heading {"level":2} -->
-<h2 class="wp-block-heading">Content Management</h2>
-<!-- /wp:heading -->
-
-<!-- wp:paragraph -->
-<p>Refresh database content from production and reset local environments.</p>
-<!-- /wp:paragraph -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Database Refresh</h3>
-<!-- /wp:heading -->
-
-<!-- wp:code -->
-<pre class="wp-block-code"><code># Refresh from production (default)
-wfuwp local refresh database [project-name]
-
-# Refresh from specific environment
-wfuwp local refresh database --environment uat [project-name]
-
-# Skip backup before refresh
-wfuwp local refresh database --no-backup [project-name]</code></pre>
-<!-- /wp:code -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Environment Reset</h3>
-<!-- /wp:heading -->
-
-<!-- wp:code -->
-<pre class="wp-block-code"><code># Standard reset (removes containers, keeps code)
-wfuwp local reset [project-name]
-
-# Deep reset (removes everything including code)
-wfuwp local reset --deep [project-name]
-
-# Reset with custom backup directory
-wfuwp local reset --backup-dir /path/to/backups [project-name]</code></pre>
-<!-- /wp:code -->
-
-
-
-<!-- wp:heading {"level":2} -->
-<h2 class="wp-block-heading">Configuration Management</h2>
-<!-- /wp:heading -->
-
-<!-- wp:paragraph -->
-<p>Interactive setup wizard and advanced configuration management.</p>
-<!-- /wp:paragraph -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Configuration Wizard</h3>
-<!-- /wp:heading -->
-
-<!-- wp:code -->
-<pre class="wp-block-code"><code># Run interactive setup wizard
-wfuwp local config wizard</code></pre>
-<!-- /wp:code -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Configuration Settings</h3>
-<!-- /wp:heading -->
-
-<!-- wp:code -->
-<pre class="wp-block-code"><code># View all settings
-wfuwp local config show
-
-# Get specific setting
-wfuwp local config get workspaceDir
-wfuwp local config get defaultPort
-
-# Set specific setting
-wfuwp local config set workspaceDir /path/to/workspace
-wfuwp local config set defaultPort 8443
-wfuwp local config set defaultEnvironment prod
-wfuwp local config set autoStart true
-wfuwp local config set backupBeforeRefresh false
-
-# Reset to defaults
-wfuwp local config reset</code></pre>
-<!-- /wp:code -->
-
-
-
-<!-- wp:heading {"level":2} -->
-<h2 class="wp-block-heading">Common Workflows</h2>
+<h2 class="wp-block-heading">Quick Start Workflow</h2>
 <!-- /wp:heading -->
 
 <!-- wp:heading {"level":3} -->
@@ -361,24 +265,14 @@ wfuwp local config reset</code></pre>
 <!-- /wp:heading -->
 
 <!-- wp:code -->
-<pre class="wp-block-code"><code># 1. Install dependencies
+<pre class="wp-block-code"><code># 1. Complete setup (dependencies + database)
 wfuwp local install
 
-# 2. Setup workspace
-wfuwp local install workspace
-
-# 3. Configure settings
-wfuwp local config wizard
-
-# 4. Add domain for site
-sudo wfuwp local domain add 43
-
-# 5. Download database
-wfuwp local install database
-
-# 6. Start environment
-wfuwp local start 43</code></pre>
+# 2. Start environment
+wfuwp local start</code></pre>
 <!-- /wp:code -->
+
+
 
 <!-- wp:heading {"level":3} -->
 <h3 class="wp-block-heading">Daily Development</h3>
@@ -388,32 +282,30 @@ wfuwp local start 43</code></pre>
 <pre class="wp-block-code"><code># Check status
 wfuwp local status
 
-# Start development environment
-wfuwp local start 43
+# Start development
+wfuwp local start
 
-# Refresh with latest production data
-wfuwp local refresh database site43 --environment prod
-
-# Stop when done
-wfuwp local stop 43</code></pre>
+# When done working
+wfuwp local stop</code></pre>
 <!-- /wp:code -->
 
+
+
 <!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Troubleshooting Reset</h3>
+<h3 class="wp-block-heading">Troubleshooting</h3>
 <!-- /wp:heading -->
 
 <!-- wp:code -->
 <pre class="wp-block-code"><code># Check what's wrong
-wfuwp local status --verbose
+wfuwp local status
 
-# Reset environment
-wfuwp local reset site43
+# Reset to fresh state
+wfuwp local reset --force
 
-# Fresh database
-wfuwp local refresh database site43
-
-# Restart everything
-wfuwp local restart 43</code></pre>
+# If issues persist, delete and reinstall
+wfuwp local delete --force
+wfuwp local install
+wfuwp local start</code></pre>
 <!-- /wp:code -->
 
 
@@ -428,11 +320,13 @@ wfuwp local restart 43</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li><strong>Docker</strong>: Container platform (required)</li>
+<li><strong>Docker Desktop</strong>: Container platform (auto-installed)</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>DDEV</strong>: Local development environment manager (required)</li>
+<li><strong>DDEV</strong>: Local development environment manager (auto-installed)</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
+
+
 
 <!-- wp:heading {"level":3} -->
 <h3 class="wp-block-heading">Optional Dependencies</h3>
@@ -440,11 +334,23 @@ wfuwp local restart 43</code></pre>
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li><strong>git</strong>: Version control (recommended)</li>
+<li><strong>mkcert</strong>: Local SSL certificates (auto-installed)</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Supported Platforms</h3>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li><strong>macOS</strong>: Homebrew-based installation</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>mkcert</strong>: Local SSL certificates (recommended)</li>
+<li><strong>Linux</strong>: Native package managers</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li><strong>PHP</strong>: CLI tools (optional)</li>
+<li><strong>Windows</strong>: Manual installation guidance</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
@@ -463,93 +369,84 @@ wfuwp local restart 43</code></pre>
 wfuwp local status
 
 # Install Docker if missing
-wfuwp local install docker
+wfuwp local install
 
 # Start Docker Desktop manually if stopped</code></pre>
 <!-- /wp:code -->
+
+
 
 <!-- wp:heading {"level":3} -->
 <h3 class="wp-block-heading">DDEV Issues</h3>
 <!-- /wp:heading -->
 
 <!-- wp:code -->
-<pre class="wp-block-code"><code># Install DDEV
-wfuwp local install ddev
-
-# Check DDEV projects
-ddev list
+<pre class="wp-block-code"><code># Check DDEV projects
+wfuwp local status
 
 # Reset DDEV project
-wfuwp local reset site43</code></pre>
+wfuwp local reset --force</code></pre>
 <!-- /wp:code -->
 
+
+
 <!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Domain Access Issues</h3>
+<h3 class="wp-block-heading">Complete Reset</h3>
 <!-- /wp:heading -->
 
 <!-- wp:code -->
-<pre class="wp-block-code"><code># Check configured domains
-wfuwp local domain list
-
-# Remove and re-add domain
-sudo wfuwp local domain remove 43
-sudo wfuwp local domain add 43
-
-# Verify hosts file
-cat /etc/hosts | grep "Local Development"</code></pre>
-<!-- /wp:code -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Permission Issues</h3>
-<!-- /wp:heading -->
-
-<!-- wp:code -->
-<pre class="wp-block-code"><code># Domain management requires sudo
-sudo wfuwp local domain add 43
-
-# Check file permissions in workspace
-ls -la ~/wfu-wp-local/
-
-# Fix workspace permissions
-chmod -R 755 ~/wfu-wp-local/</code></pre>
+<pre class="wp-block-code"><code># Nuclear option - delete everything and start fresh
+wfuwp local delete --force
+wfuwp local install
+wfuwp local start</code></pre>
 <!-- /wp:code -->
 
 
 
 <!-- wp:heading {"level":2} -->
-<h2 class="wp-block-heading">Security Considerations</h2>
+<h2 class="wp-block-heading">Database</h2>
 <!-- /wp:heading -->
 
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Sudo Requirements</h3>
-<!-- /wp:heading -->
+<!-- wp:paragraph -->
+<p>The install command automatically sets up an initial multisite database that includes:</p>
+<!-- /wp:paragraph -->
 
 <!-- wp:list -->
 <ul class="wp-block-list"><!-- wp:list-item -->
-<li>Domain management modifies /etc/hosts and requires sudo</li>
+<li>Complete WordPress multisite network setup</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Other operations run as regular user for security</li>
+<li>Home site and key subsites</li>
 <!-- /wp:list-item --><!-- wp:list-item -->
-<li>Clear error messages when sudo required</li>
-<!-- /wp:list-item --></ul>
-<!-- /wp:list -->
-
-<!-- wp:heading {"level":3} -->
-<h3 class="wp-block-heading">Local-Only Development</h3>
-<!-- /wp:heading -->
-
-<!-- wp:list -->
-<ul class="wp-block-list"><!-- wp:list-item -->
-<li>All domains point to 127.0.0.1 (localhost)</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li>No external network exposure</li>
-<!-- /wp:list-item --><!-- wp:list-item -->
-<li>Database credentials stored encrypted</li>
+<li>Production content for development</li>
 <!-- /wp:list-item --></ul>
 <!-- /wp:list -->
 
 
 
 <!-- wp:paragraph -->
-<p>For detailed configuration help, see: <code>wfuwp config --help</code><br>For migration workflows, see: <code>wfuwp migrate --help</code></p>
+<p>The reset command can also restore this database if needed. No manual database configuration required.</p>
+<!-- /wp:paragraph -->
+
+
+
+<!-- wp:heading {"level":2} -->
+<h2 class="wp-block-heading">Security</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list"><!-- wp:list-item -->
+<li>All development happens locally (127.0.0.1)</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>No external network exposure</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Automatic SSL certificates via mkcert</li>
+<!-- /wp:list-item --><!-- wp:list-item -->
+<li>Safe reset operations with confirmation prompts</li>
+<!-- /wp:list-item --></ul>
+<!-- /wp:list -->
+
+
+
+<!-- wp:paragraph -->
+<p>For other WFU WordPress CLI features, see: <code>wfuwp --help</code></p>
 <!-- /wp:paragraph -->
