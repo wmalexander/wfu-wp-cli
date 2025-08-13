@@ -313,6 +313,40 @@ export class ClickUpClient {
     return response.data;
   }
 
+  async getTaskComments(
+    taskId: string,
+    options: {
+      start?: number;
+      startId?: string;
+    } = {}
+  ): Promise<any> {
+    const params: any = {};
+    if (options.start) params.start = options.start;
+    if (options.startId) params.start_id = options.startId;
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.get(`/task/${taskId}/comment`, { params })
+    );
+    return response.data;
+  }
+
+  async createTaskComment(
+    taskId: string,
+    commentData: {
+      commentText: string;
+      assignee?: string;
+      notifyAll?: boolean;
+    }
+  ): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.post(`/task/${taskId}/comment`, {
+        comment_text: commentData.commentText,
+        assignee: commentData.assignee,
+        notify_all: commentData.notifyAll,
+      })
+    );
+    return response.data;
+  }
+
   // Generic request method for future use
   async request<T = any>(
     method: 'get' | 'post' | 'put' | 'delete',

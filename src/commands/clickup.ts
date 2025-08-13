@@ -985,4 +985,149 @@ export const clickupCommand = new Command('clickup')
           process.exit(1);
         }
       })
+  )
+  .addCommand(
+    new Command('comments')
+      .description('Get comments from a ClickUp task')
+      .argument('<task-id>', 'Task ID to retrieve comments from')
+      .option('--start <number>', 'Pagination start point')
+      .option('--start-id <id>', 'Start from specific comment ID')
+      .action(
+        async (
+          taskId: string,
+          options: {
+            start?: string;
+            startId?: string;
+          }
+        ) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const client = new ClickUpClient();
+            const commentOptions: any = {};
+            if (options.start) {
+              const startNum = parseInt(options.start, 10);
+              if (isNaN(startNum) || startNum < 0) {
+                throw new Error('Start must be a non-negative number');
+              }
+              commentOptions.start = startNum;
+            }
+            if (options.startId) {
+              commentOptions.startId = options.startId;
+            }
+            const response = await client.getTaskComments(
+              taskId,
+              commentOptions
+            );
+            const comments = response.comments || [];
+            if (comments.length === 0) {
+              console.log(chalk.yellow('No comments found for this task.'));
+              return;
+            }
+            console.log(chalk.blue.bold(`Comments for Task ${taskId}:`));
+            console.log('');
+            comments.forEach((comment: any, index: number) => {
+              console.log(chalk.cyan(`Comment #${index + 1}:`));
+              console.log(`  ${chalk.white('ID:')} ${comment.id}`);
+              if (comment.user) {
+                console.log(
+                  `  ${chalk.white('Author:')} ${comment.user.username} (${comment.user.email})`
+                );
+              }
+              if (comment.date) {
+                const date = new Date(parseInt(comment.date)).toLocaleString();
+                console.log(`  ${chalk.white('Date:')} ${date}`);
+              }
+              if (comment.comment && comment.comment.length > 0) {
+                const commentText = comment.comment
+                  .map((c: any) => c.text || '')
+                  .join('');
+                console.log(`  ${chalk.white('Comment:')} ${commentText}`);
+              }
+              if (comment.reactions && comment.reactions.length > 0) {
+                const reactions = comment.reactions
+                  .map((r: any) => `${r.reaction} (${r.count})`)
+                  .join(', ');
+                console.log(`  ${chalk.white('Reactions:')} ${reactions}`);
+              }
+              console.log('');
+            });
+            console.log(chalk.gray(`Showing ${comments.length} comments`));
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
+          }
+        }
+      )
+  )
+  .addCommand(
+    new Command('comment')
+      .description('Add a comment to a ClickUp task')
+      .argument('<task-id>', 'Task ID to add comment to')
+      .argument('<comment>', 'Comment text to add')
+      .option('--assignee <user-id>', 'Assign task to user when commenting')
+      .option('--notify-all', 'Notify all task followers')
+      .action(
+        async (
+          taskId: string,
+          comment: string,
+          options: {
+            assignee?: string;
+            notifyAll?: boolean;
+          }
+        ) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const client = new ClickUpClient();
+            const commentData = {
+              commentText: comment,
+              assignee: options.assignee,
+              notifyAll: options.notifyAll,
+            };
+            const response = await client.createTaskComment(
+              taskId,
+              commentData
+            );
+            console.log(chalk.green.bold('✓ Comment added successfully!'));
+            console.log('');
+            if (response.comment) {
+              const addedComment = response.comment;
+              console.log(chalk.blue.bold('Comment Details:'));
+              console.log(`  ${chalk.cyan('ID:')} ${addedComment.id}`);
+              if (addedComment.user) {
+                console.log(
+                  `  ${chalk.cyan('Author:')} ${addedComment.user.username}`
+                );
+              }
+              if (addedComment.date) {
+                const date = new Date(
+                  parseInt(addedComment.date)
+                ).toLocaleString();
+                console.log(`  ${chalk.cyan('Date:')} ${date}`);
+              }
+              console.log(`  ${chalk.cyan('Comment:')} ${comment}`);
+              if (options.assignee) {
+                console.log(
+                  `  ${chalk.cyan('Task assigned to:')} ${options.assignee}`
+                );
+              }
+              if (options.notifyAll) {
+                console.log(
+                  `  ${chalk.cyan('Notifications:')} All followers notified`
+                );
+              }
+            }
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
+          }
+        }
+      )
   );
