@@ -21,6 +21,7 @@ Prerequisites:
 
 ### Command Reference
 
+- **[local](local.md)** - Local development environment management with DDEV integration and automated Docker startup
 - **[migrate](migrate.md)** - Complete WordPress multisite database migration with automated export/import/archival
 - **[config](config.md)** - Multi-environment configuration management with interactive wizard  
 - **[syncs3](syncs3.md)** - Sync S3 assets (uploads, media files, etc.) between WordPress environments
@@ -60,6 +61,9 @@ New commands and options are regularly added. After updating, run `wfuwp --help`
 
 **Command-specific help examples:**
 
+- `wfuwp local --help`
+- `wfuwp migrate --help`
+- `wfuwp config --help`
 - `wfuwp syncs3 --help`
 - `wfuwp listips --help`
 - `wfuwp sshaws --help`
