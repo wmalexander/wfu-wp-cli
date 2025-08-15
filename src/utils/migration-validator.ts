@@ -217,16 +217,17 @@ export class MigrationValidator {
     const envConfig = Config.getEnvironmentConfig(environment);
 
     try {
-      // Get network table sizes
-      const networkTables =
-        NetworkTableOperations.getMigrateableNetworkTables();
+      // Get network table sizes in a single query (optimized)
+      const networkTables = NetworkTableOperations.getMigrateableNetworkTables();
       let networkTableSize = 0;
 
-      for (const tableName of networkTables) {
+      if (networkTables.length > 0) {
         try {
-          const sizeQuery = `SELECT ROUND(((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb' FROM information_schema.tables WHERE table_schema = '${envConfig.database}' AND table_name = '${tableName}'`;
+          const tableList = networkTables.map(t => `'${t}'`).join(',');
+          const batchSizeQuery = `SELECT SUM(ROUND(((data_length + index_length) / 1024 / 1024), 2)) AS 'total_size_mb' FROM information_schema.tables WHERE table_schema = '${envConfig.database}' AND table_name IN (${tableList})`;
+          
           const output = execSync(
-            `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" -e "${sizeQuery}" -s`,
+            this.buildMysqlCommand(envConfig, ['-e', `"${batchSizeQuery}"`, '-s']),
             {
               encoding: 'utf8',
               env: {
@@ -236,42 +237,33 @@ export class MigrationValidator {
             }
           );
 
-          const sizeMB = parseFloat(output.trim()) || 0;
-          networkTableSize += sizeMB;
+          networkTableSize = parseFloat(output.trim()) || 0;
         } catch (error) {
-          // Skip if table doesn't exist or can't get size
+          // Skip if can't get network table sizes
         }
       }
 
-      // Get site table sizes
+      // Get site table sizes with optimized batch query
       let totalSiteSize = 0;
       try {
-        const siteResult = await SiteEnumerator.enumerateSites(environment, {});
-
-        for (const site of siteResult.sites) {
-          const tablePrefix = site.blogId === 1 ? 'wp_' : `wp_${site.blogId}_`;
-          const sizeQuery = `SELECT ROUND(SUM((data_length + index_length) / 1024 / 1024), 2) AS 'size_mb' FROM information_schema.tables WHERE table_schema = '${envConfig.database}' AND table_name LIKE '${tablePrefix}%'`;
-
-          try {
-            const output = execSync(
-              `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" -e "${sizeQuery}" -s`,
-              {
-                encoding: 'utf8',
-                env: {
-                  ...process.env,
-                  PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-                },
-              }
-            );
-
-            const sizeMB = parseFloat(output.trim()) || 0;
-            totalSiteSize += sizeMB;
-          } catch (error) {
-            // Skip if can't get site size
+        // Single query to get total size of all site-specific tables
+        // This avoids N queries (one per site) and does it all at once
+        const siteTablesQuery = `SELECT ROUND(SUM((data_length + index_length) / 1024 / 1024), 2) AS 'total_size_mb' FROM information_schema.tables WHERE table_schema = '${envConfig.database}' AND (table_name LIKE 'wp_%' AND table_name NOT REGEXP '^wp_(blogs|site|sitemeta|blogmeta|users|usermeta|registration_log|signups)$')`;
+        
+        const output = execSync(
+          this.buildMysqlCommand(envConfig, ['-e', `"${siteTablesQuery}"`, '-s']),
+          {
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+            },
           }
-        }
+        );
+
+        totalSiteSize = parseFloat(output.trim()) || 0;
       } catch (error) {
-        // Skip site size calculation if enumeration fails
+        // Skip site size calculation if query fails
       }
 
       return {
@@ -404,7 +396,7 @@ export class MigrationValidator {
       // Get database size information
       const sizeQuery = `SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS 'database_size_mb' FROM information_schema.tables WHERE table_schema = '${envConfig.database}'`;
       const output = execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" -e "${sizeQuery}" -s`,
+        this.buildMysqlCommand(envConfig, ['-e', `"${sizeQuery}"`, '-s']),
         {
           encoding: 'utf8',
           env: {
@@ -433,7 +425,7 @@ export class MigrationValidator {
       // Try to get WordPress version from wp_options table
       const versionQuery = `SELECT option_value FROM wp_options WHERE option_name = 'db_version' LIMIT 1`;
       const output = execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${versionQuery}" -s`,
+        this.buildMysqlCommand(envConfig, ['-e', `"${versionQuery}"`, '-s']),
         {
           encoding: 'utf8',
           env: {
