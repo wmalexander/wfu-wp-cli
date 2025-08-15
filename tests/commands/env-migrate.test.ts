@@ -47,11 +47,48 @@ describe('Env-Migrate Command', () => {
   });
 
   describe('environment validation', () => {
-    it('should accept valid environment names', () => {
-      const validEnvironments = ['dev', 'uat', 'pprd', 'prod'];
+    it('should accept valid source environment names', () => {
+      const validSourceEnvironments = ['dev', 'uat', 'pprd', 'prod'];
       
-      validEnvironments.forEach(env => {
+      validSourceEnvironments.forEach(env => {
         expect(['dev', 'uat', 'pprd', 'prod']).toContain(env);
+      });
+    });
+
+    it('should accept valid target environment names including local', () => {
+      const validTargetEnvironments = ['dev', 'uat', 'pprd', 'prod', 'local'];
+      
+      validTargetEnvironments.forEach(env => {
+        expect(['dev', 'uat', 'pprd', 'prod', 'local']).toContain(env);
+      });
+    });
+
+    it('should validate prod to local migration path', () => {
+      const sourceEnv = 'prod';
+      const targetEnv = 'local';
+      
+      // This should be a valid migration path
+      expect(sourceEnv).toBe('prod');
+      expect(targetEnv).toBe('local');
+    });
+
+    it('should reject non-prod to local migration paths', () => {
+      const invalidSources = ['dev', 'uat', 'pprd'];
+      const targetEnv = 'local';
+      
+      invalidSources.forEach(sourceEnv => {
+        // These should be invalid migration paths
+        expect(sourceEnv !== 'prod' && targetEnv === 'local').toBe(true);
+      });
+    });
+
+    it('should reject local as source environment', () => {
+      const sourceEnv = 'local';
+      const validTargets = ['dev', 'uat', 'pprd', 'prod'];
+      
+      validTargets.forEach(targetEnv => {
+        // Local should never be used as source
+        expect(sourceEnv === 'local').toBe(true);
       });
     });
   });

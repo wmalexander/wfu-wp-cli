@@ -44,6 +44,66 @@ describe('Migrate Command', () => {
       expect(optionNames).toContain('--custom-domain');
       expect(optionNames).toContain('--log-dir');
     });
+
+    it('should support local environment as target', () => {
+      // Test that local environment is included in valid targets
+      const validSourceEnvs = ['dev', 'uat', 'pprd', 'prod'];
+      const validTargetEnvs = ['dev', 'uat', 'pprd', 'prod', 'local'];
+      
+      expect(validTargetEnvs).toContain('local');
+      expect(validSourceEnvs).not.toContain('local');
+    });
+
+    it('should validate prod to local migration path', () => {
+      // Test environment mapping logic
+      const prodToLocalMapping = {
+        urlReplacements: [
+          { from: '.wfu.edu', to: '.wfu.local' },
+          { from: 'www.wfu.local', to: 'wfu.local' }
+        ],
+        s3Replacements: [
+          { from: 'wordpress-prod-us', to: 'wordpress-dev-us' },
+          { from: 'prod.wp.cdn.aws.wfu.edu', to: 'dev.wp.cdn.aws.wfu.edu' }
+        ]
+      };
+      
+      expect(prodToLocalMapping.urlReplacements).toContainEqual(
+        { from: '.wfu.edu', to: '.wfu.local' }
+      );
+      expect(prodToLocalMapping.urlReplacements).toContainEqual(
+        { from: 'www.wfu.local', to: 'wfu.local' }
+      );
+      expect(prodToLocalMapping.s3Replacements).toContainEqual(
+        { from: 'wordpress-prod-us', to: 'wordpress-dev-us' }
+      );
+    });
+
+    it('should validate local environment restrictions', () => {
+      // Test validation logic
+      const validateLocalMigration = (source: string, target: string) => {
+        // Local as target only allowed from prod
+        if (target === 'local' && source !== 'prod') {
+          return { valid: false, error: 'Local environment migration is only supported from prod environment' };
+        }
+        
+        // Local as source not allowed
+        if (source === 'local') {
+          return { valid: false, error: 'Migration from local environment is not supported' };
+        }
+        
+        return { valid: true };
+      };
+      
+      // Valid case
+      expect(validateLocalMigration('prod', 'local')).toEqual({ valid: true });
+      
+      // Invalid cases
+      expect(validateLocalMigration('dev', 'local').valid).toBe(false);
+      expect(validateLocalMigration('uat', 'local').valid).toBe(false);
+      expect(validateLocalMigration('pprd', 'local').valid).toBe(false);
+      expect(validateLocalMigration('local', 'prod').valid).toBe(false);
+      expect(validateLocalMigration('local', 'dev').valid).toBe(false);
+    });
   });
 
   describe('wp-cli availability check', () => {

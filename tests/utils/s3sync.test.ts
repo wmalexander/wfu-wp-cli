@@ -139,6 +139,37 @@ describe('S3Sync', () => {
       );
     });
 
+    it('should handle prod to local migration S3 sync (prod to dev)', async () => {
+      const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+      mockExecSync.mockReturnValue('Completed 30 file(s) with 0 error(s)');
+      
+      await S3Sync.syncWordPressFiles('123', 'prod', 'local', {
+        verbose: true
+      });
+      
+      // Should sync from prod to dev (not to local S3 bucket)
+      expect(mockExecSync).toHaveBeenCalledWith(
+        expect.stringContaining('s3://wfu-cer-wordpress-prod-us-east-1/sites/123/'),
+        expect.any(Object)
+      );
+      expect(mockExecSync).toHaveBeenCalledWith(
+        expect.stringContaining('s3://wfu-cer-wordpress-dev-us-east-1/sites/123/'),
+        expect.any(Object)
+      );
+      
+      // Should show local migration detection message
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Local migration detected: syncing S3 from prod to dev')
+      );
+      
+      // Should show updated direction in verbose output
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('prod → local (S3: dev)')
+      );
+      
+      consoleSpy.mockRestore();
+    });
+
     it('should extract file transfer count from AWS output', async () => {
       const awsOutputs = [
         'Completed 0 file(s) with 0 error(s)',
@@ -284,6 +315,40 @@ Total Size: 52428800`); // 50MB
         totalSizeBytes: 0,
         totalSizeMB: 0,
         estimatedTimeMinutes: 0
+      });
+    });
+  });
+
+  describe('validateEnvironment', () => {
+    beforeEach(async () => {
+      const module = await import('../../src/utils/s3sync');
+      S3Sync = module.S3Sync;
+    });
+
+    it('should accept valid environments including local', () => {
+      const validEnvironments = ['dev', 'uat', 'pprd', 'prod', 'local'];
+      
+      validEnvironments.forEach(env => {
+        const result = S3Sync.validateEnvironment(env);
+        expect(result).toBe(true);
+      });
+    });
+
+    it('should reject invalid environments', () => {
+      const invalidEnvironments = ['staging', 'production', 'development', ''];
+      
+      invalidEnvironments.forEach(env => {
+        const result = S3Sync.validateEnvironment(env);
+        expect(result).toBe(false);
+      });
+    });
+
+    it('should be case sensitive', () => {
+      const caseSensitiveEnvironments = ['PROD', 'DEV', 'LOCAL'];
+      
+      caseSensitiveEnvironments.forEach(env => {
+        const result = S3Sync.validateEnvironment(env);
+        expect(result).toBe(false);
       });
     });
   });

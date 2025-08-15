@@ -118,6 +118,9 @@ wfuwp env-migrate prod uat --network-only --force
 
 # Dry run with detailed output
 wfuwp env-migrate dev uat --dry-run --verbose --health-check
+
+# Local development environment migration
+wfuwp env-migrate prod local --sync-s3 --verbose
 ```
 
 **Automated Workflow:**
@@ -135,7 +138,7 @@ wfuwp env-migrate dev uat --dry-run --verbose --health-check
 - **WP-CLI integration**: All database operations via WP-CLI with proper authentication
 - **Safety first**: Pre-flight checks, backups, confirmations, rollback on failure
 - **S3 archival**: Automatic backup with metadata for audit trail
-- **Environment validation**: Strict validation of dev/uat/pprd/prod environments
+- **Environment validation**: Strict validation of dev/uat/pprd/prod/local environments
 
 ## Configuration Setup
 ```bash

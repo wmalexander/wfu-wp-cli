@@ -58,7 +58,7 @@ export const envMigrateCommand = new Command('env-migrate')
     'Migrate entire WordPress multisite environment between environments'
   )
   .argument('<source-env>', 'Source environment (dev, uat, pprd, prod)')
-  .argument('<target-env>', 'Target environment (dev, uat, pprd, prod)')
+  .argument('<target-env>', 'Target environment (dev, uat, pprd, prod, local)')
   .option('--dry-run', 'Preview changes without executing', false)
   .option('-f, --force', 'Skip confirmation prompts', false)
   .option('-v, --verbose', 'Show detailed output', false)
@@ -327,22 +327,40 @@ function validateInputs(
   targetEnv: string,
   options: EnvMigrateOptions
 ): void {
-  const validEnvs = ['dev', 'uat', 'pprd', 'prod'];
+  const validSourceEnvs = ['dev', 'uat', 'pprd', 'prod'];
+  const validTargetEnvs = ['dev', 'uat', 'pprd', 'prod', 'local'];
 
-  if (!validEnvs.includes(sourceEnv)) {
+  if (!validSourceEnvs.includes(sourceEnv)) {
     throw new Error(
-      'Invalid source environment. Must be one of: ' + validEnvs.join(', ')
+      'Invalid source environment. Must be one of: ' + validSourceEnvs.join(', ')
     );
   }
 
-  if (!validEnvs.includes(targetEnv)) {
+  if (!validTargetEnvs.includes(targetEnv)) {
     throw new Error(
-      'Invalid target environment. Must be one of: ' + validEnvs.join(', ')
+      'Invalid target environment. Must be one of: ' + validTargetEnvs.join(', ')
     );
   }
 
   if (sourceEnv === targetEnv) {
     throw new Error('Source and target environments cannot be the same');
+  }
+
+  // Validate local environment restrictions
+  if (targetEnv === 'local') {
+    if (sourceEnv !== 'prod') {
+      throw new Error(
+        'Local environment migration is only supported from prod environment. ' +
+        'Use: prod → local'
+      );
+    }
+  }
+
+  if (sourceEnv === 'local') {
+    throw new Error(
+      'Migration from local environment is not supported. ' +
+      'Local can only be used as target environment for prod → local migrations.'
+    );
   }
 
   if (options.networkOnly && options.sitesOnly) {

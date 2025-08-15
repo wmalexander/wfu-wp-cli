@@ -36,7 +36,7 @@ export const migrateCommand = new Command('migrate')
   )
   .argument('<site-id>', 'Numeric site identifier (e.g., 43)')
   .requiredOption('--from <env>', 'Source environment (dev, uat, pprd, prod)')
-  .requiredOption('--to <env>', 'Target environment (dev, uat, pprd, prod)')
+  .requiredOption('--to <env>', 'Target environment (dev, uat, pprd, prod, local)')
   .option('--dry-run', 'Preview changes without executing', false)
   .option('-f, --force', 'Skip confirmation prompts', false)
   .option('-v, --verbose', 'Show detailed output', false)
@@ -624,21 +624,40 @@ function validateInputs(siteId: string, options: MigrateOptions): void {
     throw new Error('Site ID must be a positive integer');
   }
 
-  const validEnvs = ['dev', 'uat', 'pprd', 'prod'];
-  if (!validEnvs.includes(options.from)) {
+  const validSourceEnvs = ['dev', 'uat', 'pprd', 'prod'];
+  const validTargetEnvs = ['dev', 'uat', 'pprd', 'prod', 'local'];
+
+  if (!validSourceEnvs.includes(options.from)) {
     throw new Error(
-      `Invalid source environment. Must be one of: ${validEnvs.join(', ')}`
+      `Invalid source environment. Must be one of: ${validSourceEnvs.join(', ')}`
     );
   }
 
-  if (!validEnvs.includes(options.to)) {
+  if (!validTargetEnvs.includes(options.to)) {
     throw new Error(
-      `Invalid target environment. Must be one of: ${validEnvs.join(', ')}`
+      `Invalid target environment. Must be one of: ${validTargetEnvs.join(', ')}`
     );
   }
 
   if (options.from === options.to) {
     throw new Error('Source and target environments cannot be the same');
+  }
+
+  // Validate local environment restrictions
+  if (options.to === 'local') {
+    if (options.from !== 'prod') {
+      throw new Error(
+        'Local environment migration is only supported from prod environment. ' +
+        'Use: prod → local'
+      );
+    }
+  }
+
+  if (options.from === 'local') {
+    throw new Error(
+      'Migration from local environment is not supported. ' +
+      'Local can only be used as target environment for prod → local migrations.'
+    );
   }
 }
 
@@ -850,6 +869,17 @@ function getEnvironmentMapping(from: string, to: string): EnvironmentMapping {
       s3Replacements: [
         { from: 'wordpress-dev-us', to: 'wordpress-uat-us' },
         { from: 'dev.wp.cdn.aws.wfu.edu', to: 'uat.wp.cdn.aws.wfu.edu' },
+      ],
+    },
+    'prod->local': {
+      urlReplacements: [
+        { from: '.wfu.edu', to: '.wfu.local' },
+        { from: 'www.wfu.local', to: 'wfu.local' },
+      ],
+      s3Replacements: [
+        // Note: S3 sync for prod->local goes to dev environment (handled in S3Sync)
+        { from: 'wordpress-prod-us', to: 'wordpress-dev-us' },
+        { from: 'prod.wp.cdn.aws.wfu.edu', to: 'dev.wp.cdn.aws.wfu.edu' },
       ],
     },
   };

@@ -29,14 +29,23 @@ export class S3Sync {
     toEnv: string,
     options: S3SyncOptions = {}
   ): Promise<S3SyncResult> {
+    // Special case: for prod→local migrations, sync S3 from prod to dev
+    let actualToEnv = toEnv;
+    if (toEnv === 'local' && fromEnv === 'prod') {
+      actualToEnv = 'dev';
+      if (options.verbose) {
+        console.log(chalk.cyan('  Local migration detected: syncing S3 from prod to dev'));
+      }
+    }
+    
     const sourceBucket = `s3://wfu-cer-wordpress-${fromEnv}-us-east-1/sites/${siteId}/`;
-    const destBucket = `s3://wfu-cer-wordpress-${toEnv}-us-east-1/sites/${siteId}/`;
+    const destBucket = `s3://wfu-cer-wordpress-${actualToEnv}-us-east-1/sites/${siteId}/`;
 
     if (options.verbose) {
       console.log(chalk.blue('WordPress Files S3 Sync'));
       console.log(`  Site ID: ${chalk.green(siteId)}`);
       console.log(
-        `  Direction: ${chalk.green(fromEnv)} → ${chalk.green(toEnv)}`
+        `  Direction: ${chalk.green(fromEnv)} → ${chalk.green(toEnv)}${actualToEnv !== toEnv ? ` (S3: ${actualToEnv})` : ''}`
       );
       console.log(`  Source: ${chalk.gray(sourceBucket)}`);
       console.log(`  Destination: ${chalk.gray(destBucket)}`);
@@ -111,7 +120,7 @@ export class S3Sync {
   }
 
   static validateEnvironment(env: string): boolean {
-    const validEnvs = ['dev', 'uat', 'pprd', 'prod'];
+    const validEnvs = ['dev', 'uat', 'pprd', 'prod', 'local'];
     return validEnvs.includes(env.toLowerCase());
   }
 

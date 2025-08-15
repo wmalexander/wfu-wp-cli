@@ -318,7 +318,7 @@ wfuwp env-migrate <source-env> <target-env> [options]
 
 **Arguments:**
 - `source-env`: Source environment (`dev`, `uat`, `pprd`, `prod`)
-- `target-env`: Target environment (`dev`, `uat`, `pprd`, `prod`)
+- `target-env`: Target environment (`dev`, `uat`, `pprd`, `prod`, `local`)
 
 **Core Options:**
 - `--dry-run`: Preview migration without executing changes
@@ -377,6 +377,29 @@ wfuwp env-migrate dev uat --batch-size 10 --parallel --max-retries 5 --timeout 3
 
 # Active sites only with safety features
 wfuwp env-migrate prod pprd --active-only --auto-rollback --health-check
+
+# Local environment migration (prod to local development)
+wfuwp env-migrate prod local --sync-s3 --verbose
+```
+
+**📍 Local Environment Support:**
+
+The `local` environment is a special target designed for local development setups:
+
+- **Supported Migration:** Only `prod → local` migrations are allowed
+- **Domain Transformation:** Converts production domains (e.g., `wordpress.wfu.edu` → `wordpress.wfu.local`)
+- **S3 File Sync:** For `--sync-s3`, files are synced from prod S3 to dev S3 (not to a local S3 bucket)
+- **Use Case:** Set up local development environments with production data
+
+**Local Environment Restrictions:**
+- ❌ `local` cannot be used as a source environment
+- ❌ Only `prod → local` migration path is supported
+- ❌ Other combinations like `dev → local`, `uat → local` are not allowed
+
+**Local Environment Example:**
+```bash
+# Migrate production data to local development environment
+wfuwp env-migrate prod local --sync-s3 --include-sites "1,43" --verbose
 ```
 
 **Migration Workflow:**
@@ -441,7 +464,7 @@ wfuwp env-migrate prod pprd --active-only --auto-rollback --health-check
 
 **Required Options:**
 - `--from <env>`: Source environment (`dev`, `uat`, `pprd`, `prod`)
-- `--to <env>`: Target environment (`dev`, `uat`, `pprd`, `prod`)
+- `--to <env>`: Target environment (`dev`, `uat`, `pprd`, `prod`, `local`)
 
 **Optional Flags:**
 - `--dry-run`: Preview changes without executing them
@@ -454,6 +477,7 @@ wfuwp env-migrate prod pprd --active-only --auto-rollback --health-check
 **Supported Migration Paths:**
 - `prod` ↔ `pprd` (production to/from pre-production)
 - `dev` ↔ `uat` (development to/from user acceptance testing)
+- `prod` → `local` (production to local development environment)
 
 **Examples:**
 
@@ -475,6 +499,9 @@ wfuwp migrate 1 --from prod --to pprd --homepage --verbose
 
 # Custom log directory
 wfuwp migrate 43 --from uat --to pprd --log-dir /custom/logs
+
+# Migrate to local development environment
+wfuwp migrate 43 --from prod --to local --verbose
 ```
 
 **Prerequisites:**
