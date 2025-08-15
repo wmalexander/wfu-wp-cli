@@ -12,6 +12,7 @@ interface EnvMigrateOptions {
   sitesOnly?: boolean;
   batchSize?: string;
   parallel?: boolean;
+  concurrency?: string;
   excludeSites?: string;
   includeSites?: string;
   activeOnly?: boolean;
@@ -21,6 +22,25 @@ interface EnvMigrateOptions {
   workDir?: string;
   keepFiles?: boolean;
   timeout?: string;
+}
+
+interface MigrationProgress {
+  totalSites: number;
+  completedSites: number;
+  failedSites: number;
+  currentBatch: number;
+  totalBatches: number;
+  startTime: Date;
+  lastUpdate: Date;
+}
+
+interface BatchResult {
+  batchNumber: number;
+  siteIds: number[];
+  completedSites: number[];
+  failedSites: Array<{ siteId: number; error: string }>;
+  duration: number;
+  success: boolean;
 }
 
 export const envMigrateCommand = new Command('env-migrate')
@@ -40,6 +60,11 @@ export const envMigrateCommand = new Command('env-migrate')
     '5'
   )
   .option('--parallel', 'Process sites in parallel within batches', false)
+  .option(
+    '--concurrency <limit>',
+    'Maximum number of concurrent migrations when using --parallel (default: 3)',
+    '3'
+  )
   .option(
     '--exclude-sites <list>',
     'Comma-separated list of site IDs to exclude'
@@ -416,41 +441,159 @@ async function migrateSites(
   options: EnvMigrateOptions
 ): Promise<void> {
   const batchSize = parseInt(options.batchSize || '5', 10);
-  const totalSites = siteIds.length;
-  let completedSites = 0;
+  const totalBatches = Math.ceil(siteIds.length / batchSize);
 
-  // Process sites in batches
+  const progress: MigrationProgress = {
+    totalSites: siteIds.length,
+    completedSites: 0,
+    failedSites: 0,
+    currentBatch: 0,
+    totalBatches,
+    startTime: new Date(),
+    lastUpdate: new Date(),
+  };
+
+  console.log(
+    chalk.blue(
+      `Starting batch processing: ${progress.totalSites} sites in ${totalBatches} batches of ${batchSize}`
+    )
+  );
+
+  const failedSites: Array<{ siteId: number; error: string }> = [];
+  const batchResults: BatchResult[] = [];
+
+  // Process sites in batches with enhanced progress tracking
   for (let i = 0; i < siteIds.length; i += batchSize) {
     const batch = siteIds.slice(i, i + batchSize);
     const batchNumber = Math.floor(i / batchSize) + 1;
-    const totalBatches = Math.ceil(siteIds.length / batchSize);
+    progress.currentBatch = batchNumber;
 
     console.log(
       chalk.cyan(
-        `  Processing batch ${batchNumber}/${totalBatches}: sites ${batch.join(', ')}`
+        `\n  Batch ${batchNumber}/${totalBatches}: Processing sites ${batch.join(', ')}`
       )
     );
 
-    if (options.parallel) {
-      // Process sites in parallel within the batch
-      const promises = batch.map((siteId) =>
-        migrateSingleSite(siteId, sourceEnv, targetEnv, options)
-      );
-      await Promise.all(promises);
-    } else {
-      // Process sites sequentially within the batch
-      for (const siteId of batch) {
-        await migrateSingleSite(siteId, sourceEnv, targetEnv, options);
-      }
-    }
+    const batchResult = await processBatch(
+      batch,
+      batchNumber,
+      sourceEnv,
+      targetEnv,
+      options,
+      progress
+    );
 
-    completedSites += batch.length;
-    console.log(
-      chalk.green(
-        `    ✓ Completed batch ${batchNumber}/${totalBatches} (${completedSites}/${totalSites} sites)`
-      )
+    batchResults.push(batchResult);
+    progress.completedSites += batchResult.completedSites.length;
+    progress.failedSites += batchResult.failedSites.length;
+    progress.lastUpdate = new Date();
+
+    // Add failed sites to overall tracking
+    failedSites.push(...batchResult.failedSites);
+
+    // Display batch completion with progress
+    displayBatchProgress(batchResult, progress);
+  }
+
+  // Display final migration summary
+  displayMigrationSummary(progress, failedSites, batchResults);
+
+  // Throw error if any sites failed
+  if (failedSites.length > 0) {
+    throw new Error(
+      `${failedSites.length} sites failed to migrate. Check logs for details.`
     );
   }
+}
+
+async function processBatch(
+  siteIds: number[],
+  batchNumber: number,
+  sourceEnv: string,
+  targetEnv: string,
+  options: EnvMigrateOptions,
+  progress: MigrationProgress
+): Promise<BatchResult> {
+  const startTime = Date.now();
+  const completedSites: number[] = [];
+  const failedSites: Array<{ siteId: number; error: string }> = [];
+
+  if (options.parallel) {
+    // Process sites in parallel within the batch with concurrency control
+    const concurrencyLimit = parseInt(options.concurrency || '3', 10);
+    console.log(
+      chalk.gray(
+        `    Processing ${siteIds.length} sites in parallel (max ${concurrencyLimit} concurrent)...`
+      )
+    );
+
+    await processWithConcurrencyLimit(
+      siteIds,
+      concurrencyLimit,
+      async (siteId) => {
+        try {
+          await migrateSingleSite(siteId, sourceEnv, targetEnv, options);
+          completedSites.push(siteId);
+          if (options.verbose) {
+            console.log(chalk.green(`      ✓ Site ${siteId} completed`));
+          }
+          updateProgressDisplay(
+            progress,
+            completedSites.length + failedSites.length
+          );
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+          failedSites.push({ siteId, error: errorMessage });
+          console.log(
+            chalk.red(`      ✗ Site ${siteId} failed: ${errorMessage}`)
+          );
+          updateProgressDisplay(
+            progress,
+            completedSites.length + failedSites.length
+          );
+        }
+      }
+    );
+  } else {
+    // Process sites sequentially within the batch
+    console.log(
+      chalk.gray(`    Processing ${siteIds.length} sites sequentially...`)
+    );
+
+    for (const siteId of siteIds) {
+      try {
+        await migrateSingleSite(siteId, sourceEnv, targetEnv, options);
+        completedSites.push(siteId);
+        if (options.verbose) {
+          console.log(chalk.green(`      ✓ Site ${siteId} completed`));
+        }
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        failedSites.push({ siteId, error: errorMessage });
+        console.log(
+          chalk.red(`      ✗ Site ${siteId} failed: ${errorMessage}`)
+        );
+      }
+      updateProgressDisplay(
+        progress,
+        completedSites.length + failedSites.length
+      );
+    }
+  }
+
+  const duration = Date.now() - startTime;
+  const success = failedSites.length === 0;
+
+  return {
+    batchNumber,
+    siteIds,
+    completedSites,
+    failedSites,
+    duration,
+    success,
+  };
 }
 
 async function migrateSingleSite(
@@ -459,12 +602,9 @@ async function migrateSingleSite(
   targetEnv: string,
   options: EnvMigrateOptions
 ): Promise<void> {
-  if (options.verbose) {
-    console.log(chalk.gray(`      Migrating site ${siteId}...`));
-  }
-
   if (options.dryRun) {
-    console.log(chalk.gray(`        Would migrate site ${siteId}`));
+    // Simulate processing time for dry run
+    await new Promise((resolve) => setTimeout(resolve, 100));
     return;
   }
 
@@ -514,14 +654,10 @@ async function migrateSingleSite(
   try {
     // Execute the migrate command as a subprocess
     execSync(`npx ts-node src/index.ts ${migrateArgs.join(' ')}`, {
-      stdio: options.verbose ? 'inherit' : 'pipe',
+      stdio: 'pipe', // Always pipe to prevent output conflicts
       cwd: process.cwd(),
       encoding: 'utf8',
     });
-
-    if (options.verbose) {
-      console.log(chalk.green(`        ✓ Site ${siteId} migration completed`));
-    }
   } catch (error) {
     throw new Error(
       `Site ${siteId} migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -561,4 +697,131 @@ async function confirmEnvironmentMigration(
       resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
     });
   });
+}
+
+function updateProgressDisplay(
+  progress: MigrationProgress,
+  processedInBatch: number
+): void {
+  const totalProcessed =
+    progress.completedSites + progress.failedSites + processedInBatch;
+  const percentage = Math.round((totalProcessed / progress.totalSites) * 100);
+  const elapsed = Date.now() - progress.startTime.getTime();
+  const avgTimePerSite = elapsed / Math.max(totalProcessed, 1);
+  const estimatedTimeRemaining =
+    avgTimePerSite * (progress.totalSites - totalProcessed);
+
+  process.stdout.write(
+    `\r    Progress: ${totalProcessed}/${progress.totalSites} (${percentage}%) - ETA: ${formatDuration(estimatedTimeRemaining)}`
+  );
+}
+
+function displayBatchProgress(
+  batchResult: BatchResult,
+  progress: MigrationProgress
+): void {
+  const { batchNumber, completedSites, failedSites, duration } = batchResult;
+  const batchSuccess = failedSites.length === 0;
+  const icon = batchSuccess ? '✓' : '⚠';
+  const color = batchSuccess ? chalk.green : chalk.yellow;
+
+  console.log(''); // New line after progress display
+  console.log(
+    color(
+      `    ${icon} Batch ${batchNumber}/${progress.totalBatches}: ${completedSites.length} completed, ${failedSites.length} failed (${formatDuration(duration)})`
+    )
+  );
+
+  if (failedSites.length > 0 && progress.totalBatches > 1) {
+    console.log(
+      chalk.red(
+        `      Failed sites: ${failedSites.map((f: { siteId: number; error: string }) => f.siteId).join(', ')}`
+      )
+    );
+  }
+
+  const overallPercentage = Math.round(
+    (progress.completedSites / progress.totalSites) * 100
+  );
+  console.log(
+    chalk.cyan(
+      `    Overall progress: ${progress.completedSites}/${progress.totalSites} sites (${overallPercentage}%)`
+    )
+  );
+}
+
+function displayMigrationSummary(
+  progress: MigrationProgress,
+  failedSites: Array<{ siteId: number; error: string }>,
+  batchResults: BatchResult[]
+): void {
+  const totalDuration = Date.now() - progress.startTime.getTime();
+  const successfulBatches = batchResults.filter((b) => b.success).length;
+
+  console.log(chalk.blue('\n📊 Migration Summary:'));
+  console.log(chalk.white(`  Total sites: ${progress.totalSites}`));
+  console.log(chalk.green(`  Completed: ${progress.completedSites}`));
+
+  if (progress.failedSites > 0) {
+    console.log(chalk.red(`  Failed: ${progress.failedSites}`));
+  }
+
+  console.log(chalk.white(`  Total batches: ${progress.totalBatches}`));
+  console.log(chalk.green(`  Successful batches: ${successfulBatches}`));
+  console.log(
+    chalk.white(`  Total duration: ${formatDuration(totalDuration)}`)
+  );
+
+  if (progress.completedSites > 0) {
+    const avgTimePerSite = totalDuration / progress.completedSites;
+    console.log(
+      chalk.gray(`  Average time per site: ${formatDuration(avgTimePerSite)}`)
+    );
+  }
+
+  if (failedSites.length > 0) {
+    console.log(chalk.red('\n❌ Failed Sites:'));
+    failedSites.forEach(({ siteId, error }) => {
+      console.log(chalk.red(`  Site ${siteId}: ${error}`));
+    });
+  }
+}
+
+function formatDuration(milliseconds: number): string {
+  const seconds = Math.floor(milliseconds / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (hours > 0) {
+    return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds % 60}s`;
+  } else {
+    return `${seconds}s`;
+  }
+}
+
+async function processWithConcurrencyLimit<T>(
+  items: T[],
+  concurrencyLimit: number,
+  processor: (item: T) => Promise<void>
+): Promise<void> {
+  const executing: Promise<void>[] = [];
+
+  for (const item of items) {
+    const promise = processor(item).finally(() => {
+      const index = executing.indexOf(promise);
+      if (index !== -1) {
+        executing.splice(index, 1);
+      }
+    });
+
+    executing.push(promise);
+
+    if (executing.length >= concurrencyLimit) {
+      await Promise.race(executing);
+    }
+  }
+
+  await Promise.all(executing);
 }
