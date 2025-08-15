@@ -24,7 +24,8 @@
       "Bash(npm uninstall:*)",
       "Bash(npm run lint:*)",
       "WebFetch(domain:developer.clickup.com)",
-      "WebFetch(domain:clickup.com)"
+      "WebFetch(domain:clickup.com)",
+      "Bash(cat:*)"
     ],
     "deny": []
   }
