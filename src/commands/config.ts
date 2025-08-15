@@ -174,18 +174,16 @@ async function runConfigWizard(): Promise<void> {
     // Configure local environment (special section)
     console.log(chalk.yellow('\n--- LOCAL Environment (Optional) ---'));
     console.log(chalk.gray('Local environment is used for prod → local development migrations'));
-    console.log(chalk.gray('This is typically your local DDEV, Docker, or XAMPP setup'));
+    console.log(chalk.gray('This configures your local DDEV WordPress development environment'));
     
-    const configureLocal = await question('Configure local environment for development? (y/N): ');
+    const configureLocal = await question('Configure local DDEV environment for development? (y/N): ');
     if (configureLocal.toLowerCase() === 'y' || configureLocal.toLowerCase() === 'yes') {
-      console.log(chalk.cyan('\n💡 Common local development setups:'));
-      console.log(chalk.gray('  DDEV: Host=127.0.0.1, Port=<dynamic>, User=db, Password=db, Database=db'));
-      console.log(chalk.gray('  Docker: Host=localhost, Port=3306, User=root, Password=<varies>'));
-      console.log(chalk.gray('  XAMPP: Host=localhost, Port=3306, User=root, Password=<empty>'));
-      console.log(chalk.gray('\nFor DDEV users: Run "ddev describe" to get your connection details\n'));
+      console.log(chalk.cyan('\n💡 DDEV Configuration:'));
+      console.log(chalk.gray('  Run "ddev describe" in your project to get the exact connection details'));
+      console.log(chalk.gray('  Typical DDEV setup: Host=ddev-<project>-db, Port=3306, User=db, Password=db, Database=db\n'));
 
-      const localHost = await question('Local database host (default: 127.0.0.1): ') || '127.0.0.1';
-      const localPort = await question('Local database port (leave empty if standard): ');
+      const localHost = await question('Local database host (e.g., ddev-myproject-db): ');
+      const localPort = await question('Local database port (default: 3306): ') || '3306';
       const localUser = await question('Local database user (default: db): ') || 'db';
       const localPassword = await question('Local database password (default: db): ') || 'db';
       const localDatabase = await question('Local database name (default: db): ') || 'db';

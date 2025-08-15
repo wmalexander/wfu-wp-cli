@@ -150,15 +150,15 @@ export class Config {
     const environment = keys[1];
     const envKey = keys[2];
 
-    if (!['dev', 'uat', 'pprd', 'prod'].includes(environment)) {
+    if (!this.getValidEnvironments().includes(environment)) {
       throw new Error(
-        'Invalid environment. Valid environments: dev, uat, pprd, prod'
+        'Invalid environment. Valid environments: ' + this.getValidEnvironments().join(', ')
       );
     }
 
-    if (!['host', 'user', 'password', 'database'].includes(envKey)) {
+    if (!['host', 'port', 'user', 'password', 'database'].includes(envKey)) {
       throw new Error(
-        'Invalid environment config key. Valid keys: host, user, password, database'
+        'Invalid environment config key. Valid keys: host, port, user, password, database'
       );
     }
 
