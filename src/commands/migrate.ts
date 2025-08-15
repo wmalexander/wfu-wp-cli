@@ -36,7 +36,10 @@ export const migrateCommand = new Command('migrate')
   )
   .argument('<site-id>', 'Numeric site identifier (e.g., 43)')
   .requiredOption('--from <env>', 'Source environment (dev, uat, pprd, prod)')
-  .requiredOption('--to <env>', 'Target environment (dev, uat, pprd, prod, local)')
+  .requiredOption(
+    '--to <env>',
+    'Target environment (dev, uat, pprd, prod, local)'
+  )
   .option('--dry-run', 'Preview changes without executing', false)
   .option('-f, --force', 'Skip confirmation prompts', false)
   .option('-v, --verbose', 'Show detailed output', false)
@@ -275,7 +278,7 @@ async function runCompleteMigration(
     // Step 2: Import to migration database
     console.log(chalk.blue('Step 2: Importing to migration database...'));
     if (!options.dryRun) {
-      await DatabaseOperations.cleanMigrationDatabase();
+      await DatabaseOperations.cleanMigrationDatabase(siteId);
       const timeoutMinutes = parseInt(options.timeout || '20', 10);
       const importResult = await DatabaseOperations.importSqlFile(
         sourceFile,
@@ -563,7 +566,7 @@ async function runCompleteMigration(
     // Step 9: Cleanup
     console.log(chalk.blue('Step 9: Cleaning up...'));
     if (!options.dryRun) {
-      await DatabaseOperations.cleanMigrationDatabase();
+      await DatabaseOperations.cleanMigrationDatabase(siteId);
 
       if (!options.keepFiles) {
         sqlFiles.forEach((file) => {
@@ -606,7 +609,7 @@ async function runCompleteMigration(
     if (!options.dryRun) {
       console.log(chalk.yellow('Attempting to clean up migration database...'));
       try {
-        await DatabaseOperations.cleanMigrationDatabase();
+        await DatabaseOperations.cleanMigrationDatabase(siteId);
       } catch (cleanupError) {
         console.warn(
           chalk.yellow('Warning: Could not clean migration database')
@@ -648,7 +651,7 @@ function validateInputs(siteId: string, options: MigrateOptions): void {
     if (options.from !== 'prod') {
       throw new Error(
         'Local environment migration is only supported from prod environment. ' +
-        'Use: prod → local'
+          'Use: prod → local'
       );
     }
   }
@@ -656,7 +659,7 @@ function validateInputs(siteId: string, options: MigrateOptions): void {
   if (options.from === 'local') {
     throw new Error(
       'Migration from local environment is not supported. ' +
-      'Local can only be used as target environment for prod → local migrations.'
+        'Local can only be used as target environment for prod → local migrations.'
     );
   }
 }

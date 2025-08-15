@@ -21,32 +21,42 @@ export class DatabaseOperations {
   // Cache for table columns to avoid repeated DESCRIBE queries
   private static columnCache: Map<string, string[]> = new Map();
   // Helper method to build MySQL command with proper port handling
-  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+  private static buildMysqlCommand(
+    envConfig: any,
+    additionalArgs: string[] = []
+  ): string {
     const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
     const baseArgs = [
       'mysql',
-      '-h', `"${envConfig.host}"`,
+      '-h',
+      `"${envConfig.host}"`,
       portArg,
-      '-u', `"${envConfig.user}"`,
+      '-u',
+      `"${envConfig.user}"`,
       `-p"${envConfig.password}"`,
-      `"${envConfig.database}"`
-    ].filter(arg => arg.length > 0);
-    
+      `"${envConfig.database}"`,
+    ].filter((arg) => arg.length > 0);
+
     return [...baseArgs, ...additionalArgs].join(' ');
   }
 
   // Helper method specifically for migration database commands
-  private static buildMigrationMysqlCommand(migrationConfig: any, additionalArgs: string[] = []): string {
+  private static buildMigrationMysqlCommand(
+    migrationConfig: any,
+    additionalArgs: string[] = []
+  ): string {
     const portArg = migrationConfig.port ? `-P "${migrationConfig.port}"` : '';
     const baseArgs = [
       'mysql',
-      '-h', `"${migrationConfig.host}"`,
+      '-h',
+      `"${migrationConfig.host}"`,
       portArg,
-      '-u', `"${migrationConfig.user}"`,
+      '-u',
+      `"${migrationConfig.user}"`,
       `-p"${migrationConfig.password}"`,
-      `"${migrationConfig.database}"`
-    ].filter(arg => arg.length > 0);
-    
+      `"${migrationConfig.database}"`,
+    ].filter((arg) => arg.length > 0);
+
     return [...baseArgs, ...additionalArgs].join(' ');
   }
 
@@ -140,7 +150,9 @@ export class DatabaseOperations {
         ...tables.map((table) => `"${table}"`),
         '>',
         `"${outputPath}"`,
-      ].filter(arg => arg.length > 0).join(' ');
+      ]
+        .filter((arg) => arg.length > 0)
+        .join(' ');
 
       execSync(mysqldumpCommand, {
         encoding: 'utf8',
@@ -351,7 +363,6 @@ export class DatabaseOperations {
     try {
       // Get all tables using cached approach (single query instead of per-site)
       const allTables = this.getAllTables(environment);
-      const prefix = siteId === '1' ? 'wp_' : `wp_${siteId}_`;
 
       // Filter tables for this specific site from the complete list
       const siteTables = allTables.filter((table) => {
@@ -361,9 +372,11 @@ export class DatabaseOperations {
         } else {
           // For subsites, match exact prefix (avoid wp_430_ when looking for wp_43_)
           const exactPrefix = `wp_${siteId}_`;
-          return table.startsWith(exactPrefix) && 
-                 !table.startsWith(`${exactPrefix}\d`) && // Avoid longer site IDs
-                 table.split('_')[1] === siteId; // Ensure exact match
+          return (
+            table.startsWith(exactPrefix) &&
+            !table.startsWith(`${exactPrefix}\\d`) && // Avoid longer site IDs
+            table.split('_')[1] === siteId
+          ); // Ensure exact match
         }
       });
 
@@ -375,7 +388,7 @@ export class DatabaseOperations {
     }
   }
 
-  static async cleanMigrationDatabase(): Promise<void> {
+  static async cleanMigrationDatabase(siteId?: string): Promise<void> {
     const migrationConfig = Config.getMigrationDbConfig();
 
     if (!Config.hasRequiredMigrationConfig()) {
@@ -384,12 +397,26 @@ export class DatabaseOperations {
       );
     }
 
+    // Security validation: only allow drops on wp_migration database
+    if (
+      !migrationConfig.database ||
+      !migrationConfig.database.includes('migration')
+    ) {
+      throw new Error(
+        'Security violation: Table drops are only allowed on wp_migration database for safety.'
+      );
+    }
+
     // Use direct MySQL to clean migration database (much more efficient than WP-CLI)
     try {
       // Get all tables in the migration database
       const showTablesQuery = 'SHOW TABLES';
       const tablesOutput = execSync(
-        this.buildMigrationMysqlCommand(migrationConfig, ['-e', `"${showTablesQuery}"`, '-s']),
+        this.buildMigrationMysqlCommand(migrationConfig, [
+          '-e',
+          `"${showTablesQuery}"`,
+          '-s',
+        ]),
         {
           encoding: 'utf8',
           env: {
@@ -399,19 +426,42 @@ export class DatabaseOperations {
         }
       );
 
-      const tables = tablesOutput
+      const allTables = tablesOutput
         .trim()
         .split('\n')
         .filter((table) => table.length > 0);
 
-      if (tables.length > 0) {
+      let tablesToDrop = allTables;
+
+      // If siteId is provided, only drop tables for that specific site
+      if (siteId) {
+        tablesToDrop = allTables.filter((table) => {
+          if (siteId === '1') {
+            // For main site, include wp_ tables but exclude numbered subsites (wp_43_*)
+            return table.startsWith('wp_') && !table.match(/wp_\d+_/);
+          } else {
+            // For subsites, match exact prefix
+            const exactPrefix = `wp_${siteId}_`;
+            return (
+              table.startsWith(exactPrefix) &&
+              !table.startsWith(`${exactPrefix}\\d`) && // Avoid longer site IDs
+              table.split('_')[1] === siteId
+            ); // Ensure exact match
+          }
+        });
+      }
+
+      if (tablesToDrop.length > 0) {
         // Drop tables in batches of 10 to avoid command length limits
         const batchSize = 10;
-        for (let i = 0; i < tables.length; i += batchSize) {
-          const batch = tables.slice(i, i + batchSize);
+        for (let i = 0; i < tablesToDrop.length; i += batchSize) {
+          const batch = tablesToDrop.slice(i, i + batchSize);
           const dropTablesQuery = `DROP TABLE IF EXISTS ${batch.map((table) => `\`${table}\``).join(', ')}`;
           execSync(
-            this.buildMigrationMysqlCommand(migrationConfig, ['-e', `"${dropTablesQuery}"`]),
+            this.buildMigrationMysqlCommand(migrationConfig, [
+              '-e',
+              `"${dropTablesQuery}"`,
+            ]),
             {
               encoding: 'utf8',
               stdio: 'ignore',
@@ -537,10 +587,14 @@ export class DatabaseOperations {
         try {
           // Get table columns using cached approach (avoids repeated DESCRIBE queries)
           const columns = this.getTableColumns(table, environment);
-          
+
           if (columns.length === 0) {
             if (verbose) {
-              console.log(chalk.yellow(`  Skipped ${table}: Could not get table structure`));
+              console.log(
+                chalk.yellow(
+                  `  Skipped ${table}: Could not get table structure`
+                )
+              );
             }
             continue;
           }
@@ -602,7 +656,9 @@ export class DatabaseOperations {
         `"${envConfig.database}"`,
         '-e',
         '"SELECT 1 as connection_test"',
-      ].filter(arg => arg.length > 0).join(' ');
+      ]
+        .filter((arg) => arg.length > 0)
+        .join(' ');
 
       const result = execSync(mysqlCommand, {
         encoding: 'utf8',
@@ -646,7 +702,10 @@ export class DatabaseOperations {
         }
       );
 
-      const tables = output.trim().split('\n').filter((line) => line.length > 0);
+      const tables = output
+        .trim()
+        .split('\n')
+        .filter((line) => line.length > 0);
       return tables.length;
     } catch (error) {
       throw new Error(
