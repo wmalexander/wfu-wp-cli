@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 
 interface EnvironmentConfig {
   host?: string;
+  port?: string;
   user?: string;
   password?: string; // encrypted
   database?: string;
@@ -24,6 +25,7 @@ interface ConfigData {
     uat?: EnvironmentConfig;
     pprd?: EnvironmentConfig;
     prod?: EnvironmentConfig;
+    local?: EnvironmentConfig;
   };
   migration?: {
     host?: string;
@@ -668,7 +670,7 @@ export class Config {
   }
 
   static getValidEnvironments(): string[] {
-    return ['dev', 'uat', 'pprd', 'prod'];
+    return ['dev', 'uat', 'pprd', 'prod', 'local'];
   }
 
   static getClickUpConfig(): {

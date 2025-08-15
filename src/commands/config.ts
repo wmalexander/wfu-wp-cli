@@ -144,10 +144,10 @@ async function runConfigWizard(): Promise<void> {
   };
 
   try {
-    // Configure environments
-    const environments = Config.getValidEnvironments();
-
-    for (const env of environments) {
+    // Configure environments (standard ones first)
+    const standardEnvironments = ['dev', 'uat', 'pprd', 'prod'];
+    
+    for (const env of standardEnvironments) {
       console.log(chalk.yellow(`\n--- ${env.toUpperCase()} Environment ---`));
 
       const configure = await question(`Configure ${env} environment? (y/N): `);
@@ -169,6 +169,35 @@ async function runConfigWizard(): Promise<void> {
       if (database) Config.set(`env.${env}.database`, database);
 
       console.log(chalk.green(`✓ ${env} environment configured`));
+    }
+
+    // Configure local environment (special section)
+    console.log(chalk.yellow('\n--- LOCAL Environment (Optional) ---'));
+    console.log(chalk.gray('Local environment is used for prod → local development migrations'));
+    console.log(chalk.gray('This is typically your local DDEV, Docker, or XAMPP setup'));
+    
+    const configureLocal = await question('Configure local environment for development? (y/N): ');
+    if (configureLocal.toLowerCase() === 'y' || configureLocal.toLowerCase() === 'yes') {
+      console.log(chalk.cyan('\n💡 Common local development setups:'));
+      console.log(chalk.gray('  DDEV: Host=127.0.0.1, Port=<dynamic>, User=db, Password=db, Database=db'));
+      console.log(chalk.gray('  Docker: Host=localhost, Port=3306, User=root, Password=<varies>'));
+      console.log(chalk.gray('  XAMPP: Host=localhost, Port=3306, User=root, Password=<empty>'));
+      console.log(chalk.gray('\nFor DDEV users: Run "ddev describe" to get your connection details\n'));
+
+      const localHost = await question('Local database host (default: 127.0.0.1): ') || '127.0.0.1';
+      const localPort = await question('Local database port (leave empty if standard): ');
+      const localUser = await question('Local database user (default: db): ') || 'db';
+      const localPassword = await question('Local database password (default: db): ') || 'db';
+      const localDatabase = await question('Local database name (default: db): ') || 'db';
+
+      Config.set('env.local.host', localHost);
+      if (localPort) Config.set('env.local.port', localPort);
+      Config.set('env.local.user', localUser);
+      Config.set('env.local.password', localPassword);
+      Config.set('env.local.database', localDatabase);
+
+      console.log(chalk.green('✓ Local environment configured for development migrations'));
+      console.log(chalk.cyan('  You can now run: wfuwp env-migrate prod local --dry-run'));
     }
 
     // Configure migration database
@@ -263,10 +292,11 @@ function verifyConfiguration(environment?: string): void {
   } else {
     // Verify all environments
     console.log(chalk.cyan('\nChecking environments...'));
-    const environments = Config.getValidEnvironments();
+    const standardEnvironments = ['dev', 'uat', 'pprd', 'prod'];
     let configuredEnvs = 0;
 
-    environments.forEach((env) => {
+    // Check standard environments
+    standardEnvironments.forEach((env) => {
       if (Config.hasRequiredEnvironmentConfig(env)) {
         console.log(chalk.green(`✓ ${env}`));
         configuredEnvs++;
@@ -274,6 +304,14 @@ function verifyConfiguration(environment?: string): void {
         console.log(chalk.yellow(`- ${env} (not configured)`));
       }
     });
+
+    // Check local environment (optional)
+    console.log(chalk.cyan('\nChecking local environment (optional)...'));
+    if (Config.hasRequiredEnvironmentConfig('local')) {
+      console.log(chalk.green('✓ local (configured for development migrations)'));
+    } else {
+      console.log(chalk.gray('- local (not configured - optional)'));
+    }
 
     if (configuredEnvs === 0) {
       console.log(chalk.red('✗ No environments configured'));
