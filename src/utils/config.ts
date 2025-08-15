@@ -601,6 +601,7 @@ export class Config {
       ];
     return {
       host: envConfig?.host,
+      port: envConfig?.port,
       user: envConfig?.user,
       password: envConfig?.password
         ? this.decrypt(envConfig.password)
