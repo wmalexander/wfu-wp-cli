@@ -456,21 +456,34 @@ export class DatabaseOperations {
         const batchSize = 10;
         for (let i = 0; i < tablesToDrop.length; i += batchSize) {
           const batch = tablesToDrop.slice(i, i + batchSize);
-          const dropTablesQuery = `DROP TABLE IF EXISTS ${batch.map((table) => `\`${table}\``).join(', ')}`;
-          execSync(
-            this.buildMigrationMysqlCommand(migrationConfig, [
-              '-e',
-              `"${dropTablesQuery}"`,
-            ]),
-            {
-              encoding: 'utf8',
-              stdio: 'ignore',
-              env: {
-                ...process.env,
-                PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-              },
+
+          // Drop tables one by one to avoid command length issues and get better error handling
+          for (const table of batch) {
+            try {
+              const dropQuery = `DROP TABLE IF EXISTS \`${table}\``;
+              execSync(
+                this.buildMigrationMysqlCommand(migrationConfig, [
+                  '-e',
+                  `"${dropQuery}"`,
+                ]),
+                {
+                  encoding: 'utf8',
+                  stdio: 'ignore',
+                  env: {
+                    ...process.env,
+                    PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+                  },
+                }
+              );
+            } catch (tableError) {
+              // Log individual table drop failures but continue with others
+              console.warn(
+                chalk.yellow(
+                  `Warning: Could not drop table ${table}: ${tableError instanceof Error ? tableError.message : 'Unknown error'}`
+                )
+              );
             }
-          );
+          }
         }
       }
     } catch (error) {
