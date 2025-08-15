@@ -476,12 +476,41 @@ export class DatabaseOperations {
                 }
               );
             } catch (tableError) {
-              // Log individual table drop failures but continue with others
-              console.warn(
-                chalk.yellow(
-                  `Warning: Could not drop table ${table}: ${tableError instanceof Error ? tableError.message : 'Unknown error'}`
-                )
-              );
+              // If DROP fails, try TRUNCATE as fallback to at least clear the data
+              try {
+                const truncateQuery = `TRUNCATE TABLE \`${table}\``;
+                execSync(
+                  this.buildMigrationMysqlCommand(migrationConfig, [
+                    '-e',
+                    `"${truncateQuery}"`,
+                  ]),
+                  {
+                    encoding: 'utf8',
+                    stdio: 'ignore',
+                    env: {
+                      ...process.env,
+                      PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+                    },
+                  }
+                );
+                // Only show this message on the first successful truncate to avoid spam
+                if (batch.indexOf(table) === 0) {
+                  console.warn(
+                    chalk.yellow(
+                      `Note: DROP permission denied, using TRUNCATE to clear table data instead.`
+                    )
+                  );
+                }
+              } catch (truncateError) {
+                // If both DROP and TRUNCATE fail, it's likely a more serious permission issue
+                if (batch.indexOf(table) === 0) {
+                  console.warn(
+                    chalk.yellow(
+                      `Warning: Insufficient database permissions for cleanup. Migration completed but temporary tables remain in wp_migration database.`
+                    )
+                  );
+                }
+              }
             }
           }
         }
