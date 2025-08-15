@@ -29,6 +29,20 @@ interface NetworkTableInfo {
 }
 
 export class NetworkTableOperations {
+  // Helper method to build MySQL command with proper port handling
+  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+    const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+    const baseArgs = [
+      'mysql',
+      '-h', `"${envConfig.host}"`,
+      portArg,
+      '-u', `"${envConfig.user}"`,
+      `-p"${envConfig.password}"`,
+      `"${envConfig.database}"`
+    ].filter(arg => arg.length > 0);
+    
+    return [...baseArgs, ...additionalArgs].join(' ');
+  }
   static getNetworkTables(): NetworkTableInfo[] {
     return [
       {
@@ -111,7 +125,7 @@ export class NetworkTableOperations {
       for (const tableName of networkTableNames) {
         const query = `SHOW TABLES LIKE '${tableName}'`;
         const output = execSync(
-          `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${query}" -s`,
+          this.buildMysqlCommand(envConfig, ['-e', `"${query}"`, '-s']),
           {
             encoding: 'utf8',
             env: {
@@ -208,10 +222,12 @@ export class NetworkTableOperations {
         console.log(chalk.gray('Running mysqldump for network tables...'));
       }
 
+      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
       const mysqldumpCommand = [
         'mysqldump',
         '-h',
         `"${envConfig.host}"`,
+        portArg,
         '-u',
         `"${envConfig.user}"`,
         `-p"${envConfig.password}"`,
@@ -222,7 +238,7 @@ export class NetworkTableOperations {
         ...tablesToExport.map((table) => `"${table}"`),
         '>',
         `"${outputPath}"`,
-      ].join(' ');
+      ].filter(arg => arg.length > 0).join(' ');
 
       execSync(mysqldumpCommand, {
         encoding: 'utf8',
@@ -275,10 +291,12 @@ export class NetworkTableOperations {
         console.log(chalk.gray('Running mysql import for network tables...'));
       }
 
+      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
       const mysqlCommand = [
         'mysql',
         '-h',
         `"${envConfig.host}"`,
+        portArg,
         '-u',
         `"${envConfig.user}"`,
         `-p"${envConfig.password}"`,
@@ -286,7 +304,7 @@ export class NetworkTableOperations {
         '--max_allowed_packet=1G',
         '<',
         `"${sqlFile}"`,
-      ].join(' ');
+      ].filter(arg => arg.length > 0).join(' ');
 
       execSync(mysqlCommand, {
         encoding: 'utf8',
@@ -370,10 +388,12 @@ export class NetworkTableOperations {
         );
       }
 
+      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
       const mysqldumpCommand = [
         'mysqldump',
         '-h',
         `"${envConfig.host}"`,
+        portArg,
         '-u',
         `"${envConfig.user}"`,
         `-p"${envConfig.password}"`,
@@ -384,7 +404,7 @@ export class NetworkTableOperations {
         ...tablesToBackup.map((table) => `"${table}"`),
         '>',
         `"${backupPath}"`,
-      ].join(' ');
+      ].filter(arg => arg.length > 0).join(' ');
 
       execSync(mysqldumpCommand, {
         encoding: 'utf8',
@@ -469,7 +489,7 @@ export class NetworkTableOperations {
         const columnsQuery = `DESCRIBE ${table}`;
         try {
           const columnsOutput = execSync(
-            `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${columnsQuery}" -s`,
+            this.buildMysqlCommand(envConfig, ['-e', `"${columnsQuery}"`, '-s']),
             {
               encoding: 'utf8',
               env: {
@@ -490,7 +510,7 @@ export class NetworkTableOperations {
               const updateQuery = `UPDATE ${table} SET ${field} = REPLACE(${field}, '${replacement.from}', '${replacement.to}') WHERE ${field} LIKE '%${replacement.from}%'`;
 
               execSync(
-                `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${updateQuery}"`,
+                this.buildMysqlCommand(envConfig, ['-e', `"${updateQuery}"`]),
                 {
                   encoding: 'utf8',
                   stdio: 'ignore',

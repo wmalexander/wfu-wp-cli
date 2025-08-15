@@ -31,6 +31,21 @@ export class DatabaseOperations {
     return [...baseArgs, ...additionalArgs].join(' ');
   }
 
+  // Helper method specifically for migration database commands
+  private static buildMigrationMysqlCommand(migrationConfig: any, additionalArgs: string[] = []): string {
+    const portArg = migrationConfig.port ? `-P "${migrationConfig.port}"` : '';
+    const baseArgs = [
+      'mysql',
+      '-h', `"${migrationConfig.host}"`,
+      portArg,
+      '-u', `"${migrationConfig.user}"`,
+      `-p"${migrationConfig.password}"`,
+      `"${migrationConfig.database}"`
+    ].filter(arg => arg.length > 0);
+    
+    return [...baseArgs, ...additionalArgs].join(' ');
+  }
+
   static checkDockerAvailability(): void {
     try {
       execSync('docker --version', { stdio: 'ignore' });
@@ -105,10 +120,12 @@ export class DatabaseOperations {
         console.log(chalk.gray('Running mysqldump export...'));
       }
 
+      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
       const mysqldumpCommand = [
         'mysqldump',
         '-h',
         `"${envConfig.host}"`,
+        portArg,
         '-u',
         `"${envConfig.user}"`,
         `-p"${envConfig.password}"`,
@@ -119,7 +136,7 @@ export class DatabaseOperations {
         ...tables.map((table) => `"${table}"`),
         '>',
         `"${outputPath}"`,
-      ].join(' ');
+      ].filter(arg => arg.length > 0).join(' ');
 
       execSync(mysqldumpCommand, {
         encoding: 'utf8',
@@ -285,7 +302,7 @@ export class DatabaseOperations {
       // Get all tables in the migration database
       const showTablesQuery = 'SHOW TABLES';
       const tablesOutput = execSync(
-        `mysql -h "${migrationConfig.host}" -u "${migrationConfig.user}" -p"${migrationConfig.password}" "${migrationConfig.database}" -e "${showTablesQuery}" -s`,
+        this.buildMigrationMysqlCommand(migrationConfig, ['-e', `"${showTablesQuery}"`, '-s']),
         {
           encoding: 'utf8',
           env: {
@@ -307,7 +324,7 @@ export class DatabaseOperations {
           const batch = tables.slice(i, i + batchSize);
           const dropTablesQuery = `DROP TABLE IF EXISTS ${batch.map((table) => `\`${table}\``).join(', ')}`;
           execSync(
-            `mysql -h "${migrationConfig.host}" -u "${migrationConfig.user}" -p"${migrationConfig.password}" "${migrationConfig.database}" -e "${dropTablesQuery}"`,
+            this.buildMigrationMysqlCommand(migrationConfig, ['-e', `"${dropTablesQuery}"`]),
             {
               encoding: 'utf8',
               stdio: 'ignore',
@@ -346,6 +363,7 @@ export class DatabaseOperations {
 
   private static getTableCount(dbConfig: {
     host?: string;
+    port?: string;
     user?: string;
     password?: string;
     database?: string;
@@ -353,8 +371,9 @@ export class DatabaseOperations {
     // Use direct MySQL query to get table count (much more efficient than WP-CLI)
     try {
       const query = 'SHOW TABLES';
+      const portArg = dbConfig.port ? `-P "${dbConfig.port}"` : '';
       const output = execSync(
-        `mysql -h "${dbConfig.host}" -u "${dbConfig.user}" -p"${dbConfig.password}" "${dbConfig.database}" -e "${query}" -s`,
+        `mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" -p"${dbConfig.password}" "${dbConfig.database}" -e "${query}" -s`,
         {
           encoding: 'utf8',
           env: {
@@ -432,7 +451,7 @@ export class DatabaseOperations {
         const columnsQuery = `DESCRIBE ${table}`;
         try {
           const columnsOutput = execSync(
-            `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${columnsQuery}" -s`,
+            this.buildMysqlCommand(envConfig, ['-e', `"${columnsQuery}"`, '-s']),
             {
               encoding: 'utf8',
               env: {
@@ -454,7 +473,7 @@ export class DatabaseOperations {
               const updateQuery = `UPDATE ${table} SET ${field} = REPLACE(${field}, '${replacement.from}', '${replacement.to}') WHERE ${field} LIKE '%${replacement.from}%'`;
 
               execSync(
-                `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${updateQuery}"`,
+                this.buildMysqlCommand(envConfig, ['-e', `"${updateQuery}"`]),
                 {
                   encoding: 'utf8',
                   stdio: 'ignore',

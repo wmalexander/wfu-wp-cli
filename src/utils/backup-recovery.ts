@@ -52,6 +52,20 @@ interface RestoreResult {
 }
 
 export class BackupRecovery {
+  // Helper method to build MySQL command with proper port handling
+  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+    const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+    const baseArgs = [
+      'mysql',
+      '-h', `"${envConfig.host}"`,
+      portArg,
+      '-u', `"${envConfig.user}"`,
+      `-p"${envConfig.password}"`,
+      `"${envConfig.database}"`
+    ].filter(arg => arg.length > 0);
+    
+    return [...baseArgs, ...additionalArgs].join(' ');
+  }
   static generateBackupId(): string {
     const timestamp = new Date()
       .toISOString()
@@ -370,7 +384,7 @@ export class BackupRecovery {
 
     try {
       const output = execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "SHOW TABLES LIKE '${tablePrefix}%'" -s`,
+        this.buildMysqlCommand(envConfig, ['-e', `"SHOW TABLES LIKE '${tablePrefix}%'"`, '-s']),
         {
           encoding: 'utf8',
           env: {
@@ -545,7 +559,7 @@ export class BackupRecovery {
 
     try {
       execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" < "${backupFilePath}"`,
+        `${this.buildMysqlCommand(envConfig)} < "${backupFilePath}"`,
         {
           timeout: timeoutMinutes * 60 * 1000,
           env: {

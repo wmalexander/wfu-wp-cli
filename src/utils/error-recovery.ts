@@ -37,6 +37,20 @@ interface HealthCheckResult {
 }
 
 export class ErrorRecovery {
+  // Helper method to build MySQL command with proper port handling
+  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+    const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+    const baseArgs = [
+      'mysql',
+      '-h', `"${envConfig.host}"`,
+      portArg,
+      '-u', `"${envConfig.user}"`,
+      `-p"${envConfig.password}"`,
+      `"${envConfig.database}"`
+    ].filter(arg => arg.length > 0);
+    
+    return [...baseArgs, ...additionalArgs].join(' ');
+  }
   private static readonly DEFAULT_RETRY_CONFIG: RetryConfig = {
     maxRetries: 3,
     retryDelay: 5000, // 5 seconds
@@ -399,7 +413,7 @@ export class ErrorRecovery {
     try {
       // Basic connection test with a simple query
       execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "SELECT 1" > /dev/null`,
+        `${this.buildMysqlCommand(envConfig, ['-e', '"SELECT 1"'])} > /dev/null`,
         {
           timeout: 30000,
           env: {
@@ -430,7 +444,7 @@ export class ErrorRecovery {
     try {
       // Get all tables in database
       const allTablesOutput = execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "SHOW TABLES" -s`,
+        this.buildMysqlCommand(envConfig, ['-e', '"SHOW TABLES"', '-s']),
         {
           encoding: 'utf8',
           env: {
