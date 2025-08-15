@@ -461,26 +461,20 @@ export class DatabaseOperations {
           for (const table of batch) {
             try {
               const dropQuery = `DROP TABLE IF EXISTS ${table}`;
-              const fullCommand = this.buildMigrationMysqlCommand(
-                migrationConfig,
-                ['-e', `'${dropQuery}'`]
+              execSync(
+                this.buildMigrationMysqlCommand(migrationConfig, [
+                  '-e',
+                  `'${dropQuery}'`,
+                ]),
+                {
+                  encoding: 'utf8',
+                  stdio: 'ignore',
+                  env: {
+                    ...process.env,
+                    PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+                  },
+                }
               );
-
-              // Debug: Log the exact command being executed (only for first table to avoid spam)
-              if (batch.indexOf(table) === 0) {
-                console.log(
-                  chalk.gray(`Debug: Executing command: ${fullCommand}`)
-                );
-              }
-
-              execSync(fullCommand, {
-                encoding: 'utf8',
-                stdio: 'ignore',
-                env: {
-                  ...process.env,
-                  PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-                },
-              });
             } catch (tableError) {
               // If DROP fails, try TRUNCATE as fallback to at least clear the data
               try {
