@@ -460,29 +460,35 @@ export class DatabaseOperations {
           // Drop tables one by one to avoid command length issues and get better error handling
           for (const table of batch) {
             try {
-              const dropQuery = `DROP TABLE IF EXISTS \`${table}\``;
-              execSync(
-                this.buildMigrationMysqlCommand(migrationConfig, [
-                  '-e',
-                  `"${dropQuery}"`,
-                ]),
-                {
-                  encoding: 'utf8',
-                  stdio: 'ignore',
-                  env: {
-                    ...process.env,
-                    PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-                  },
-                }
+              const dropQuery = `DROP TABLE IF EXISTS ${table}`;
+              const fullCommand = this.buildMigrationMysqlCommand(
+                migrationConfig,
+                ['-e', `'${dropQuery}'`]
               );
+
+              // Debug: Log the exact command being executed (only for first table to avoid spam)
+              if (batch.indexOf(table) === 0) {
+                console.log(
+                  chalk.gray(`Debug: Executing command: ${fullCommand}`)
+                );
+              }
+
+              execSync(fullCommand, {
+                encoding: 'utf8',
+                stdio: 'ignore',
+                env: {
+                  ...process.env,
+                  PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+                },
+              });
             } catch (tableError) {
               // If DROP fails, try TRUNCATE as fallback to at least clear the data
               try {
-                const truncateQuery = `TRUNCATE TABLE \`${table}\``;
+                const truncateQuery = `TRUNCATE TABLE ${table}`;
                 execSync(
                   this.buildMigrationMysqlCommand(migrationConfig, [
                     '-e',
-                    `"${truncateQuery}"`,
+                    `'${truncateQuery}'`,
                   ]),
                   {
                     encoding: 'utf8',
