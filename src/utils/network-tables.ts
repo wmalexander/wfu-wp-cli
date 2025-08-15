@@ -33,17 +33,22 @@ export class NetworkTableOperations {
   private static columnCache: Map<string, string[]> = new Map();
 
   // Helper method to build MySQL command with proper port handling
-  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+  private static buildMysqlCommand(
+    envConfig: any,
+    additionalArgs: string[] = []
+  ): string {
     const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
     const baseArgs = [
       'mysql',
-      '-h', `"${envConfig.host}"`,
+      '-h',
+      `"${envConfig.host}"`,
       portArg,
-      '-u', `"${envConfig.user}"`,
+      '-u',
+      `"${envConfig.user}"`,
       `-p"${envConfig.password}"`,
-      `"${envConfig.database}"`
-    ].filter(arg => arg.length > 0);
-    
+      `"${envConfig.database}"`,
+    ].filter((arg) => arg.length > 0);
+
     return [...baseArgs, ...additionalArgs].join(' ');
   }
 
@@ -156,7 +161,7 @@ export class NetworkTableOperations {
       const networkTableNames = this.getNetworkTables().map(
         (table) => table.name
       );
-      
+
       // Single query to get all tables, then filter for network tables
       const query = 'SHOW TABLES';
       const output = execSync(
@@ -278,7 +283,9 @@ export class NetworkTableOperations {
         ...tablesToExport.map((table) => `"${table}"`),
         '>',
         `"${outputPath}"`,
-      ].filter(arg => arg.length > 0).join(' ');
+      ]
+        .filter((arg) => arg.length > 0)
+        .join(' ');
 
       execSync(mysqldumpCommand, {
         encoding: 'utf8',
@@ -344,7 +351,9 @@ export class NetworkTableOperations {
         '--max_allowed_packet=1G',
         '<',
         `"${sqlFile}"`,
-      ].filter(arg => arg.length > 0).join(' ');
+      ]
+        .filter((arg) => arg.length > 0)
+        .join(' ');
 
       execSync(mysqlCommand, {
         encoding: 'utf8',
@@ -444,7 +453,9 @@ export class NetworkTableOperations {
         ...tablesToBackup.map((table) => `"${table}"`),
         '>',
         `"${backupPath}"`,
-      ].filter(arg => arg.length > 0).join(' ');
+      ]
+        .filter((arg) => arg.length > 0)
+        .join(' ');
 
       execSync(mysqldumpCommand, {
         encoding: 'utf8',
@@ -529,10 +540,14 @@ export class NetworkTableOperations {
         try {
           // Get table columns using cached approach (avoids repeated DESCRIBE queries)
           const columns = this.getTableColumns(table, envConfig);
-          
+
           if (columns.length === 0) {
             if (verbose) {
-              console.log(chalk.yellow(`  Skipped ${table}: Could not get table structure`));
+              console.log(
+                chalk.yellow(
+                  `  Skipped ${table}: Could not get table structure`
+                )
+              );
             }
             continue;
           }

@@ -18,17 +18,22 @@ export interface SqlFileOptions {
 
 export class FileNaming {
   // Helper method to build MySQL command with proper port handling
-  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+  private static buildMysqlCommand(
+    envConfig: any,
+    additionalArgs: string[] = []
+  ): string {
     const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
     const baseArgs = [
       'mysql',
-      '-h', `"${envConfig.host}"`,
+      '-h',
+      `"${envConfig.host}"`,
       portArg,
-      '-u', `"${envConfig.user}"`,
+      '-u',
+      `"${envConfig.user}"`,
       `-p"${envConfig.password}"`,
-      `"${envConfig.database}"`
-    ].filter(arg => arg.length > 0);
-    
+      `"${envConfig.database}"`,
+    ].filter((arg) => arg.length > 0);
+
     return [...baseArgs, ...additionalArgs].join(' ');
   }
   /**
@@ -133,7 +138,12 @@ export class FileNaming {
       const { execSync } = await import('child_process');
 
       const query = `SELECT domain, path FROM wp_blogs WHERE blog_id = ${siteId} LIMIT 1;`;
-      const mysqlCmd = this.buildMysqlCommand(envConfig, ['-e', `"${query}"`, '--silent', '--raw']);
+      const mysqlCmd = this.buildMysqlCommand(envConfig, [
+        '-e',
+        `"${query}"`,
+        '--silent',
+        '--raw',
+      ]);
 
       try {
         const result = execSync(mysqlCmd, { encoding: 'utf8', stdio: 'pipe' });

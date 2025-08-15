@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { existsSync } from 'fs';
 import { Config } from '../utils/config';
+import { CacheFlush } from '../utils/cache-flush';
 
 interface RestoreOptions {
   to: string;
@@ -150,6 +151,8 @@ async function confirmRestore(
   );
 
   return new Promise((resolve) => {
+    // Ring bell to draw attention to the destructive operation confirmation
+    CacheFlush.ringTerminalBell();
     readline.question(message, (answer: string) => {
       readline.close();
       resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');

@@ -34,10 +34,12 @@ export class S3Sync {
     if (toEnv === 'local' && fromEnv === 'prod') {
       actualToEnv = 'dev';
       if (options.verbose) {
-        console.log(chalk.cyan('  Local migration detected: syncing S3 from prod to dev'));
+        console.log(
+          chalk.cyan('  Local migration detected: syncing S3 from prod to dev')
+        );
       }
     }
-    
+
     const sourceBucket = `s3://wfu-cer-wordpress-${fromEnv}-us-east-1/sites/${siteId}/`;
     const destBucket = `s3://wfu-cer-wordpress-${actualToEnv}-us-east-1/sites/${siteId}/`;
 

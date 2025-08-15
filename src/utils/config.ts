@@ -152,7 +152,8 @@ export class Config {
 
     if (!this.getValidEnvironments().includes(environment)) {
       throw new Error(
-        'Invalid environment. Valid environments: ' + this.getValidEnvironments().join(', ')
+        'Invalid environment. Valid environments: ' +
+          this.getValidEnvironments().join(', ')
       );
     }
 

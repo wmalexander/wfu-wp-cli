@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { Config } from '../utils/config';
+import { CacheFlush } from '../utils/cache-flush';
 
 export const configCommand = new Command('config')
   .description('Manage configuration settings')
@@ -146,10 +147,12 @@ async function runConfigWizard(): Promise<void> {
   try {
     // Configure environments (standard ones first)
     const standardEnvironments = ['dev', 'uat', 'pprd', 'prod'];
-    
+
     for (const env of standardEnvironments) {
       console.log(chalk.yellow(`\n--- ${env.toUpperCase()} Environment ---`));
 
+      // Ring bell for environment configuration decision
+      CacheFlush.ringTerminalBell();
       const configure = await question(`Configure ${env} environment? (y/N): `);
       if (
         configure.toLowerCase() !== 'y' &&
@@ -173,20 +176,49 @@ async function runConfigWizard(): Promise<void> {
 
     // Configure local environment (special section)
     console.log(chalk.yellow('\n--- LOCAL Environment (Optional) ---'));
-    console.log(chalk.gray('Local environment is used for prod → local development migrations'));
-    console.log(chalk.gray('This configures your local DDEV WordPress development environment'));
-    
-    const configureLocal = await question('Configure local DDEV environment for development? (y/N): ');
-    if (configureLocal.toLowerCase() === 'y' || configureLocal.toLowerCase() === 'yes') {
-      console.log(chalk.cyan('\n💡 DDEV Configuration:'));
-      console.log(chalk.gray('  Run "ddev describe" in your project to get the exact connection details'));
-      console.log(chalk.gray('  Typical DDEV setup: Host=ddev-<project>-db, Port=3306, User=db, Password=db, Database=db\n'));
+    console.log(
+      chalk.gray(
+        'Local environment is used for prod → local development migrations'
+      )
+    );
+    console.log(
+      chalk.gray(
+        'This configures your local DDEV WordPress development environment'
+      )
+    );
 
-      const localHost = await question('Local database host (e.g., ddev-myproject-db): ');
-      const localPort = await question('Local database port (default: 3306): ') || '3306';
-      const localUser = await question('Local database user (default: db): ') || 'db';
-      const localPassword = await question('Local database password (default: db): ') || 'db';
-      const localDatabase = await question('Local database name (default: db): ') || 'db';
+    // Ring bell for local environment configuration decision
+    CacheFlush.ringTerminalBell();
+    const configureLocal = await question(
+      'Configure local DDEV environment for development? (y/N): '
+    );
+    if (
+      configureLocal.toLowerCase() === 'y' ||
+      configureLocal.toLowerCase() === 'yes'
+    ) {
+      console.log(chalk.cyan('\n💡 DDEV Configuration:'));
+      console.log(
+        chalk.gray(
+          '  Run "ddev describe" in your project to get the exact connection details'
+        )
+      );
+      console.log(
+        chalk.gray(
+          '  Typical DDEV setup: Host=ddev-<project>-db, Port=3306, User=db, Password=db, Database=db\n'
+        )
+      );
+
+      const localHost = await question(
+        'Local database host (e.g., ddev-myproject-db): '
+      );
+      const localPort =
+        (await question('Local database port (default: 3306): ')) || '3306';
+      const localUser =
+        (await question('Local database user (default: db): ')) || 'db';
+      const localPassword =
+        (await question('Local database password (default: db): ')) || 'db';
+      const localDatabase =
+        (await question('Local database name (default: db): ')) || 'db';
 
       Config.set('env.local.host', localHost);
       if (localPort) Config.set('env.local.port', localPort);
@@ -194,8 +226,12 @@ async function runConfigWizard(): Promise<void> {
       Config.set('env.local.password', localPassword);
       Config.set('env.local.database', localDatabase);
 
-      console.log(chalk.green('✓ Local environment configured for development migrations'));
-      console.log(chalk.cyan('  You can now run: wfuwp env-migrate prod local --dry-run'));
+      console.log(
+        chalk.green('✓ Local environment configured for development migrations')
+      );
+      console.log(
+        chalk.cyan('  You can now run: wfuwp env-migrate prod local --dry-run')
+      );
     }
 
     // Configure migration database
@@ -306,7 +342,9 @@ function verifyConfiguration(environment?: string): void {
     // Check local environment (optional)
     console.log(chalk.cyan('\nChecking local environment (optional)...'));
     if (Config.hasRequiredEnvironmentConfig('local')) {
-      console.log(chalk.green('✓ local (configured for development migrations)'));
+      console.log(
+        chalk.green('✓ local (configured for development migrations)')
+      );
     } else {
       console.log(chalk.gray('- local (not configured - optional)'));
     }

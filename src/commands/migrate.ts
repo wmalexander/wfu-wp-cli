@@ -5,6 +5,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { join, dirname, basename, resolve } from 'path';
 import { Config } from '../utils/config';
 import { FileNaming } from '../utils/file-naming';
+import { CacheFlush } from '../utils/cache-flush';
 
 interface MigrateOptions {
   from: string;
@@ -70,6 +71,7 @@ export const migrateCommand = new Command('migrate')
           `Migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
         )
       );
+      CacheFlush.ringTerminalBell();
       process.exit(1);
     }
   });
@@ -188,6 +190,31 @@ async function runSimpleMigration(
     });
   }
 
+  // Flush cache after successful simple migration (if not dry run)
+  if (!options.dryRun) {
+    console.log(chalk.blue('Flushing object cache...'));
+    try {
+      const cacheResult = await CacheFlush.flushSiteCache(siteId, options.to, {
+        verbose: options.verbose,
+        timeout: 30,
+      });
+
+      if (cacheResult.success) {
+        console.log(chalk.green('✓ Object cache flushed successfully'));
+      } else {
+        console.log(
+          chalk.yellow(`⚠ Cache flush warning: ${cacheResult.message}`)
+        );
+      }
+    } catch (error) {
+      console.log(
+        chalk.yellow(
+          `⚠ Cache flush failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        )
+      );
+    }
+  }
+
   if (options.dryRun) {
     console.log(chalk.green('✓ Simple migration dry run completed'));
   } else {
@@ -195,6 +222,9 @@ async function runSimpleMigration(
   }
 
   console.log(chalk.blue(`Log file: ${logFile}`));
+
+  // Ring terminal bell on completion
+  CacheFlush.ringTerminalBell();
 }
 
 async function runCompleteMigration(
@@ -587,16 +617,44 @@ async function runCompleteMigration(
       );
     }
 
+    // Step 10: Flush cache after successful migration
+    if (!options.dryRun) {
+      console.log(chalk.blue('Step 10: Flushing object cache...'));
+      try {
+        const cacheResult = await CacheFlush.flushSiteCache(
+          siteId,
+          options.to,
+          { verbose: options.verbose, timeout: 30 }
+        );
+
+        if (cacheResult.success) {
+          console.log(chalk.green('✓ Object cache flushed successfully'));
+        } else {
+          console.log(
+            chalk.yellow(`⚠ Cache flush warning: ${cacheResult.message}`)
+          );
+        }
+      } catch (error) {
+        console.log(
+          chalk.yellow(
+            `⚠ Cache flush failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          )
+        );
+      }
+    }
+
     if (options.dryRun) {
       console.log(
         chalk.green(
           '\n🎭 Complete migration dry run finished - no changes made'
         )
       );
+      CacheFlush.ringTerminalBell();
     } else {
       console.log(
         chalk.green('\n🎉 Complete migration finished successfully!')
       );
+      CacheFlush.ringTerminalBell();
     }
   } catch (error) {
     console.error(
@@ -617,6 +675,8 @@ async function runCompleteMigration(
       }
     }
 
+    // Ring bell on failure
+    CacheFlush.ringTerminalBell();
     throw error;
   }
 }
@@ -938,6 +998,8 @@ async function confirmMigration(
   message += '? (y/N): ';
 
   return new Promise((resolve) => {
+    // Ring bell to draw attention to the confirmation prompt
+    CacheFlush.ringTerminalBell();
     readline.question(chalk.yellow(message), (answer: string) => {
       readline.close();
       resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');

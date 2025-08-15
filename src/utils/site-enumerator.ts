@@ -32,17 +32,22 @@ export interface SiteEnumerationResult {
 
 export class SiteEnumerator {
   // Helper method to build MySQL command with proper port handling
-  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+  private static buildMysqlCommand(
+    envConfig: any,
+    additionalArgs: string[] = []
+  ): string {
     const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
     const baseArgs = [
       'mysql',
-      '-h', `"${envConfig.host}"`,
+      '-h',
+      `"${envConfig.host}"`,
       portArg,
-      '-u', `"${envConfig.user}"`,
+      '-u',
+      `"${envConfig.user}"`,
       `-p"${envConfig.password}"`,
-      `"${envConfig.database}"`
-    ].filter(arg => arg.length > 0);
-    
+      `"${envConfig.database}"`,
+    ].filter((arg) => arg.length > 0);
+
     return [...baseArgs, ...additionalArgs].join(' ');
   }
   static async enumerateSites(
@@ -88,7 +93,12 @@ export class SiteEnumerator {
       `;
 
       const output = execSync(
-        this.buildMysqlCommand(envConfig, ['-e', `"${query}"`, '--batch', '--skip-column-names']),
+        this.buildMysqlCommand(envConfig, [
+          '-e',
+          `"${query}"`,
+          '--batch',
+          '--skip-column-names',
+        ]),
         {
           encoding: 'utf8',
           env: {

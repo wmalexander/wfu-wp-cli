@@ -53,17 +53,22 @@ interface RestoreResult {
 
 export class BackupRecovery {
   // Helper method to build MySQL command with proper port handling
-  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+  private static buildMysqlCommand(
+    envConfig: any,
+    additionalArgs: string[] = []
+  ): string {
     const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
     const baseArgs = [
       'mysql',
-      '-h', `"${envConfig.host}"`,
+      '-h',
+      `"${envConfig.host}"`,
       portArg,
-      '-u', `"${envConfig.user}"`,
+      '-u',
+      `"${envConfig.user}"`,
       `-p"${envConfig.password}"`,
-      `"${envConfig.database}"`
-    ].filter(arg => arg.length > 0);
-    
+      `"${envConfig.database}"`,
+    ].filter((arg) => arg.length > 0);
+
     return [...baseArgs, ...additionalArgs].join(' ');
   }
   static generateBackupId(): string {
@@ -384,7 +389,11 @@ export class BackupRecovery {
 
     try {
       const output = execSync(
-        this.buildMysqlCommand(envConfig, ['-e', `"SHOW TABLES LIKE '${tablePrefix}%'"`, '-s']),
+        this.buildMysqlCommand(envConfig, [
+          '-e',
+          `"SHOW TABLES LIKE '${tablePrefix}%'"`,
+          '-s',
+        ]),
         {
           encoding: 'utf8',
           env: {
@@ -558,16 +567,13 @@ export class BackupRecovery {
     }
 
     try {
-      execSync(
-        `${this.buildMysqlCommand(envConfig)} < "${backupFilePath}"`,
-        {
-          timeout: timeoutMinutes * 60 * 1000,
-          env: {
-            ...process.env,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        }
-      );
+      execSync(`${this.buildMysqlCommand(envConfig)} < "${backupFilePath}"`, {
+        timeout: timeoutMinutes * 60 * 1000,
+        env: {
+          ...process.env,
+          PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+        },
+      });
     } catch (error) {
       throw new Error(
         `Site ${siteId} restore failed: ${error instanceof Error ? error.message : 'Unknown error'}`

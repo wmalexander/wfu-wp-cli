@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import { BackupRecovery, BackupMetadata } from './backup-recovery';
+import { CacheFlush } from './cache-flush';
 
 interface MigrationContext {
   sourceEnv: string;
@@ -38,17 +39,22 @@ interface HealthCheckResult {
 
 export class ErrorRecovery {
   // Helper method to build MySQL command with proper port handling
-  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+  private static buildMysqlCommand(
+    envConfig: any,
+    additionalArgs: string[] = []
+  ): string {
     const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
     const baseArgs = [
       'mysql',
-      '-h', `"${envConfig.host}"`,
+      '-h',
+      `"${envConfig.host}"`,
       portArg,
-      '-u', `"${envConfig.user}"`,
+      '-u',
+      `"${envConfig.user}"`,
       `-p"${envConfig.password}"`,
-      `"${envConfig.database}"`
-    ].filter(arg => arg.length > 0);
-    
+      `"${envConfig.database}"`,
+    ].filter((arg) => arg.length > 0);
+
     return [...baseArgs, ...additionalArgs].join(' ');
   }
   private static readonly DEFAULT_RETRY_CONFIG: RetryConfig = {
@@ -281,6 +287,8 @@ export class ErrorRecovery {
     console.log(chalk.white('  4. Abort migration'));
 
     return new Promise((resolve) => {
+      // Ring bell to draw attention to the recovery prompt
+      CacheFlush.ringTerminalBell();
       readline.question(
         chalk.yellow('Select recovery action (1-4): '),
         async (answer: string) => {

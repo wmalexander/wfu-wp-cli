@@ -37,16 +37,21 @@ interface MigrationCompatibilityCheck {
 
 export class MigrationValidator {
   // Helper method to build MySQL command with proper port handling
-  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+  private static buildMysqlCommand(
+    envConfig: any,
+    additionalArgs: string[] = []
+  ): string {
     const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
     const baseArgs = [
       'mysql',
-      '-h', `"${envConfig.host}"`,
+      '-h',
+      `"${envConfig.host}"`,
       portArg,
-      '-u', `"${envConfig.user}"`,
-      `-p"${envConfig.password}"`
-    ].filter(arg => arg.length > 0);
-    
+      '-u',
+      `"${envConfig.user}"`,
+      `-p"${envConfig.password}"`,
+    ].filter((arg) => arg.length > 0);
+
     return [...baseArgs, ...additionalArgs].join(' ');
   }
 
@@ -190,8 +195,9 @@ export class MigrationValidator {
     try {
       // Simple connection and basic access test - much more efficient than full CRUD
       // This single query tests connection, database access, and basic SELECT capability
-      const testQuery = 'SELECT 1 as test_connection, COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = DATABASE() LIMIT 1';
-      
+      const testQuery =
+        'SELECT 1 as test_connection, COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = DATABASE() LIMIT 1';
+
       const output = execSync(
         this.buildMysqlCommand(envConfig, ['-e', `"${testQuery}"`, '-s']),
         {
@@ -218,16 +224,21 @@ export class MigrationValidator {
 
     try {
       // Get network table sizes in a single query (optimized)
-      const networkTables = NetworkTableOperations.getMigrateableNetworkTables();
+      const networkTables =
+        NetworkTableOperations.getMigrateableNetworkTables();
       let networkTableSize = 0;
 
       if (networkTables.length > 0) {
         try {
-          const tableList = networkTables.map(t => `'${t}'`).join(',');
+          const tableList = networkTables.map((t) => `'${t}'`).join(',');
           const batchSizeQuery = `SELECT SUM(ROUND(((data_length + index_length) / 1024 / 1024), 2)) AS 'total_size_mb' FROM information_schema.tables WHERE table_schema = '${envConfig.database}' AND table_name IN (${tableList})`;
-          
+
           const output = execSync(
-            this.buildMysqlCommand(envConfig, ['-e', `"${batchSizeQuery}"`, '-s']),
+            this.buildMysqlCommand(envConfig, [
+              '-e',
+              `"${batchSizeQuery}"`,
+              '-s',
+            ]),
             {
               encoding: 'utf8',
               env: {
@@ -249,9 +260,13 @@ export class MigrationValidator {
         // Single query to get total size of all site-specific tables
         // This avoids N queries (one per site) and does it all at once
         const siteTablesQuery = `SELECT ROUND(SUM((data_length + index_length) / 1024 / 1024), 2) AS 'total_size_mb' FROM information_schema.tables WHERE table_schema = '${envConfig.database}' AND (table_name LIKE 'wp_%' AND table_name NOT REGEXP '^wp_(blogs|site|sitemeta|blogmeta|users|usermeta|registration_log|signups)$')`;
-        
+
         const output = execSync(
-          this.buildMysqlCommand(envConfig, ['-e', `"${siteTablesQuery}"`, '-s']),
+          this.buildMysqlCommand(envConfig, [
+            '-e',
+            `"${siteTablesQuery}"`,
+            '-s',
+          ]),
           {
             encoding: 'utf8',
             env: {
