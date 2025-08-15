@@ -34,7 +34,8 @@ export class S3Operations {
   static async archiveToS3(
     localFiles: string[],
     metadata: MigrationMetadata,
-    verbose = false
+    verbose = false,
+    storageClass = 'STANDARD_IA'
   ): Promise<S3Result> {
     const s3Config = Config.getS3Config();
 
@@ -71,7 +72,7 @@ export class S3Operations {
         'aws s3 cp',
         `"${localFile}"`,
         `"s3://${s3Config.bucket}/${s3FilePath}"`,
-        '--storage-class STANDARD_IA',
+        `--storage-class ${storageClass}`,
       ];
 
       if (verbose) {

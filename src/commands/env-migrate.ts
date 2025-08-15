@@ -6,6 +6,8 @@ import { NetworkTableOperations } from '../utils/network-tables';
 import { BackupRecovery } from '../utils/backup-recovery';
 import { ErrorRecovery } from '../utils/error-recovery';
 import { MigrationValidator } from '../utils/migration-validator';
+import { S3Operations } from '../utils/s3';
+import { S3Sync } from '../utils/s3sync';
 
 interface EnvMigrateOptions {
   dryRun?: boolean;
@@ -28,6 +30,8 @@ interface EnvMigrateOptions {
   autoRollback?: boolean;
   maxRetries?: string;
   healthCheck?: boolean;
+  s3StorageClass?: string;
+  archiveBackups?: boolean;
 }
 
 interface MigrationProgress {
@@ -83,6 +87,12 @@ export const envMigrateCommand = new Command('env-migrate')
   .option('--skip-backup', 'Skip environment backup (dangerous)', false)
   .option('--skip-s3', 'Skip S3 archival', false)
   .option('--sync-s3', 'Sync WordPress files between S3 environments', false)
+  .option(
+    '--s3-storage-class <class>',
+    'S3 storage class for archived files (STANDARD|STANDARD_IA|GLACIER)',
+    'STANDARD_IA'
+  )
+  .option('--archive-backups', 'Also archive backup files to S3', false)
   .option('--work-dir <path>', 'Custom working directory', undefined)
   .option('--keep-files', 'Do not delete local SQL files', false)
   .option(
@@ -90,9 +100,21 @@ export const envMigrateCommand = new Command('env-migrate')
     'Custom timeout in minutes for large databases (default: 20)',
     '20'
   )
-  .option('--auto-rollback', 'Automatically rollback on failure (default: interactive)', false)
-  .option('--max-retries <count>', 'Maximum number of retries for failed operations (default: 3)', '3')
-  .option('--health-check', 'Perform health checks before and after migration', false)
+  .option(
+    '--auto-rollback',
+    'Automatically rollback on failure (default: interactive)',
+    false
+  )
+  .option(
+    '--max-retries <count>',
+    'Maximum number of retries for failed operations (default: 3)',
+    '3'
+  )
+  .option(
+    '--health-check',
+    'Perform health checks before and after migration',
+    false
+  )
   .action(
     async (
       sourceEnv: string,
@@ -104,7 +126,8 @@ export const envMigrateCommand = new Command('env-migrate')
       } catch (error) {
         console.error(
           chalk.red(
-            `Environment migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+            'Environment migration failed: ' +
+              (error instanceof Error ? error.message : 'Unknown error')
           )
         );
         process.exit(1);
@@ -118,7 +141,11 @@ async function runEnvironmentMigration(
   options: EnvMigrateOptions
 ): Promise<void> {
   // Create migration context for error recovery
-  let migrationContext = ErrorRecovery.createMigrationContext(sourceEnv, targetEnv, options);
+  let migrationContext = ErrorRecovery.createMigrationContext(
+    sourceEnv,
+    targetEnv,
+    options
+  );
   let backupId: string | undefined;
 
   try {
@@ -126,103 +153,116 @@ async function runEnvironmentMigration(
 
     console.log(
       chalk.blue.bold(
-        `Starting environment migration: ${sourceEnv} → ${targetEnv}`
+        'Starting environment migration: ' + sourceEnv + ' → ' + targetEnv
       )
     );
 
     // Run pre-flight checks
     migrationContext = ErrorRecovery.updateMigrationContext(migrationContext, {
-      currentStep: 'pre-flight checks'
+      currentStep: 'pre-flight checks',
     });
     await runPreflightChecks(sourceEnv, targetEnv, options);
 
     // Perform initial health check if requested
     if (options.healthCheck) {
-      migrationContext = ErrorRecovery.updateMigrationContext(migrationContext, {
-        currentStep: 'initial health check'
-      });
+      migrationContext = ErrorRecovery.updateMigrationContext(
+        migrationContext,
+        {
+          currentStep: 'initial health check',
+        }
+      );
       const healthCheck = await ErrorRecovery.performHealthCheck(targetEnv);
       if (!healthCheck.healthy) {
-        console.log(chalk.yellow('⚠ Pre-migration health check found issues:'));
-        healthCheck.issues.forEach(issue => {
+        console.log(
+          chalk.yellow('⚠ Pre-migration health check found issues:')
+        );
+        healthCheck.issues.forEach((issue) => {
           console.log(chalk.red(`  • ${issue}`));
         });
-        
+
         if (!options.force) {
-          throw new Error('Health check failed. Use --force to proceed anyway.');
+          throw new Error(
+            'Health check failed. Use --force to proceed anyway.'
+          );
         }
       } else {
         console.log(chalk.green('✓ Pre-migration health check passed'));
       }
     }
 
-  if (options.dryRun) {
-    console.log(chalk.yellow('DRY RUN MODE - No actual changes will be made'));
-  }
-
-  // Get confirmation unless forced
-  if (!options.force && !options.dryRun) {
-    const confirmation = await confirmEnvironmentMigration(
-      sourceEnv,
-      targetEnv,
-      options
-    );
-    if (!confirmation) {
-      console.log(chalk.yellow('Environment migration cancelled'));
-      return;
-    }
-  }
-
-  // Step 1: Discover sites (unless network-only)
-  let sitesToMigrate: number[] = [];
-  if (!options.networkOnly) {
-    console.log(chalk.blue('Step 1: Discovering sites...'));
-    sitesToMigrate = await discoverSites(sourceEnv, options);
-
-    if (sitesToMigrate.length === 0) {
-      console.log(chalk.yellow('No sites found to migrate'));
-      return;
+    if (options.dryRun) {
+      console.log(
+        chalk.yellow('DRY RUN MODE - No actual changes will be made')
+      );
     }
 
-    console.log(
-      chalk.green(`✓ Found ${sitesToMigrate.length} sites to migrate`)
-    );
-
-    if (options.verbose) {
-      console.log(chalk.cyan(`  Sites: ${sitesToMigrate.join(', ')}`));
+    // Get confirmation unless forced
+    if (!options.force && !options.dryRun) {
+      const confirmation = await confirmEnvironmentMigration(
+        sourceEnv,
+        targetEnv,
+        options
+      );
+      if (!confirmation) {
+        console.log(chalk.yellow('Environment migration cancelled'));
+        return;
+      }
     }
-  }
 
-  // Step 2: Migrate network tables (unless sites-only)
-  if (!options.sitesOnly) {
-    console.log(chalk.blue('Step 2: Migrating network tables...'));
-    await migrateNetworkTables(sourceEnv, targetEnv, options);
-    console.log(chalk.green('✓ Network tables migration completed'));
-  }
+    // Step 1: Discover sites (unless network-only)
+    let sitesToMigrate: number[] = [];
+    if (!options.networkOnly) {
+      console.log(chalk.blue('Step 1: Discovering sites...'));
+      sitesToMigrate = await discoverSites(sourceEnv, options);
 
-  // Step 3: Migrate individual sites (unless network-only)
-  if (!options.networkOnly && sitesToMigrate.length > 0) {
-    console.log(chalk.blue('Step 3: Migrating individual sites...'));
-    await migrateSites(sitesToMigrate, sourceEnv, targetEnv, options);
-    console.log(chalk.green('✓ Site migrations completed'));
-  }
+      if (sitesToMigrate.length === 0) {
+        console.log(chalk.yellow('No sites found to migrate'));
+        return;
+      }
+
+      console.log(
+        chalk.green('✓ Found ' + sitesToMigrate.length + ' sites to migrate')
+      );
+
+      if (options.verbose) {
+        console.log(chalk.cyan('  Sites: ' + sitesToMigrate.join(', ')));
+      }
+    }
+
+    // Step 2: Migrate network tables (unless sites-only)
+    if (!options.sitesOnly) {
+      console.log(chalk.blue('Step 2: Migrating network tables...'));
+      await migrateNetworkTables(sourceEnv, targetEnv, options);
+      console.log(chalk.green('✓ Network tables migration completed'));
+    }
+
+    // Step 3: Migrate individual sites (unless network-only)
+    if (!options.networkOnly && sitesToMigrate.length > 0) {
+      console.log(chalk.blue('Step 3: Migrating individual sites...'));
+      await migrateSites(sitesToMigrate, sourceEnv, targetEnv, options);
+      console.log(chalk.green('✓ Site migrations completed'));
+    }
 
     // Perform final health check if requested
     if (options.healthCheck) {
-      migrationContext = ErrorRecovery.updateMigrationContext(migrationContext, {
-        currentStep: 'final health check'
-      });
-      
+      migrationContext = ErrorRecovery.updateMigrationContext(
+        migrationContext,
+        {
+          currentStep: 'final health check',
+        }
+      );
+
       console.log(chalk.blue('Performing final health check...'));
-      const finalHealthCheck = await ErrorRecovery.performHealthCheck(targetEnv);
+      const finalHealthCheck =
+        await ErrorRecovery.performHealthCheck(targetEnv);
       if (finalHealthCheck.healthy) {
         console.log(chalk.green('✓ Final health check passed'));
       } else {
         console.log(chalk.yellow('⚠ Final health check found issues:'));
-        finalHealthCheck.issues.forEach(issue => {
+        finalHealthCheck.issues.forEach((issue) => {
           console.log(chalk.red(`  • ${issue}`));
         });
-        finalHealthCheck.warnings.forEach(warning => {
+        finalHealthCheck.warnings.forEach((warning) => {
           console.log(chalk.yellow(`  • ${warning}`));
         });
       }
@@ -230,16 +270,19 @@ async function runEnvironmentMigration(
 
     console.log(
       chalk.green(
-        `\n🎉 Environment migration completed successfully: ${sourceEnv} → ${targetEnv}`
+        '\n🎉 Environment migration completed successfully: ' +
+          sourceEnv +
+          ' → ' +
+          targetEnv
       )
     );
-    
+
     // Cleanup successful backup if not keeping files
     if (backupId && !options.keepFiles) {
       console.log(chalk.gray('Cleaning up successful migration backup...'));
       await BackupRecovery.deleteBackup(backupId, options.workDir);
     } else if (backupId) {
-      console.log(chalk.cyan(`Migration backup preserved: ${backupId}`));
+      console.log(chalk.cyan('Migration backup preserved: ' + backupId));
     }
   } catch (error) {
     // Handle migration failure with comprehensive error recovery
@@ -252,25 +295,29 @@ async function runEnvironmentMigration(
         skipConfirmation: options.force,
       }
     );
-    
+
     if (recoveryResult.success && recoveryResult.action === 'rollback') {
       console.log(chalk.blue('Migration failed but rollback was successful'));
-      console.log(chalk.cyan('Target environment has been restored to previous state'));
+      console.log(
+        chalk.cyan('Target environment has been restored to previous state')
+      );
     } else if (!recoveryResult.success) {
       console.log(chalk.red('Migration failed and recovery was unsuccessful'));
       console.log(chalk.yellow('Manual intervention may be required'));
-      
+
       if (backupId) {
-        console.log(chalk.cyan(`Backup available for manual recovery: ${backupId}`));
+        console.log(
+          chalk.cyan('Backup available for manual recovery: ' + backupId)
+        );
       }
     }
-    
+
     // Perform cleanup
     await ErrorRecovery.cleanupAfterFailure(migrationContext, {
       cleanupTempFiles: !options.keepFiles,
       workDir: options.workDir,
     });
-    
+
     throw error;
   }
 }
@@ -284,13 +331,13 @@ function validateInputs(
 
   if (!validEnvs.includes(sourceEnv)) {
     throw new Error(
-      `Invalid source environment. Must be one of: ${validEnvs.join(', ')}`
+      'Invalid source environment. Must be one of: ' + validEnvs.join(', ')
     );
   }
 
   if (!validEnvs.includes(targetEnv)) {
     throw new Error(
-      `Invalid target environment. Must be one of: ${validEnvs.join(', ')}`
+      'Invalid target environment. Must be one of: ' + validEnvs.join(', ')
     );
   }
 
@@ -312,6 +359,36 @@ function validateInputs(
   if (isNaN(batchSize) || batchSize <= 0) {
     throw new Error('Batch size must be a positive integer');
   }
+
+  // Validate S3 storage class if provided
+  if (options.s3StorageClass) {
+    const validStorageClasses = [
+      'STANDARD',
+      'STANDARD_IA',
+      'GLACIER',
+      'GLACIER_IR',
+      'DEEP_ARCHIVE',
+    ];
+    if (!validStorageClasses.includes(options.s3StorageClass)) {
+      throw new Error(
+        'Invalid S3 storage class. Must be one of: ' +
+          validStorageClasses.join(', ')
+      );
+    }
+  }
+
+  // Validate S3 options
+  if (options.syncS3 && !S3Sync.checkAwsCli()) {
+    throw new Error('S3 sync requires AWS CLI to be installed and configured');
+  }
+
+  if ((options.syncS3 || !options.skipS3) && !Config.hasRequiredS3Config()) {
+    console.warn(
+      chalk.yellow(
+        'Warning: S3 features require S3 configuration. Run "wfuwp config wizard" to set up.'
+      )
+    );
+  }
 }
 
 async function runPreflightChecks(
@@ -323,29 +400,32 @@ async function runPreflightChecks(
 
   // Validate system requirements
   console.log(chalk.gray('  Checking system requirements...'));
-  const systemValidation = await MigrationValidator.validateSystemRequirements();
+  const systemValidation =
+    await MigrationValidator.validateSystemRequirements();
   if (!systemValidation.valid) {
     console.log(chalk.red('  ✗ System requirements check failed:'));
-    systemValidation.errors.forEach(error => {
-      console.log(chalk.red(`    • ${error}`));
+    systemValidation.errors.forEach((error) => {
+      console.log(chalk.red('    • ' + error));
     });
-    throw new Error('System requirements not met. Please resolve the issues above.');
+    throw new Error(
+      'System requirements not met. Please resolve the issues above.'
+    );
   }
-  
+
   if (systemValidation.warnings.length > 0) {
     console.log(chalk.yellow('  ⚠ System warnings:'));
-    systemValidation.warnings.forEach(warning => {
-      console.log(chalk.yellow(`    • ${warning}`));
+    systemValidation.warnings.forEach((warning) => {
+      console.log(chalk.yellow('    • ' + warning));
     });
   }
-  
+
   if (systemValidation.recommendations.length > 0) {
     console.log(chalk.cyan('  💡 Recommendations:'));
-    systemValidation.recommendations.forEach(rec => {
-      console.log(chalk.cyan(`    • ${rec}`));
+    systemValidation.recommendations.forEach((rec) => {
+      console.log(chalk.cyan('    • ' + rec));
     });
   }
-  
+
   console.log(chalk.green('  ✓ System requirements check passed'));
 
   // Validate migration configuration
@@ -353,71 +433,100 @@ async function runPreflightChecks(
   const configValidation = await MigrationValidator.validateMigrationConfig();
   if (!configValidation.valid) {
     console.log(chalk.red('  ✗ Configuration validation failed:'));
-    configValidation.errors.forEach(error => {
-      console.log(chalk.red(`    • ${error}`));
+    configValidation.errors.forEach((error) => {
+      console.log(chalk.red('    • ' + error));
     });
-    throw new Error('Migration configuration is invalid. Please resolve the issues above.');
+    throw new Error(
+      'Migration configuration is invalid. Please resolve the issues above.'
+    );
   }
-  
+
   if (configValidation.warnings.length > 0) {
     console.log(chalk.yellow('  ⚠ Configuration warnings:'));
-    configValidation.warnings.forEach(warning => {
-      console.log(chalk.yellow(`    • ${warning}`));
+    configValidation.warnings.forEach((warning) => {
+      console.log(chalk.yellow('    • ' + warning));
     });
   }
-  
+
   console.log(chalk.green('  ✓ Migration configuration check passed'));
 
   // Validate migration compatibility
   console.log(chalk.gray('  Checking migration compatibility...'));
-  const compatibilityCheck = await MigrationValidator.validateMigrationCompatibility(
-    sourceEnv,
-    targetEnv
-  );
-  
+  const compatibilityCheck =
+    await MigrationValidator.validateMigrationCompatibility(
+      sourceEnv,
+      targetEnv
+    );
+
   if (!compatibilityCheck.compatible) {
     console.log(chalk.red('  ✗ Compatibility check failed:'));
-    compatibilityCheck.compatibilityIssues.forEach(issue => {
-      console.log(chalk.red(`    • ${issue}`));
+    compatibilityCheck.compatibilityIssues.forEach((issue) => {
+      console.log(chalk.red('    • ' + issue));
     });
-    throw new Error('Environments are not compatible for migration. Please resolve the issues above.');
+    throw new Error(
+      'Environments are not compatible for migration. Please resolve the issues above.'
+    );
   }
-  
+
   // Display environment information
   console.log(chalk.cyan('  📊 Migration size estimation:'));
   if (compatibilityCheck.sourceInfo.sizeInfo) {
     const sizeInfo = compatibilityCheck.sourceInfo.sizeInfo;
-    console.log(chalk.cyan(`    Network tables: ${sizeInfo.networkTableSize} MB`));
-    console.log(chalk.cyan(`    Site tables: ${sizeInfo.totalSiteSize} MB`));
-    console.log(chalk.cyan(`    Estimated total: ${sizeInfo.estimatedMigrationSize} MB`));
+    console.log(
+      chalk.cyan('    Network tables: ' + sizeInfo.networkTableSize + ' MB')
+    );
+    console.log(
+      chalk.cyan('    Site tables: ' + sizeInfo.totalSiteSize + ' MB')
+    );
+    console.log(
+      chalk.cyan(
+        '    Estimated total: ' + sizeInfo.estimatedMigrationSize + ' MB'
+      )
+    );
   }
-  
+
   if (compatibilityCheck.warnings.length > 0) {
     console.log(chalk.yellow('  ⚠ Compatibility warnings:'));
-    compatibilityCheck.warnings.forEach(warning => {
-      console.log(chalk.yellow(`    • ${warning}`));
+    compatibilityCheck.warnings.forEach((warning) => {
+      console.log(chalk.yellow('    • ' + warning));
     });
   }
-  
+
   if (compatibilityCheck.recommendations.length > 0) {
     console.log(chalk.cyan('  💡 Recommendations:'));
-    compatibilityCheck.recommendations.forEach(rec => {
-      console.log(chalk.cyan(`    • ${rec}`));
+    compatibilityCheck.recommendations.forEach((rec) => {
+      console.log(chalk.cyan('    • ' + rec));
     });
   }
-  
+
   console.log(chalk.green('  ✓ Migration compatibility check passed'));
 
   // Test S3 access if needed
-  if (options.syncS3) {
-    const { S3Sync } = await import('../utils/s3sync');
-    console.log(chalk.gray('  Testing AWS CLI for file sync...'));
-    if (!S3Sync.checkAwsCli()) {
-      throw new Error(
-        'AWS CLI is not available but required for --sync-s3. Please install and configure AWS CLI.'
-      );
+  if (options.syncS3 || (!options.skipS3 && Config.hasRequiredS3Config())) {
+    console.log(chalk.gray('  Testing S3 access...'));
+
+    if (options.syncS3) {
+      if (!S3Sync.checkAwsCli()) {
+        throw new Error(
+          'AWS CLI is not available but required for --sync-s3. Please install and configure AWS CLI.'
+        );
+      }
     }
-    console.log(chalk.green('  ✓ AWS CLI check passed'));
+
+    if (!options.skipS3 && Config.hasRequiredS3Config()) {
+      const s3AccessTest = await S3Operations.testS3Access();
+      if (!s3AccessTest) {
+        console.log(
+          chalk.yellow('  ⚠ S3 access test failed - archival will be skipped')
+        );
+      } else {
+        console.log(chalk.green('  ✓ S3 access test passed'));
+      }
+    }
+
+    if (options.syncS3) {
+      console.log(chalk.green('  ✓ AWS CLI check passed'));
+    }
   }
 
   console.log(chalk.green('✓ All pre-flight checks passed'));
@@ -454,7 +563,14 @@ async function discoverSites(
     result.sites.forEach((site: SiteInfo) => {
       console.log(
         chalk.gray(
-          `    ${site.blogId}: ${site.domain}${site.path} (${site.isArchived ? 'archived' : 'active'})`
+          '    ' +
+            site.blogId +
+            ': ' +
+            site.domain +
+            site.path +
+            ' (' +
+            (site.isArchived ? 'archived' : 'active') +
+            ')'
         )
       );
     });
@@ -486,7 +602,7 @@ async function migrateNetworkTables(
       .toISOString()
       .replace(/[:.]/g, '-')
       .slice(0, 19);
-    const workDir = options.workDir || `/tmp/wp-env-migrate-${timestamp}`;
+    const workDir = options.workDir || '/tmp/wp-env-migrate-' + timestamp;
 
     if (!require('fs').existsSync(workDir)) {
       require('fs').mkdirSync(workDir, { recursive: true });
@@ -495,7 +611,7 @@ async function migrateNetworkTables(
     // Export network tables from source
     const exportPath = require('path').join(
       workDir,
-      `network-tables-${sourceEnv}-${timestamp}.sql`
+      'network-tables-' + sourceEnv + '-' + timestamp + '.sql'
     );
     const exportResult = await NetworkTableOperations.exportNetworkTables(
       sourceEnv,
@@ -507,7 +623,11 @@ async function migrateNetworkTables(
     if (options.verbose) {
       console.log(
         chalk.green(
-          `  ✓ Exported ${exportResult.tableCount} network tables (${(exportResult.fileSize / 1024 / 1024).toFixed(2)} MB)`
+          '  ✓ Exported ' +
+            exportResult.tableCount +
+            ' network tables (' +
+            (exportResult.fileSize / 1024 / 1024).toFixed(2) +
+            ' MB)'
         )
       );
     }
@@ -516,7 +636,7 @@ async function migrateNetworkTables(
     if (!options.skipBackup) {
       const backupPath = require('path').join(
         workDir,
-        `network-tables-backup-${targetEnv}-${timestamp}.sql`
+        'network-tables-backup-' + targetEnv + '-' + timestamp + '.sql'
       );
       const backupResult = await NetworkTableOperations.backupNetworkTables(
         targetEnv,
@@ -527,7 +647,9 @@ async function migrateNetworkTables(
 
       if (options.verbose) {
         console.log(
-          chalk.green(`  ✓ Backed up ${backupResult.tableCount} network tables`)
+          chalk.green(
+            '  ✓ Backed up ' + backupResult.tableCount + ' network tables'
+          )
         );
       }
     }
@@ -543,9 +665,69 @@ async function migrateNetworkTables(
     if (options.verbose) {
       console.log(
         chalk.green(
-          `  ✓ Imported ${importResult.tableCount} network tables to ${targetEnv}`
+          '  ✓ Imported ' +
+            importResult.tableCount +
+            ' network tables to ' +
+            targetEnv
         )
       );
+    }
+
+    // Archive to S3 if configured and not skipped
+    if (!options.skipS3 && Config.hasRequiredS3Config()) {
+      try {
+        const filesToArchive = [exportPath];
+        if (!options.skipBackup) {
+          const backupPath = require('path').join(
+            workDir,
+            'network-tables-backup-' + targetEnv + '-' + timestamp + '.sql'
+          );
+          if (require('fs').existsSync(backupPath)) {
+            filesToArchive.push(backupPath);
+          }
+        }
+
+        const metadata = {
+          siteId: 'network',
+          fromEnvironment: sourceEnv,
+          toEnvironment: targetEnv,
+          timestamp,
+          sourceExport: exportPath,
+          targetBackup: !options.skipBackup
+            ? require('path').join(
+                workDir,
+                'network-tables-backup-' + targetEnv + '-' + timestamp + '.sql'
+              )
+            : undefined,
+        };
+
+        const s3Result = await S3Operations.archiveToS3(
+          filesToArchive,
+          metadata,
+          options.verbose,
+          options.s3StorageClass
+        );
+
+        if (options.verbose) {
+          console.log(
+            chalk.green(
+              '  ✓ Archived ' +
+                s3Result.files.length +
+                ' files to S3: ' +
+                s3Result.bucket +
+                '/' +
+                s3Result.path
+            )
+          );
+        }
+      } catch (error) {
+        console.warn(
+          chalk.yellow(
+            'Warning: S3 archival failed: ' +
+              (error instanceof Error ? error.message : 'Unknown error')
+          )
+        );
+      }
     }
 
     // Clean up temporary files unless keeping them
@@ -554,7 +736,7 @@ async function migrateNetworkTables(
       if (!options.skipBackup) {
         const backupPath = require('path').join(
           workDir,
-          `network-tables-backup-${targetEnv}-${timestamp}.sql`
+          'network-tables-backup-' + targetEnv + '-' + timestamp + '.sql'
         );
         if (require('fs').existsSync(backupPath)) {
           require('fs').unlinkSync(backupPath);
@@ -564,7 +746,8 @@ async function migrateNetworkTables(
     }
   } catch (error) {
     throw new Error(
-      `Network table migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      'Network table migration failed: ' +
+        (error instanceof Error ? error.message : 'Unknown error')
     );
   }
 }
@@ -590,7 +773,12 @@ async function migrateSites(
 
   console.log(
     chalk.blue(
-      `Starting batch processing: ${progress.totalSites} sites in ${totalBatches} batches of ${batchSize}`
+      'Starting batch processing: ' +
+        progress.totalSites +
+        ' sites in ' +
+        totalBatches +
+        ' batches of ' +
+        batchSize
     )
   );
 
@@ -605,7 +793,12 @@ async function migrateSites(
 
     console.log(
       chalk.cyan(
-        `\n  Batch ${batchNumber}/${totalBatches}: Processing sites ${batch.join(', ')}`
+        '\n  Batch ' +
+          batchNumber +
+          '/' +
+          totalBatches +
+          ': Processing sites ' +
+          batch.join(', ')
       )
     );
 
@@ -636,7 +829,7 @@ async function migrateSites(
   // Throw error if any sites failed
   if (failedSites.length > 0) {
     throw new Error(
-      `${failedSites.length} sites failed to migrate. Check logs for details.`
+      failedSites.length + ' sites failed to migrate. Check logs for details.'
     );
   }
 }
@@ -658,7 +851,11 @@ async function processBatch(
     const concurrencyLimit = parseInt(options.concurrency || '3', 10);
     console.log(
       chalk.gray(
-        `    Processing ${siteIds.length} sites in parallel (max ${concurrencyLimit} concurrent)...`
+        '    Processing ' +
+          siteIds.length +
+          ' sites in parallel (max ' +
+          concurrencyLimit +
+          ' concurrent)...'
       )
     );
 
@@ -669,12 +866,12 @@ async function processBatch(
         try {
           await ErrorRecovery.retryWithBackoff(
             () => migrateSingleSite(siteId, sourceEnv, targetEnv, options),
-            `Site ${siteId} migration`,
+            'Site ' + siteId + ' migration',
             { maxRetries: parseInt(options.maxRetries || '3', 10) }
           );
           completedSites.push(siteId);
           if (options.verbose) {
-            console.log(chalk.green(`      ✓ Site ${siteId} completed`));
+            console.log(chalk.green('      ✓ Site ' + siteId + ' completed'));
           }
           updateProgressDisplay(
             progress,
@@ -685,7 +882,7 @@ async function processBatch(
             error instanceof Error ? error.message : 'Unknown error';
           failedSites.push({ siteId, error: errorMessage });
           console.log(
-            chalk.red(`      ✗ Site ${siteId} failed: ${errorMessage}`)
+            chalk.red('      ✗ Site ' + siteId + ' failed: ' + errorMessage)
           );
           updateProgressDisplay(
             progress,
@@ -697,7 +894,7 @@ async function processBatch(
   } else {
     // Process sites sequentially within the batch
     console.log(
-      chalk.gray(`    Processing ${siteIds.length} sites sequentially...`)
+      chalk.gray('    Processing ' + siteIds.length + ' sites sequentially...')
     );
 
     for (const siteId of siteIds) {
@@ -782,6 +979,42 @@ async function migrateSingleSite(
     migrateArgs.push('--sync-s3');
   }
 
+  // Handle S3 integration for WordPress files sync
+  if (options.syncS3) {
+    try {
+      if (options.verbose) {
+        console.log(
+          chalk.blue('    Syncing WordPress files for site ' + siteId + '...')
+        );
+      }
+
+      const syncResult = await S3Sync.syncWordPressFiles(
+        siteId.toString(),
+        sourceEnv,
+        targetEnv,
+        {
+          dryRun: options.dryRun,
+          verbose: options.verbose,
+        }
+      );
+
+      if (options.verbose) {
+        console.log(chalk.green('    ✓ ' + syncResult.message));
+      }
+    } catch (error) {
+      if (options.verbose) {
+        console.log(
+          chalk.yellow(
+            '    Warning: S3 sync failed for site ' +
+              siteId +
+              ': ' +
+              (error instanceof Error ? error.message : 'Unknown error')
+          )
+        );
+      }
+    }
+  }
+
   if (options.workDir) {
     migrateArgs.push('--work-dir', options.workDir);
   }
@@ -796,14 +1029,17 @@ async function migrateSingleSite(
 
   try {
     // Execute the migrate command as a subprocess
-    execSync(`npx ts-node src/index.ts ${migrateArgs.join(' ')}`, {
+    execSync('npx ts-node src/index.ts ' + migrateArgs.join(' '), {
       stdio: 'pipe', // Always pipe to prevent output conflicts
       cwd: process.cwd(),
       encoding: 'utf8',
     });
   } catch (error) {
     throw new Error(
-      `Site ${siteId} migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      'Site ' +
+        siteId +
+        ' migration failed: ' +
+        (error instanceof Error ? error.message : 'Unknown error')
     );
   }
 }
@@ -820,98 +1056,167 @@ async function confirmEnvironmentMigration(
 
   // Display comprehensive migration summary
   console.log(chalk.yellow.bold('\nMIGRATION CONFIRMATION REQUIRED'));
-  console.log(chalk.white('\nYou are about to perform an environment migration with the following details:'));
-  
+  console.log(
+    chalk.white(
+      '\nYou are about to perform an environment migration with the following details:'
+    )
+  );
+
   console.log(chalk.cyan('\nMigration Details:'));
-  console.log(chalk.white(`  Source Environment: ${chalk.bold(sourceEnv)}`));
+  console.log(chalk.white('  Source Environment: ' + chalk.bold(sourceEnv)));
   console.log(chalk.white(`  Target Environment: ${chalk.bold(targetEnv)}`));
-  
+
   if (options.networkOnly) {
     console.log(chalk.white('  Scope: Network tables only'));
   } else if (options.sitesOnly) {
     console.log(chalk.white('  Scope: Sites only (no network tables)'));
   } else {
-    console.log(chalk.white('  Scope: Complete environment (network tables + all sites)'));
+    console.log(
+      chalk.white('  Scope: Complete environment (network tables + all sites)')
+    );
   }
-  
+
   if (options.syncS3) {
     console.log(chalk.white('  WordPress Files: Will be synced via S3'));
   }
-  
+
   console.log(chalk.cyan('\nMigration Settings:'));
-  console.log(chalk.white(`  Batch Size: ${options.batchSize || '5'} sites`));
+  console.log(
+    chalk.white('  Batch Size: ' + (options.batchSize || '5') + ' sites')
+  );
   if (options.parallel) {
-    console.log(chalk.white(`  Parallel Processing: Enabled (max ${options.concurrency || '3'} concurrent)'));
+    console.log(
+      chalk.white(
+        '  Parallel Processing: Enabled (max ' +
+          (options.concurrency || '3') +
+          ' concurrent)'
+      )
+    );
   } else {
     console.log(chalk.white('  Parallel Processing: Disabled (sequential)'));
   }
   if (options.skipBackup) {
-    console.log(chalk.white('  Backup Creation: SKIPPED') + chalk.red(' (DANGEROUS)'));
+    console.log(
+      chalk.white('  Backup Creation: SKIPPED') + chalk.red(' (DANGEROUS)')
+    );
   } else {
     console.log(chalk.white('  Backup Creation: Enabled'));
   }
-  console.log(chalk.white(`  Error Recovery: ${options.autoRollback ? 'Automatic rollback' : 'Interactive recovery'}'));
-  console.log(chalk.white(`  Retry Attempts: ${options.maxRetries || '3'} per site`));
-  console.log(chalk.white(`  Health Checks: ${options.healthCheck ? 'Enabled' : 'Disabled'}`));
-  
+  console.log(
+    chalk.white(
+      '  Error Recovery: ' +
+        (options.autoRollback ? 'Automatic rollback' : 'Interactive recovery')
+    )
+  );
+  console.log(
+    chalk.white(
+      '  Retry Attempts: ' + (options.maxRetries || '3') + ' per site'
+    )
+  );
+  console.log(
+    chalk.white(
+      '  Health Checks: ' + (options.healthCheck ? 'Enabled' : 'Disabled')
+    )
+  );
+
   console.log(chalk.red('\nWARNING - DESTRUCTIVE OPERATION:'));
-  console.log(chalk.red('  * This will OVERWRITE existing data in the target environment'));
+  console.log(
+    chalk.red('  * This will OVERWRITE existing data in the target environment')
+  );
   console.log(chalk.red('  * Network tables in target will be REPLACED'));
   console.log(chalk.red('  * Conflicting sites in target will be OVERWRITTEN'));
   if (options.skipBackup) {
-    console.log(chalk.red.bold('  * NO BACKUP will be created - RECOVERY WILL NOT BE POSSIBLE'));
+    console.log(
+      chalk.red.bold(
+        '  * NO BACKUP will be created - RECOVERY WILL NOT BE POSSIBLE'
+      )
+    );
   } else {
-    console.log(chalk.green('  * Automatic backup will be created before migration'));
-    console.log(chalk.green('  * Rollback will be available if migration fails'));
+    console.log(
+      chalk.green('  * Automatic backup will be created before migration')
+    );
+    console.log(
+      chalk.green('  * Rollback will be available if migration fails')
+    );
   }
-  
+
   console.log(chalk.cyan('\nPre-Migration Checklist:'));
   console.log(chalk.green('  - System requirements validated'));
   console.log(chalk.green('  - Database connections tested'));
   console.log(chalk.green('  - Migration compatibility verified'));
   console.log(chalk.green('  - Configuration validated'));
-  
+
   // Get size estimation for confirmation
   try {
-    const compatibilityCheck = await MigrationValidator.validateMigrationCompatibility(
-      sourceEnv,
-      targetEnv
-    );
-    
+    const compatibilityCheck =
+      await MigrationValidator.validateMigrationCompatibility(
+        sourceEnv,
+        targetEnv
+      );
+
     if (compatibilityCheck.sourceInfo.sizeInfo) {
       const sizeInfo = compatibilityCheck.sourceInfo.sizeInfo;
       console.log(chalk.cyan('\nEstimated Migration Size:'));
-      console.log(chalk.white(`  Network Tables: ${sizeInfo.networkTableSize} MB`));
-      console.log(chalk.white(`  Site Tables: ${sizeInfo.totalSiteSize} MB`));
-      console.log(chalk.white(`  Total Estimated: ${sizeInfo.estimatedMigrationSize} MB`));
-      
+      console.log(
+        chalk.white('  Network Tables: ' + sizeInfo.networkTableSize + ' MB')
+      );
+      console.log(
+        chalk.white('  Site Tables: ' + sizeInfo.totalSiteSize + ' MB')
+      );
+      console.log(
+        chalk.white(
+          '  Total Estimated: ' + sizeInfo.estimatedMigrationSize + ' MB'
+        )
+      );
+
       // Estimate duration based on size
-      const estimatedMinutes = Math.max(Math.ceil(sizeInfo.estimatedMigrationSize / 50), 5); // ~50MB per minute estimate
-      console.log(chalk.white(`  Estimated Duration: ${estimatedMinutes} minutes`));
+      const estimatedMinutes = Math.max(
+        Math.ceil(sizeInfo.estimatedMigrationSize / 50),
+        5
+      ); // ~50MB per minute estimate
+      console.log(
+        chalk.white('  Estimated Duration: ' + estimatedMinutes + ' minutes')
+      );
     }
   } catch (error) {
     // Size estimation is optional for confirmation
   }
-  
+
   if (options.skipBackup) {
-    console.log(chalk.red.bold('\nFINAL WARNING: You have disabled backups. If this migration fails,'));
-    console.log(chalk.red.bold('   your target environment may be left in an inconsistent state'));
+    console.log(
+      chalk.red.bold(
+        '\nFINAL WARNING: You have disabled backups. If this migration fails,'
+      )
+    );
+    console.log(
+      chalk.red.bold(
+        '   your target environment may be left in an inconsistent state'
+      )
+    );
     console.log(chalk.red.bold('   with NO AUTOMATIC RECOVERY POSSIBLE.'));
   }
-  
-  const confirmationMessage = `\n${chalk.yellow.bold('Do you want to proceed with this migration?')} ${chalk.gray('(y/N):')} `;
+
+  const confirmationMessage =
+    '\n' +
+    chalk.yellow.bold('Do you want to proceed with this migration?') +
+    ' ' +
+    chalk.gray('(y/N):') +
+    ' ';
 
   return new Promise((resolve) => {
     readline.question(confirmationMessage, (answer: string) => {
       readline.close();
-      const confirmed = answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
-      
+      const confirmed =
+        answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+
       if (confirmed) {
-        console.log(chalk.green('\nMigration confirmed. Starting migration process...'));
+        console.log(
+          chalk.green('\nMigration confirmed. Starting migration process...')
+        );
       } else {
         console.log(chalk.yellow('\nMigration cancelled by user.'));
       }
-      
+
       resolve(confirmed);
     });
   });
@@ -930,7 +1235,14 @@ function updateProgressDisplay(
     avgTimePerSite * (progress.totalSites - totalProcessed);
 
   process.stdout.write(
-    `\r    Progress: ${totalProcessed}/${progress.totalSites} (${percentage}%) - ETA: ${formatDuration(estimatedTimeRemaining)}`
+    '\r    Progress: ' +
+      totalProcessed +
+      '/' +
+      progress.totalSites +
+      ' (' +
+      percentage +
+      '%) - ETA: ' +
+      formatDuration(estimatedTimeRemaining)
   );
 }
 
@@ -946,14 +1258,29 @@ function displayBatchProgress(
   console.log(''); // New line after progress display
   console.log(
     color(
-      `    ${icon} Batch ${batchNumber}/${progress.totalBatches}: ${completedSites.length} completed, ${failedSites.length} failed (${formatDuration(duration)})`
+      '    ' +
+        icon +
+        ' Batch ' +
+        batchNumber +
+        '/' +
+        progress.totalBatches +
+        ': ' +
+        completedSites.length +
+        ' completed, ' +
+        failedSites.length +
+        ' failed (' +
+        formatDuration(duration) +
+        ')'
     )
   );
 
   if (failedSites.length > 0 && progress.totalBatches > 1) {
     console.log(
       chalk.red(
-        `      Failed sites: ${failedSites.map((f: { siteId: number; error: string }) => f.siteId).join(', ')}`
+        '      Failed sites: ' +
+          failedSites
+            .map((f: { siteId: number; error: string }) => f.siteId)
+            .join(', ')
       )
     );
   }
@@ -963,7 +1290,13 @@ function displayBatchProgress(
   );
   console.log(
     chalk.cyan(
-      `    Overall progress: ${progress.completedSites}/${progress.totalSites} sites (${overallPercentage}%)`
+      '    Overall progress: ' +
+        progress.completedSites +
+        '/' +
+        progress.totalSites +
+        ' sites (' +
+        overallPercentage +
+        '%)'
     )
   );
 }
@@ -977,30 +1310,30 @@ function displayMigrationSummary(
   const successfulBatches = batchResults.filter((b) => b.success).length;
 
   console.log(chalk.blue('\n📊 Migration Summary:'));
-  console.log(chalk.white(`  Total sites: ${progress.totalSites}`));
-  console.log(chalk.green(`  Completed: ${progress.completedSites}`));
+  console.log(chalk.white('  Total sites: ' + progress.totalSites));
+  console.log(chalk.green('  Completed: ' + progress.completedSites));
 
   if (progress.failedSites > 0) {
-    console.log(chalk.red(`  Failed: ${progress.failedSites}`));
+    console.log(chalk.red('  Failed: ' + progress.failedSites));
   }
 
-  console.log(chalk.white(`  Total batches: ${progress.totalBatches}`));
-  console.log(chalk.green(`  Successful batches: ${successfulBatches}`));
+  console.log(chalk.white('  Total batches: ' + progress.totalBatches));
+  console.log(chalk.green('  Successful batches: ' + successfulBatches));
   console.log(
-    chalk.white(`  Total duration: ${formatDuration(totalDuration)}`)
+    chalk.white('  Total duration: ' + formatDuration(totalDuration))
   );
 
   if (progress.completedSites > 0) {
     const avgTimePerSite = totalDuration / progress.completedSites;
     console.log(
-      chalk.gray(`  Average time per site: ${formatDuration(avgTimePerSite)}`)
+      chalk.gray('  Average time per site: ' + formatDuration(avgTimePerSite))
     );
   }
 
   if (failedSites.length > 0) {
     console.log(chalk.red('\n❌ Failed Sites:'));
     failedSites.forEach(({ siteId, error }) => {
-      console.log(chalk.red(`  Site ${siteId}: ${error}`));
+      console.log(chalk.red('  Site ' + siteId + ': ' + error));
     });
   }
 }
@@ -1011,11 +1344,11 @@ function formatDuration(milliseconds: number): string {
   const hours = Math.floor(minutes / 60);
 
   if (hours > 0) {
-    return `${hours}h ${minutes % 60}m ${seconds % 60}s`;
+    return hours + 'h ' + (minutes % 60) + 'm ' + (seconds % 60) + 's';
   } else if (minutes > 0) {
-    return `${minutes}m ${seconds % 60}s`;
+    return minutes + 'm ' + (seconds % 60) + 's';
   } else {
-    return `${seconds}s`;
+    return seconds + 's';
   }
 }
 
