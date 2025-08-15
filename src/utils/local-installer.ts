@@ -137,8 +137,14 @@ export class LocalInstaller {
 
       // Check if composer is available
       if (!this.isCommandAvailable('composer')) {
-        console.log(chalk.yellow('⚠️  Composer not found, skipping dependency installation'));
-        console.log(chalk.dim('You may need to run "composer update" manually later'));
+        console.log(
+          chalk.yellow(
+            '⚠️  Composer not found, skipping dependency installation'
+          )
+        );
+        console.log(
+          chalk.dim('You may need to run "composer update" manually later')
+        );
         return { success: true, cloned: true };
       }
 
@@ -150,9 +156,17 @@ export class LocalInstaller {
         this.runCommand('composer update');
         console.log(chalk.green('✅ Composer dependencies installed'));
       } catch (error) {
-        console.log(chalk.yellow('⚠️  Composer update failed, but continuing...'));
-        console.log(chalk.dim(`Composer error: ${error instanceof Error ? error.message : String(error)}`));
-        console.log(chalk.dim('You may need to run "composer update" manually'));
+        console.log(
+          chalk.yellow('⚠️  Composer update failed, but continuing...')
+        );
+        console.log(
+          chalk.dim(
+            `Composer error: ${error instanceof Error ? error.message : String(error)}`
+          )
+        );
+        console.log(
+          chalk.dim('You may need to run "composer update" manually')
+        );
       }
 
       return { success: true, cloned: true };

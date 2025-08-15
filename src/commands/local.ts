@@ -546,7 +546,9 @@ localCommand
         console.log(chalk.green('\n🎉 Dependencies installed successfully!'));
         console.log();
         console.log(
-          chalk.dim('💡 Next: Start Docker manually, then run "wfuwp local start"')
+          chalk.dim(
+            '💡 Next: Start Docker manually, then run "wfuwp local start"'
+          )
         );
       }
     } catch (error) {
