@@ -29,6 +29,9 @@ interface NetworkTableInfo {
 }
 
 export class NetworkTableOperations {
+  // Cache for table columns to avoid repeated DESCRIBE queries
+  private static columnCache: Map<string, string[]> = new Map();
+
   // Helper method to build MySQL command with proper port handling
   private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
     const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
@@ -42,6 +45,39 @@ export class NetworkTableOperations {
     ].filter(arg => arg.length > 0);
     
     return [...baseArgs, ...additionalArgs].join(' ');
+  }
+
+  // Get table columns (cached) to avoid repeated DESCRIBE queries
+  private static getTableColumns(tableName: string, envConfig: any): string[] {
+    const cacheKey = `${envConfig.host}:${envConfig.database}:${tableName}`;
+    if (this.columnCache.has(cacheKey)) {
+      return this.columnCache.get(cacheKey)!;
+    }
+
+    try {
+      const columnsQuery = `DESCRIBE ${tableName}`;
+      const columnsOutput = execSync(
+        this.buildMysqlCommand(envConfig, ['-e', `"${columnsQuery}"`, '-s']),
+        {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+          },
+        }
+      );
+
+      const columns = columnsOutput
+        .trim()
+        .split('\n')
+        .map((line) => line.split('\t')[0])
+        .filter((col) => col.length > 0);
+
+      this.columnCache.set(cacheKey, columns);
+      return columns;
+    } catch (error) {
+      return [];
+    }
   }
   static getNetworkTables(): NetworkTableInfo[] {
     return [
@@ -120,25 +156,29 @@ export class NetworkTableOperations {
       const networkTableNames = this.getNetworkTables().map(
         (table) => table.name
       );
-      const existingTables: string[] = [];
-
-      for (const tableName of networkTableNames) {
-        const query = `SHOW TABLES LIKE '${tableName}'`;
-        const output = execSync(
-          this.buildMysqlCommand(envConfig, ['-e', `"${query}"`, '-s']),
-          {
-            encoding: 'utf8',
-            env: {
-              ...process.env,
-              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-            },
-          }
-        );
-
-        if (output.trim() === tableName) {
-          existingTables.push(tableName);
+      
+      // Single query to get all tables, then filter for network tables
+      const query = 'SHOW TABLES';
+      const output = execSync(
+        this.buildMysqlCommand(envConfig, ['-e', `"${query}"`, '-s']),
+        {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+          },
         }
-      }
+      );
+
+      const allTables = output
+        .trim()
+        .split('\n')
+        .filter((table) => table.length > 0);
+
+      // Filter for existing network tables
+      const existingTables = networkTableNames.filter((tableName) =>
+        allTables.includes(tableName)
+      );
 
       return existingTables;
     } catch (error) {
@@ -486,24 +526,16 @@ export class NetworkTableOperations {
       }
 
       for (const table of networkTables) {
-        const columnsQuery = `DESCRIBE ${table}`;
         try {
-          const columnsOutput = execSync(
-            this.buildMysqlCommand(envConfig, ['-e', `"${columnsQuery}"`, '-s']),
-            {
-              encoding: 'utf8',
-              env: {
-                ...process.env,
-                PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-              },
+          // Get table columns using cached approach (avoids repeated DESCRIBE queries)
+          const columns = this.getTableColumns(table, envConfig);
+          
+          if (columns.length === 0) {
+            if (verbose) {
+              console.log(chalk.yellow(`  Skipped ${table}: Could not get table structure`));
             }
-          );
-
-          const columns = columnsOutput
-            .trim()
-            .split('\n')
-            .map((line) => line.split('\t')[0])
-            .filter((col) => col.length > 0);
+            continue;
+          }
 
           for (const field of fieldsToTransform) {
             if (columns.includes(field)) {

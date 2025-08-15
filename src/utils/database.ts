@@ -16,6 +16,10 @@ interface ImportResult {
 }
 
 export class DatabaseOperations {
+  // Cache for all tables to avoid repeated SHOW TABLES queries
+  private static tableCache: Map<string, string[]> = new Map();
+  // Cache for table columns to avoid repeated DESCRIBE queries
+  private static columnCache: Map<string, string[]> = new Map();
   // Helper method to build MySQL command with proper port handling
   private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
     const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
@@ -237,9 +241,9 @@ export class DatabaseOperations {
     }
   }
 
-  static getSiteTables(siteId: string, environment: string): string[] {
+  // Get all tables for an environment (cached)
+  static getAllTables(environment: string): string[] {
     let envConfig;
-
     if (environment === 'migration') {
       envConfig = Config.getMigrationDbConfig();
       if (!Config.hasRequiredMigrationConfig()) {
@@ -252,11 +256,14 @@ export class DatabaseOperations {
       }
     }
 
-    try {
-      const prefix = siteId === '1' ? 'wp_' : `wp_${siteId}_`;
+    // Check cache first
+    const cacheKey = `${environment}:${envConfig.host}:${envConfig.database}`;
+    if (this.tableCache.has(cacheKey)) {
+      return this.tableCache.get(cacheKey)!;
+    }
 
-      // Use direct MySQL query instead of WP-CLI to avoid memory issues
-      const query = `SHOW TABLES LIKE '${prefix}%'`;
+    try {
+      const query = 'SHOW TABLES';
       const output = execSync(
         this.buildMysqlCommand(envConfig, ['-e', `"${query}"`, '-s']),
         {
@@ -273,14 +280,94 @@ export class DatabaseOperations {
         .split('\n')
         .filter((table) => table.length > 0);
 
-      if (siteId === '1') {
-        // For main site, filter out numbered tables (subsites) and keep only main site tables
-        return tables.filter((table) => !table.match(/wp_\d+_/));
-      }
+      // Cache the results
+      this.tableCache.set(cacheKey, tables);
+      return tables;
+    } catch (error) {
+      throw new Error(
+        `Failed to get all tables: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
 
-      // For subsites, filter to ensure exact site ID match (avoid wp_430_ when looking for wp_43_)
-      const exactPrefix = `wp_${siteId}_`;
-      return tables.filter((table) => table.startsWith(exactPrefix));
+  // Clear table cache (call when tables might have changed)
+  static clearTableCache(): void {
+    this.tableCache.clear();
+  }
+
+  // Get table columns (cached)
+  static getTableColumns(tableName: string, environment: string): string[] {
+    let envConfig;
+    if (environment === 'migration') {
+      envConfig = Config.getMigrationDbConfig();
+    } else {
+      envConfig = Config.getEnvironmentConfig(environment);
+    }
+
+    const cacheKey = `${environment}:${envConfig.host}:${envConfig.database}:${tableName}`;
+    if (this.columnCache.has(cacheKey)) {
+      return this.columnCache.get(cacheKey)!;
+    }
+
+    try {
+      const columnsQuery = `DESCRIBE ${tableName}`;
+      const columnsOutput = execSync(
+        this.buildMysqlCommand(envConfig, ['-e', `"${columnsQuery}"`, '-s']),
+        {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+          },
+        }
+      );
+
+      const columns = columnsOutput
+        .trim()
+        .split('\n')
+        .map((line) => line.split('\t')[0])
+        .filter((col) => col.length > 0);
+
+      this.columnCache.set(cacheKey, columns);
+      return columns;
+    } catch (error) {
+      // Return empty array if table doesn't exist or can't be described
+      return [];
+    }
+  }
+
+  // Clear column cache
+  static clearColumnCache(): void {
+    this.columnCache.clear();
+  }
+
+  // Clear all caches
+  static clearAllCaches(): void {
+    this.clearTableCache();
+    this.clearColumnCache();
+  }
+
+  static getSiteTables(siteId: string, environment: string): string[] {
+    try {
+      // Get all tables using cached approach (single query instead of per-site)
+      const allTables = this.getAllTables(environment);
+      const prefix = siteId === '1' ? 'wp_' : `wp_${siteId}_`;
+
+      // Filter tables for this specific site from the complete list
+      const siteTables = allTables.filter((table) => {
+        if (siteId === '1') {
+          // For main site, include wp_ tables but exclude numbered subsites (wp_43_*)
+          return table.startsWith('wp_') && !table.match(/wp_\d+_/);
+        } else {
+          // For subsites, match exact prefix (avoid wp_430_ when looking for wp_43_)
+          const exactPrefix = `wp_${siteId}_`;
+          return table.startsWith(exactPrefix) && 
+                 !table.startsWith(`${exactPrefix}\d`) && // Avoid longer site IDs
+                 table.split('_')[1] === siteId; // Ensure exact match
+        }
+      });
+
+      return siteTables;
     } catch (error) {
       throw new Error(
         `Failed to get site tables: ${error instanceof Error ? error.message : 'Unknown error'}`
@@ -447,25 +534,16 @@ export class DatabaseOperations {
       }
 
       for (const table of tables) {
-        // Get table columns to identify which fields exist
-        const columnsQuery = `DESCRIBE ${table}`;
         try {
-          const columnsOutput = execSync(
-            this.buildMysqlCommand(envConfig, ['-e', `"${columnsQuery}"`, '-s']),
-            {
-              encoding: 'utf8',
-              env: {
-                ...process.env,
-                PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-              },
+          // Get table columns using cached approach (avoids repeated DESCRIBE queries)
+          const columns = this.getTableColumns(table, environment);
+          
+          if (columns.length === 0) {
+            if (verbose) {
+              console.log(chalk.yellow(`  Skipped ${table}: Could not get table structure`));
             }
-          );
-
-          const columns = columnsOutput
-            .trim()
-            .split('\n')
-            .map((line) => line.split('\t')[0])
-            .filter((col) => col.length > 0);
+            continue;
+          }
 
           // Update each URL field that exists in this table
           for (const field of urlFields) {

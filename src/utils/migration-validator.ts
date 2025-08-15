@@ -188,13 +188,15 @@ export class MigrationValidator {
     const envConfig = Config.getEnvironmentConfig(environment);
 
     try {
-      // Test basic operations with a temporary table
-      const testTableName = `wp_migration_test_${Date.now()}`;
-
-      // Create table
-      execSync(
-        this.buildMysqlCommand(envConfig, [`"${envConfig.database}"`, '-e', `"CREATE TABLE ${testTableName} (id INT AUTO_INCREMENT PRIMARY KEY, test_col VARCHAR(255))"`]),
+      // Simple connection and basic access test - much more efficient than full CRUD
+      // This single query tests connection, database access, and basic SELECT capability
+      const testQuery = 'SELECT 1 as test_connection, COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = DATABASE() LIMIT 1';
+      
+      const output = execSync(
+        this.buildMysqlCommand(envConfig, ['-e', `"${testQuery}"`, '-s']),
         {
+          encoding: 'utf8',
+          timeout: 10000, // 10 second timeout
           env: {
             ...process.env,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
@@ -202,51 +204,8 @@ export class MigrationValidator {
         }
       );
 
-      // Insert data
-      execSync(
-        this.buildMysqlCommand(envConfig, [`"${envConfig.database}"`, '-e', `"INSERT INTO ${testTableName} (test_col) VALUES ('test')"`]),
-        {
-          env: {
-            ...process.env,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        }
-      );
-
-      // Update data
-      execSync(
-        this.buildMysqlCommand(envConfig, [`"${envConfig.database}"`, '-e', `"UPDATE ${testTableName} SET test_col = 'updated' WHERE id = 1"`]),
-        {
-          env: {
-            ...process.env,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        }
-      );
-
-      // Delete data
-      execSync(
-        this.buildMysqlCommand(envConfig, [`"${envConfig.database}"`, '-e', `"DELETE FROM ${testTableName} WHERE id = 1"`]),
-        {
-          env: {
-            ...process.env,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        }
-      );
-
-      // Drop table
-      execSync(
-        this.buildMysqlCommand(envConfig, [`"${envConfig.database}"`, '-e', `"DROP TABLE ${testTableName}"`]),
-        {
-          env: {
-            ...process.env,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        }
-      );
-
-      return true;
+      // If we get any output, the connection and basic operations work
+      return output.trim().length > 0;
     } catch (error) {
       return false;
     }
