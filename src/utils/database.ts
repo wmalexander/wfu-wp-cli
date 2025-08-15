@@ -16,6 +16,21 @@ interface ImportResult {
 }
 
 export class DatabaseOperations {
+  // Helper method to build MySQL command with proper port handling
+  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+    const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+    const baseArgs = [
+      'mysql',
+      '-h', `"${envConfig.host}"`,
+      portArg,
+      '-u', `"${envConfig.user}"`,
+      `-p"${envConfig.password}"`,
+      `"${envConfig.database}"`
+    ].filter(arg => arg.length > 0);
+    
+    return [...baseArgs, ...additionalArgs].join(' ');
+  }
+
   static checkDockerAvailability(): void {
     try {
       execSync('docker --version', { stdio: 'ignore' });
@@ -226,7 +241,7 @@ export class DatabaseOperations {
       // Use direct MySQL query instead of WP-CLI to avoid memory issues
       const query = `SHOW TABLES LIKE '${prefix}%'`;
       const output = execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${query}" -s`,
+        this.buildMysqlCommand(envConfig, ['-e', `"${query}"`, '-s']),
         {
           encoding: 'utf8',
           env: {

@@ -36,6 +36,20 @@ interface MigrationCompatibilityCheck {
 }
 
 export class MigrationValidator {
+  // Helper method to build MySQL command with proper port handling
+  private static buildMysqlCommand(envConfig: any, additionalArgs: string[] = []): string {
+    const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+    const baseArgs = [
+      'mysql',
+      '-h', `"${envConfig.host}"`,
+      portArg,
+      '-u', `"${envConfig.user}"`,
+      `-p"${envConfig.password}"`
+    ].filter(arg => arg.length > 0);
+    
+    return [...baseArgs, ...additionalArgs].join(' ');
+  }
+
   static async validateEnvironmentSetup(
     environment: string
   ): Promise<EnvironmentValidation> {
@@ -126,7 +140,7 @@ export class MigrationValidator {
       // Check if user has required privileges
       const privilegeQuery = `SHOW GRANTS FOR '${envConfig.user}'@'%'`;
       const output = execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" -e "${privilegeQuery}" 2>/dev/null || echo "GRANT_CHECK_FAILED"`,
+        `${this.buildMysqlCommand(envConfig, ['-e', `"${privilegeQuery}"`])} 2>/dev/null || echo "GRANT_CHECK_FAILED"`,
         {
           encoding: 'utf8',
           env: {
@@ -179,7 +193,7 @@ export class MigrationValidator {
 
       // Create table
       execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "CREATE TABLE ${testTableName} (id INT AUTO_INCREMENT PRIMARY KEY, test_col VARCHAR(255))"`,
+        this.buildMysqlCommand(envConfig, [`"${envConfig.database}"`, '-e', `"CREATE TABLE ${testTableName} (id INT AUTO_INCREMENT PRIMARY KEY, test_col VARCHAR(255))"`]),
         {
           env: {
             ...process.env,
@@ -190,7 +204,7 @@ export class MigrationValidator {
 
       // Insert data
       execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "INSERT INTO ${testTableName} (test_col) VALUES ('test')"`,
+        this.buildMysqlCommand(envConfig, [`"${envConfig.database}"`, '-e', `"INSERT INTO ${testTableName} (test_col) VALUES ('test')"`]),
         {
           env: {
             ...process.env,
@@ -201,7 +215,7 @@ export class MigrationValidator {
 
       // Update data
       execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "UPDATE ${testTableName} SET test_col = 'updated' WHERE id = 1"`,
+        this.buildMysqlCommand(envConfig, [`"${envConfig.database}"`, '-e', `"UPDATE ${testTableName} SET test_col = 'updated' WHERE id = 1"`]),
         {
           env: {
             ...process.env,
@@ -212,7 +226,7 @@ export class MigrationValidator {
 
       // Delete data
       execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "DELETE FROM ${testTableName} WHERE id = 1"`,
+        this.buildMysqlCommand(envConfig, [`"${envConfig.database}"`, '-e', `"DELETE FROM ${testTableName} WHERE id = 1"`]),
         {
           env: {
             ...process.env,
@@ -223,7 +237,7 @@ export class MigrationValidator {
 
       // Drop table
       execSync(
-        `mysql -h "${envConfig.host}" -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "DROP TABLE ${testTableName}"`,
+        this.buildMysqlCommand(envConfig, [`"${envConfig.database}"`, '-e', `"DROP TABLE ${testTableName}"`]),
         {
           env: {
             ...process.env,
