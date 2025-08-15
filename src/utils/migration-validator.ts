@@ -573,8 +573,8 @@ export class MigrationValidator {
 
     // Check S3 configuration if needed
     try {
-      const s3Config = Config.get('s3');
-      if (s3Config && s3Config.bucket) {
+      const s3Bucket = Config.get('s3.bucket');
+      if (s3Bucket) {
         // Check AWS CLI availability
         try {
           execSync('aws --version', { stdio: 'pipe' });
@@ -590,11 +590,11 @@ export class MigrationValidator {
     }
 
     // Check backup configuration
-    const backupConfig = Config.get('backup');
-    if (backupConfig && backupConfig.localPath) {
-      if (!existsSync(backupConfig.localPath)) {
+    const backupLocalPath = Config.get('backup.localPath');
+    if (backupLocalPath) {
+      if (!existsSync(backupLocalPath)) {
         warnings.push(
-          `Configured backup path does not exist: ${backupConfig.localPath}`
+          `Configured backup path does not exist: ${backupLocalPath}`
         );
         recommendations.push('Create backup directory or update configuration');
       }

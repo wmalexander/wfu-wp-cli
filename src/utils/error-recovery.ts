@@ -443,7 +443,7 @@ export class ErrorRecovery {
       const allTables = allTablesOutput
         .trim()
         .split('\n')
-        .filter((line) => line.trim().length > 0);
+        .filter((line: string) => line.trim().length > 0);
 
       // Get known network tables
       const networkTables = NetworkTableOperations.getNetworkTables().map(

@@ -13,7 +13,7 @@ import { Config } from './config';
 import { SiteEnumerator, SiteInfo } from './site-enumerator';
 import { NetworkTableOperations } from './network-tables';
 
-interface BackupMetadata {
+export interface BackupMetadata {
   timestamp: string;
   environment: string;
   backupId: string;

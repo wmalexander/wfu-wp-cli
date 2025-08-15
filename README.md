@@ -179,26 +179,74 @@ wfuwp config list
 wfuwp config reset
 ```
 
-**Configuration Keys:**
-- `db.host`: Database hostname
-- `db.user`: Database username
-- `db.password`: Database password (encrypted when stored)
-- `db.name`: Database name
+**Configuration Keys (Phase 1 - Single Database):**
+- `migration.host`: Migration database hostname
+- `migration.user`: Migration database username
+- `migration.password`: Migration database password (encrypted when stored)
+- `migration.database`: Migration database name
+
+**Multi-Environment Configuration (Phase 2 - env-migrate):**
+- `environments.dev.host`: Development database hostname
+- `environments.dev.user`: Development database username
+- `environments.dev.password`: Development database password (encrypted)
+- `environments.dev.database`: Development database name
+- `environments.uat.host`: UAT database hostname
+- `environments.uat.user`: UAT database username
+- `environments.uat.password`: UAT database password (encrypted)
+- `environments.uat.database`: UAT database name
+- `environments.pprd.host`: Pre-production database hostname
+- `environments.pprd.user`: Pre-production database username
+- `environments.pprd.password`: Pre-production database password (encrypted)
+- `environments.pprd.database`: Pre-production database name
+- `environments.prod.host`: Production database hostname
+- `environments.prod.user`: Production database username
+- `environments.prod.password`: Production database password (encrypted)
+- `environments.prod.database`: Production database name
+
+**S3 Configuration (Optional):**
+- `s3.bucket`: S3 bucket name for backup archival
+- `s3.region`: AWS region for S3 bucket (default: us-east-1)
+- `s3.prefix`: Prefix for organized S3 storage (default: backups)
+
+**Local Backup Configuration (Alternative to S3):**
+- `backup.localPath`: Local directory for backup storage (default: ~/.wfuwp/backups)
 
 **Examples:**
 
 ```bash
-# Initial database setup
-wfuwp config set db.host prod-db.wfu.edu
-wfuwp config set db.user wp_admin
-wfuwp config set db.password secretpassword123
-wfuwp config set db.name wp_multisite
+# Phase 1 Migration Database Setup
+wfuwp config set migration.host migration-db.wfu.edu
+wfuwp config set migration.user wp_admin
+wfuwp config set migration.password secretpassword123
+wfuwp config set migration.database wp_migration
+
+# Phase 2 Multi-Environment Setup (Interactive Wizard Recommended)
+wfuwp config wizard
+
+# Manual Multi-Environment Configuration
+wfuwp config set environments.prod.host prod-db.wfu.edu
+wfuwp config set environments.prod.user wp_prod
+wfuwp config set environments.prod.password prod_password
+wfuwp config set environments.prod.database wp_production
+
+wfuwp config set environments.uat.host uat-db.wfu.edu
+wfuwp config set environments.uat.user wp_uat
+wfuwp config set environments.uat.password uat_password
+wfuwp config set environments.uat.database wp_uat
+
+# S3 Configuration for Backup Archival
+wfuwp config set s3.bucket wfu-wp-backups
+wfuwp config set s3.region us-east-1
+wfuwp config set s3.prefix migrations
+
+# Local Backup Alternative
+wfuwp config set backup.localPath /path/to/local/backups
 
 # Check current configuration
 wfuwp config list
 
-# Get specific value
-wfuwp config get db.host
+# Verify environment-specific configuration
+wfuwp config verify
 
 # Reset all settings
 wfuwp config reset
@@ -247,15 +295,146 @@ Migrates WordPress multisite database content between environments by performing
 - Single database configuration only
 - No S3 archival of SQL dumps
 
-**📋 Phase 2 (Coming Soon):**
-- Complete automated workflow with export/import
+**📋 Phase 2 Available:** See `env-migrate` command below for complete automated environment migration.
+
+#### `env-migrate` - Complete Environment Migration (Phase 2)
+
+Comprehensive WordPress multisite environment migration with complete automation, safety features, and S3 integration. Migrates entire environments or specific sites with full orchestration.
+
+**✅ Phase 2 Features:**
+- Complete automated workflow with export/import/archival
 - Multi-environment configuration support
-- Automatic S3 backup archival
-- Full migration orchestration with single command
+- Network table migration between environments
+- Automatic safety backups and rollback capability
+- S3 archival with configurable storage classes
+- WordPress file synchronization between environments
+- Batch processing with parallel execution
+- Comprehensive error recovery and retry logic
+- Pre-flight validation and health checks
 
 ```bash
-wfuwp migrate <site-id> --from <source-env> --to <target-env> [options]
+wfuwp env-migrate <source-env> <target-env> [options]
 ```
+
+**Arguments:**
+- `source-env`: Source environment (`dev`, `uat`, `pprd`, `prod`)
+- `target-env`: Target environment (`dev`, `uat`, `pprd`, `prod`)
+
+**Core Options:**
+- `--dry-run`: Preview migration without executing changes
+- `-f, --force`: Skip confirmation prompts
+- `-v, --verbose`: Show detailed output and progress
+- `--network-only`: Migrate network tables only (no individual sites)
+- `--sites-only`: Migrate sites only (skip network tables)
+
+**Site Selection:**
+- `--include-sites <list>`: Comma-separated list of site IDs to include
+- `--exclude-sites <list>`: Comma-separated list of site IDs to exclude
+- `--active-only`: Only migrate active sites (not archived/deleted)
+
+**Batch Processing:**
+- `--batch-size <size>`: Number of sites to process at once (default: 5)
+- `--parallel`: Process sites in parallel within batches
+- `--concurrency <limit>`: Maximum concurrent migrations when using --parallel (default: 3)
+
+**Safety & Recovery:**
+- `--skip-backup`: Skip environment backup (dangerous, not recommended)
+- `--auto-rollback`: Automatically rollback on failure
+- `--max-retries <count>`: Maximum retry attempts for transient errors (default: 3)
+- `--health-check`: Perform comprehensive health checks before migration
+
+**S3 Integration:**
+- `--skip-s3`: Skip S3 archival of migration files
+- `--sync-s3`: Sync WordPress files between S3 environments
+- `--s3-storage-class <class>`: S3 storage class for archives (STANDARD|STANDARD_IA|GLACIER, default: STANDARD_IA)
+- `--archive-backups`: Also archive backup files to S3
+
+**Advanced Options:**
+- `--work-dir <path>`: Custom working directory for temporary files
+- `--keep-files`: Do not delete local SQL files after migration
+- `--timeout <minutes>`: Custom timeout for large databases (default: 20)
+
+**Examples:**
+
+```bash
+# Complete environment migration with confirmation
+wfuwp env-migrate prod uat
+
+# Dry run to preview full migration
+wfuwp env-migrate prod uat --dry-run --verbose
+
+# Migrate specific sites with parallel processing
+wfuwp env-migrate prod pprd --include-sites "1,43,78" --parallel --concurrency 5
+
+# Network tables only migration
+wfuwp env-migrate prod uat --network-only --force
+
+# Full migration with S3 file sync and archival
+wfuwp env-migrate prod pprd --sync-s3 --archive-backups --s3-storage-class GLACIER
+
+# Batch migration with custom settings
+wfuwp env-migrate dev uat --batch-size 10 --parallel --max-retries 5 --timeout 30
+
+# Active sites only with safety features
+wfuwp env-migrate prod pprd --active-only --auto-rollback --health-check
+```
+
+**Migration Workflow:**
+
+1. **Pre-flight Validation**
+   - System requirements check (MySQL, WP-CLI, AWS CLI, Docker)
+   - Database connection validation for all environments
+   - S3 access verification (if enabled)
+   - Site existence and consistency checks
+
+2. **Environment Backup**
+   - Complete backup of target environment
+   - Backup integrity validation
+   - S3 archival of backup files (if configured)
+
+3. **Site Enumeration & Selection**
+   - Discover all sites in source environment
+   - Apply filters (include/exclude lists, active-only)
+   - Site validation and consistency checks
+
+4. **Network Table Migration**
+   - Export network tables (wp_blogs, wp_site, wp_sitemeta, wp_blogmeta)
+   - Transform domains and URLs for target environment
+   - Import to target environment with validation
+
+5. **Site Migration (Batch Processing)**
+   - Process sites in configurable batches
+   - Parallel processing within batches (optional)
+   - Progress tracking with real-time updates
+   - Error recovery and retry for transient failures
+
+6. **WordPress File Synchronization (Optional)**
+   - Sync uploads and theme files between S3 environments
+   - Progress tracking and error handling
+   - Validation of file transfer integrity
+
+7. **Post-Migration Validation & Archival**
+   - Health checks on migrated environment
+   - Archive all migration artifacts to S3
+   - Cleanup of temporary files (unless --keep-files)
+   - Migration summary and reporting
+
+**Prerequisites:**
+- Multi-environment configuration (see Configuration section below)
+- Docker (for WP-CLI operations)
+- AWS CLI (for S3 operations)
+- Sufficient disk space for temporary files
+- Network access to all configured databases
+
+**Safety Features:**
+- Automatic environment backup before migration
+- Pre-flight validation prevents invalid configurations
+- Rollback capability with --auto-rollback
+- Retry logic for transient network/database errors
+- Comprehensive logging and error reporting
+- Dry-run mode for testing migration plans
+
+#### `migrate` - Single Site Migration (Phase 1)
 
 **Arguments:**
 - `site-id`: Numeric site identifier for the multisite installation (e.g., 43)

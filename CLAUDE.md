@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is a Node.js CLI tool (`wfuwp`) for WFU WordPress management tasks, including complete database migration workflows, S3 synchronization, EC2 instance management, and DNS spoofing for development. **Phase 2** implements automated database migration with export/import/archival.
+This is a Node.js CLI tool (`wfuwp`) for WFU WordPress management tasks, including complete database migration workflows, S3 synchronization, EC2 instance management, and DNS spoofing for development. **Phase 2** implements automated database migration with export/import/archival and comprehensive environment migration capabilities.
 
 ## Development Commands
 ```bash
@@ -18,7 +18,8 @@ npm run release      # Execute release script (scripts/release.sh)
 ## Architecture
 - **Entry Point**: `src/index.ts` - Sets up Commander.js CLI with all commands
 - **Commands**: Individual command implementations in `src/commands/`
-  - `migrate.ts` - **Phase 2** Complete WordPress multisite database migration
+  - `migrate.ts` - **Phase 1** Single-site WordPress database migration
+  - `env-migrate.ts` - **Phase 2** Complete environment migration with automation
   - `config.ts` - Multi-environment configuration management with wizard
   - `syncs3.ts` - S3 bucket synchronization between environments
   - `listips.ts` - EC2 instance IP address listing
@@ -31,9 +32,43 @@ npm run release      # Execute release script (scripts/release.sh)
   - `database.ts` - WordPress database operations via WP-CLI
   - `s3.ts` - S3 archival and backup operations
   - `s3sync.ts` - WordPress file synchronization between S3 buckets
+  - `site-enumerator.ts` - WordPress multisite site discovery and filtering
+  - `network-tables.ts` - Network table operations and transformations
+  - `backup-recovery.ts` - Environment backup and rollback capabilities
+  - `error-recovery.ts` - Error handling and retry logic with exponential backoff
+  - `migration-validator.ts` - Pre-flight validation and compatibility checks
 
-## Phase 2 Migration System
-The migrate command now supports complete automated workflows:
+## Migration Systems
+
+### Phase 1: Single Site Migration (`migrate` command)
+The original migrate command supports individual site migration with manual import/export workflows.
+
+### Phase 2: Complete Environment Migration (`env-migrate` command)
+The env-migrate command provides comprehensive automated environment migration with:
+
+**Core Features:**
+- Site discovery and enumeration with flexible filtering
+- Network table migration (wp_blogs, wp_site, wp_sitemeta, wp_blogmeta)
+- Batch processing with configurable parallelism
+- Complete environment backup and rollback capabilities
+- Error recovery with exponential backoff retry logic
+- Pre-flight validation and compatibility checks
+- S3 integration for file sync and backup archival
+- Real-time progress tracking and comprehensive reporting
+
+**Command Structure:**
+```bash
+wfuwp env-migrate <source-env> <target-env> [options]
+```
+
+**Key Workflow:**
+1. **Pre-flight Validation** - System requirements, database connections, S3 access
+2. **Site Enumeration** - Discover sites with filtering (include/exclude, active-only)
+3. **Environment Backup** - Complete backup of target environment with integrity checks
+4. **Network Migration** - Migrate and transform network tables between environments
+5. **Site Migration** - Batch process sites with parallel execution and progress tracking
+6. **File Synchronization** - Optional S3 file sync between environments
+7. **Archival & Cleanup** - Archive artifacts to S3, cleanup temporary files
 
 ### Configuration Structure
 ```typescript
@@ -49,7 +84,7 @@ s3: { bucket, region, prefix } // Optional - for S3 backups
 backup: { localPath } // Optional - for local backups (default: ~/.wfuwp/backups)
 ```
 
-### Complete Workflow (Default)
+### Phase 1 Workflow (Single Site Migration)
 ```bash
 wfuwp migrate 43 --from prod --to pprd
 wfuwp migrate 43 --from prod --to pprd --sync-s3  # Include WordPress files
@@ -64,11 +99,35 @@ wfuwp migrate 43 --from prod --to pprd --sync-s3  # Include WordPress files
 8. Archive all SQL files (to S3 if configured, otherwise to local backup directory)
 9. Cleanup migration database
 
-### Simple Mode (Phase 1 behavior)
+**Simple Mode (Phase 1 behavior):**
 ```bash
 wfuwp migrate 43 --from prod --to pprd --simple
 ```
 Uses migration database for search-replace only (assumes tables already imported)
+
+### Phase 2 Workflow (Complete Environment Migration)
+```bash
+# Complete environment migration
+wfuwp env-migrate prod uat
+
+# Environment migration with specific options
+wfuwp env-migrate prod pprd --include-sites "1,43,78" --parallel --sync-s3
+
+# Network tables only
+wfuwp env-migrate prod uat --network-only --force
+
+# Dry run with detailed output
+wfuwp env-migrate dev uat --dry-run --verbose --health-check
+```
+
+**Automated Workflow:**
+1. Pre-flight validation (system requirements, database connections, S3 access)
+2. Site enumeration and filtering (discover all sites, apply include/exclude filters)
+3. Environment backup (complete backup of target environment with validation)
+4. Network table migration (export, transform, import network tables)
+5. Batch site processing (process sites in configurable batches with parallel execution)
+6. File synchronization (optional S3 sync between environments)
+7. Post-migration validation and archival (health checks, S3 archival, cleanup)
 
 ## Key Patterns
 - **Multi-environment config**: `Config.getEnvironmentConfig(env)` for any environment
@@ -124,11 +183,14 @@ The tool uses a **hybrid approach** combining the best of both worlds:
 - **Network tables**: Shared tables like `wp_users`, `wp_blogs` (excluded from site migrations)
 - **Table detection**: Automatic identification of site-specific tables
 
-## Phase 2 Features
-- **Complete database migration**: Automated export/import/transform workflow  
-- **WordPress file sync**: Optional S3 sync with --sync-s3 flag
-- **Multi-environment config**: Support for dev/uat/pprd/prod environments
-- **Pre-flight checks**: Database connections, site existence, AWS CLI availability
-- **Safety features**: Target backups, S3 archival, rollback on failure
-- **Progress tracking**: Step-by-step output with file counts and sizes
-- **Flexible options**: Skip backups, skip S3, keep files, custom work directories
+## Phase 2 Features (env-migrate)
+- **Complete environment migration**: Automated discovery, export/import/transform workflow
+- **Site enumeration**: Flexible filtering with include/exclude lists and active-only options
+- **Network table migration**: Comprehensive network table operations with URL transformations
+- **Batch processing**: Configurable batch sizes with parallel execution support
+- **Safety & recovery**: Complete environment backups, rollback capability, error recovery
+- **Pre-flight validation**: System requirements, database connections, S3 access, compatibility
+- **Progress tracking**: Real-time progress with completion percentages and ETA
+- **S3 integration**: File synchronization and backup archival with configurable storage classes
+- **Error handling**: Exponential backoff retry logic for transient failures
+- **Health monitoring**: Pre and post-migration health checks with issue detection
