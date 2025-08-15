@@ -478,17 +478,19 @@ export class DatabaseOperations {
 
     // Use direct MySQL connection test (much more efficient than WP-CLI)
     try {
+      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
       const mysqlCommand = [
         'mysql',
         '-h',
         `"${envConfig.host}"`,
+        portArg,
         '-u',
         `"${envConfig.user}"`,
         `-p"${envConfig.password}"`,
         `"${envConfig.database}"`,
         '-e',
         '"SELECT 1 as connection_test"',
-      ].join(' ');
+      ].filter(arg => arg.length > 0).join(' ');
 
       const result = execSync(mysqlCommand, {
         encoding: 'utf8',
@@ -504,6 +506,40 @@ export class DatabaseOperations {
       return result.includes('connection_test') || result.includes('1');
     } catch (error) {
       return false;
+    }
+  }
+
+  static async getEnvironmentTableCount(environment: string): Promise<number> {
+    const envConfig = Config.getEnvironmentConfig(environment);
+
+    if (!Config.hasRequiredEnvironmentConfig(environment)) {
+      throw new Error(`Environment '${environment}' is not configured`);
+    }
+
+    // Use direct MySQL query to get table count
+    try {
+      const query = 'SHOW TABLES';
+      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+      const output = execSync(
+        `mysql -h "${envConfig.host}" ${portArg} -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${query}" -s`,
+        {
+          encoding: 'utf8',
+          stdio: 'pipe',
+          shell: '/bin/bash',
+          timeout: 10000, // 10 seconds
+          env: {
+            ...process.env,
+            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+          },
+        }
+      );
+
+      const tables = output.trim().split('\n').filter((line) => line.length > 0);
+      return tables.length;
+    } catch (error) {
+      throw new Error(
+        `Failed to get table count: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 }

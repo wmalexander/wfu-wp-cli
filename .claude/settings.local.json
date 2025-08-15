@@ -30,7 +30,8 @@
       "Bash(gh api:*)",
       "Bash(npx eslint:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx ts-node:*)"
+      "Bash(npx ts-node:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }
