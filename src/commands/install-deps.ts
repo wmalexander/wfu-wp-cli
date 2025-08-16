@@ -78,7 +78,7 @@ async function installMySQLClientAmazonLinux(): Promise<InstallResult> {
   console.log(chalk.cyan('\n📦 Installing MySQL client...'));
   const steps = [
     {
-      cmd: 'yum install -y mariadb',
+      cmd: 'yum install -y mariadb105',
       desc: 'Installing MariaDB client (MySQL compatible)',
     },
   ];
