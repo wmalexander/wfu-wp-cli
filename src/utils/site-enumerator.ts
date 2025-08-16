@@ -44,7 +44,6 @@ export class SiteEnumerator {
       portArg,
       '-u',
       `"${envConfig.user}"`,
-      `-p"${envConfig.password}"`,
       `"${envConfig.database}"`,
     ].filter((arg) => arg.length > 0);
 
@@ -103,6 +102,7 @@ export class SiteEnumerator {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }

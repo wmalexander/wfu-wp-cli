@@ -45,7 +45,6 @@ export class NetworkTableOperations {
       portArg,
       '-u',
       `"${envConfig.user}"`,
-      `-p"${envConfig.password}"`,
       `"${envConfig.database}"`,
     ].filter((arg) => arg.length > 0);
 
@@ -67,6 +66,7 @@ export class NetworkTableOperations {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
@@ -170,6 +170,7 @@ export class NetworkTableOperations {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
@@ -275,7 +276,6 @@ export class NetworkTableOperations {
         portArg,
         '-u',
         `"${envConfig.user}"`,
-        `-p"${envConfig.password}"`,
         `"${envConfig.database}"`,
         '--skip-lock-tables',
         '--no-tablespaces',
@@ -294,6 +294,7 @@ export class NetworkTableOperations {
         timeout: timeoutMinutes * 60 * 1000,
         env: {
           ...process.env,
+          MYSQL_PWD: envConfig.password,
           PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
         },
       });
@@ -346,7 +347,6 @@ export class NetworkTableOperations {
         portArg,
         '-u',
         `"${envConfig.user}"`,
-        `-p"${envConfig.password}"`,
         `"${envConfig.database}"`,
         '--max_allowed_packet=1G',
         '<',
@@ -362,6 +362,7 @@ export class NetworkTableOperations {
         timeout: timeoutMinutes * 60 * 1000,
         env: {
           ...process.env,
+          MYSQL_PWD: envConfig.password,
           PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
         },
       });
@@ -445,7 +446,6 @@ export class NetworkTableOperations {
         portArg,
         '-u',
         `"${envConfig.user}"`,
-        `-p"${envConfig.password}"`,
         `"${envConfig.database}"`,
         '--skip-lock-tables',
         '--no-tablespaces',
@@ -464,6 +464,7 @@ export class NetworkTableOperations {
         timeout: timeoutMinutes * 60 * 1000,
         env: {
           ...process.env,
+          MYSQL_PWD: envConfig.password,
           PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
         },
       });
@@ -563,6 +564,7 @@ export class NetworkTableOperations {
                   stdio: 'ignore',
                   env: {
                     ...process.env,
+                    MYSQL_PWD: envConfig.password,
                     PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
                   },
                 }

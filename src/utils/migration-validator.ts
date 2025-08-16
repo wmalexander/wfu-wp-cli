@@ -49,7 +49,7 @@ export class MigrationValidator {
       portArg,
       '-u',
       `"${envConfig.user}"`,
-      `-p"${envConfig.password}"`,
+      `"${envConfig.database}"`,
     ].filter((arg) => arg.length > 0);
 
     return [...baseArgs, ...additionalArgs].join(' ');
@@ -150,6 +150,7 @@ export class MigrationValidator {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
@@ -205,6 +206,7 @@ export class MigrationValidator {
           timeout: 10000, // 10 second timeout
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
@@ -243,6 +245,7 @@ export class MigrationValidator {
               encoding: 'utf8',
               env: {
                 ...process.env,
+                MYSQL_PWD: envConfig.password,
                 PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
               },
             }
@@ -271,6 +274,7 @@ export class MigrationValidator {
             encoding: 'utf8',
             env: {
               ...process.env,
+              MYSQL_PWD: envConfig.password,
               PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
             },
           }
@@ -416,6 +420,7 @@ export class MigrationValidator {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
@@ -445,6 +450,7 @@ export class MigrationValidator {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }

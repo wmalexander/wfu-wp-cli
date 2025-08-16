@@ -65,7 +65,6 @@ export class BackupRecovery {
       portArg,
       '-u',
       `"${envConfig.user}"`,
-      `-p"${envConfig.password}"`,
       `"${envConfig.database}"`,
     ].filter((arg) => arg.length > 0);
 
@@ -343,6 +342,7 @@ export class BackupRecovery {
 
     // Create mysqldump command
     const tablesArg = siteTableNames.join(' ');
+    const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
     const mysqldumpCmd = [
       'mysqldump',
       '--single-transaction',
@@ -351,17 +351,18 @@ export class BackupRecovery {
       '--lock-tables=false',
       '--complete-insert',
       `--host=${envConfig.host}`,
+      portArg,
       `--user=${envConfig.user}`,
-      `--password=${envConfig.password}`,
       envConfig.database,
       tablesArg,
-    ].join(' ');
+    ].filter((arg) => arg && arg.length > 0).join(' ');
 
     try {
       execSync(`${mysqldumpCmd} > "${outputPath}"`, {
         timeout: timeoutMinutes * 60 * 1000,
         env: {
           ...process.env,
+          MYSQL_PWD: envConfig.password,
           PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
         },
       });
@@ -398,6 +399,7 @@ export class BackupRecovery {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
@@ -571,6 +573,7 @@ export class BackupRecovery {
         timeout: timeoutMinutes * 60 * 1000,
         env: {
           ...process.env,
+          MYSQL_PWD: envConfig.password,
           PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
         },
       });

@@ -8,7 +8,6 @@ import { ErrorRecovery } from '../utils/error-recovery';
 import { MigrationValidator } from '../utils/migration-validator';
 import { S3Operations } from '../utils/s3';
 import { S3Sync } from '../utils/s3sync';
-import { CacheFlush } from '../utils/cache-flush';
 
 interface EnvMigrateOptions {
   dryRun?: boolean;
@@ -131,7 +130,7 @@ export const envMigrateCommand = new Command('env-migrate')
               (error instanceof Error ? error.message : 'Unknown error')
           )
         );
-        CacheFlush.ringTerminalBell();
+        process.stdout.write('\x07');
         process.exit(1);
       }
     }
@@ -270,30 +269,6 @@ async function runEnvironmentMigration(
       }
     }
 
-    // Flush all cache after successful environment migration
-    if (!options.networkOnly) {
-      console.log(chalk.blue('Flushing all object cache...'));
-      try {
-        const cacheResult = await CacheFlush.flushAllCache(targetEnv, {
-          verbose: options.verbose,
-          timeout: 60,
-        });
-
-        if (cacheResult.success) {
-          console.log(chalk.green('✓ All object cache flushed successfully'));
-        } else {
-          console.log(
-            chalk.yellow(`⚠ Cache flush warning: ${cacheResult.message}`)
-          );
-        }
-      } catch (error) {
-        console.log(
-          chalk.yellow(
-            `⚠ Cache flush failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-          )
-        );
-      }
-    }
 
     console.log(
       chalk.green(
@@ -305,7 +280,7 @@ async function runEnvironmentMigration(
     );
 
     // Ring terminal bell on success
-    CacheFlush.ringTerminalBell();
+    process.stdout.write('\x07');
 
     // Cleanup successful backup if not keeping files
     if (backupId && !options.keepFiles) {
@@ -349,7 +324,7 @@ async function runEnvironmentMigration(
     });
 
     // Ring terminal bell on failure
-    CacheFlush.ringTerminalBell();
+    process.stdout.write('\x07');
     throw error;
   }
 }
@@ -1081,38 +1056,12 @@ async function migrateSingleSite(
 
   try {
     // Execute the migrate command as a subprocess
-    execSync('npx ts-node src/index.ts ' + migrateArgs.join(' '), {
+    execSync('wfuwp ' + migrateArgs.join(' '), {
       stdio: 'pipe', // Always pipe to prevent output conflicts
       cwd: process.cwd(),
       encoding: 'utf8',
     });
 
-    // Flush cache for the individual site after successful migration
-    try {
-      const cacheResult = await CacheFlush.flushSiteCache(
-        siteId.toString(),
-        targetEnv,
-        { verbose: options.verbose, timeout: 30 }
-      );
-
-      if (options.verbose && cacheResult.success) {
-        console.log(chalk.green(`      ✓ Cache flushed for site ${siteId}`));
-      } else if (options.verbose && !cacheResult.success) {
-        console.log(
-          chalk.yellow(
-            `      ⚠ Cache flush warning for site ${siteId}: ${cacheResult.message}`
-          )
-        );
-      }
-    } catch (cacheError) {
-      if (options.verbose) {
-        console.log(
-          chalk.yellow(
-            `      ⚠ Cache flush failed for site ${siteId}: ${cacheError instanceof Error ? cacheError.message : 'Unknown error'}`
-          )
-        );
-      }
-    }
   } catch (error) {
     throw new Error(
       'Site ' +
@@ -1284,7 +1233,7 @@ async function confirmEnvironmentMigration(
 
   return new Promise((resolve) => {
     // Ring bell to draw attention to the confirmation prompt
-    CacheFlush.ringTerminalBell();
+    process.stdout.write('\x07');
     readline.question(confirmationMessage, (answer: string) => {
       readline.close();
       const confirmed =

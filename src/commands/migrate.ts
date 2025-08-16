@@ -5,7 +5,6 @@ import { existsSync, mkdirSync } from 'fs';
 import { join, dirname, basename, resolve } from 'path';
 import { Config } from '../utils/config';
 import { FileNaming } from '../utils/file-naming';
-import { CacheFlush } from '../utils/cache-flush';
 
 interface MigrateOptions {
   from: string;
@@ -71,7 +70,7 @@ export const migrateCommand = new Command('migrate')
           `Migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`
         )
       );
-      CacheFlush.ringTerminalBell();
+      process.stdout.write('\x07');
       process.exit(1);
     }
   });
@@ -190,30 +189,6 @@ async function runSimpleMigration(
     });
   }
 
-  // Flush cache after successful simple migration (if not dry run)
-  if (!options.dryRun) {
-    console.log(chalk.blue('Flushing object cache...'));
-    try {
-      const cacheResult = await CacheFlush.flushSiteCache(siteId, options.to, {
-        verbose: options.verbose,
-        timeout: 30,
-      });
-
-      if (cacheResult.success) {
-        console.log(chalk.green('✓ Object cache flushed successfully'));
-      } else {
-        console.log(
-          chalk.yellow(`⚠ Cache flush warning: ${cacheResult.message}`)
-        );
-      }
-    } catch (error) {
-      console.log(
-        chalk.yellow(
-          `⚠ Cache flush failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-        )
-      );
-    }
-  }
 
   if (options.dryRun) {
     console.log(chalk.green('✓ Simple migration dry run completed'));
@@ -224,7 +199,7 @@ async function runSimpleMigration(
   console.log(chalk.blue(`Log file: ${logFile}`));
 
   // Ring terminal bell on completion
-  CacheFlush.ringTerminalBell();
+  process.stdout.write('\x07');
 }
 
 async function runCompleteMigration(
@@ -617,31 +592,6 @@ async function runCompleteMigration(
       );
     }
 
-    // Step 10: Flush cache after successful migration
-    if (!options.dryRun) {
-      console.log(chalk.blue('Step 10: Flushing object cache...'));
-      try {
-        const cacheResult = await CacheFlush.flushSiteCache(
-          siteId,
-          options.to,
-          { verbose: options.verbose, timeout: 30 }
-        );
-
-        if (cacheResult.success) {
-          console.log(chalk.green('✓ Object cache flushed successfully'));
-        } else {
-          console.log(
-            chalk.yellow(`⚠ Cache flush warning: ${cacheResult.message}`)
-          );
-        }
-      } catch (error) {
-        console.log(
-          chalk.yellow(
-            `⚠ Cache flush failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-          )
-        );
-      }
-    }
 
     if (options.dryRun) {
       console.log(
@@ -649,12 +599,12 @@ async function runCompleteMigration(
           '\n🎭 Complete migration dry run finished - no changes made'
         )
       );
-      CacheFlush.ringTerminalBell();
+      process.stdout.write('\x07');
     } else {
       console.log(
         chalk.green('\n🎉 Complete migration finished successfully!')
       );
-      CacheFlush.ringTerminalBell();
+      process.stdout.write('\x07');
     }
   } catch (error) {
     console.error(
@@ -676,7 +626,7 @@ async function runCompleteMigration(
     }
 
     // Ring bell on failure
-    CacheFlush.ringTerminalBell();
+    process.stdout.write('\x07');
     throw error;
   }
 }
@@ -999,7 +949,7 @@ async function confirmMigration(
 
   return new Promise((resolve) => {
     // Ring bell to draw attention to the confirmation prompt
-    CacheFlush.ringTerminalBell();
+    process.stdout.write('\x07');
     readline.question(chalk.yellow(message), (answer: string) => {
       readline.close();
       resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');

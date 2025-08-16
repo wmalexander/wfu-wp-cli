@@ -30,7 +30,6 @@ export class FileNaming {
       portArg,
       '-u',
       `"${envConfig.user}"`,
-      `-p"${envConfig.password}"`,
       `"${envConfig.database}"`,
     ].filter((arg) => arg.length > 0);
 
@@ -146,7 +145,14 @@ export class FileNaming {
       ]);
 
       try {
-        const result = execSync(mysqlCmd, { encoding: 'utf8', stdio: 'pipe' });
+        const result = execSync(mysqlCmd, {
+          encoding: 'utf8',
+          stdio: 'pipe',
+          env: {
+            ...process.env,
+            MYSQL_PWD: envConfig.password,
+          },
+        });
         const lines = result.trim().split('\n');
 
         if (lines.length > 0 && lines[0]) {

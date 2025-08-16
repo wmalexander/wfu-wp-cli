@@ -1,7 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { Config } from '../utils/config';
-import { CacheFlush } from '../utils/cache-flush';
 
 export const configCommand = new Command('config')
   .description('Manage configuration settings')
@@ -152,7 +151,7 @@ async function runConfigWizard(): Promise<void> {
       console.log(chalk.yellow(`\n--- ${env.toUpperCase()} Environment ---`));
 
       // Ring bell for environment configuration decision
-      CacheFlush.ringTerminalBell();
+      process.stdout.write('\x07');
       const configure = await question(`Configure ${env} environment? (y/N): `);
       if (
         configure.toLowerCase() !== 'y' &&
@@ -188,7 +187,7 @@ async function runConfigWizard(): Promise<void> {
     );
 
     // Ring bell for local environment configuration decision
-    CacheFlush.ringTerminalBell();
+    process.stdout.write('\x07');
     const configureLocal = await question(
       'Configure local DDEV environment for development? (y/N): '
     );

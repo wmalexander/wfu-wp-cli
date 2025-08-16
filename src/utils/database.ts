@@ -33,7 +33,6 @@ export class DatabaseOperations {
       portArg,
       '-u',
       `"${envConfig.user}"`,
-      `-p"${envConfig.password}"`,
       `"${envConfig.database}"`,
     ].filter((arg) => arg.length > 0);
 
@@ -53,7 +52,6 @@ export class DatabaseOperations {
       portArg,
       '-u',
       `"${migrationConfig.user}"`,
-      `-p"${migrationConfig.password}"`,
       `"${migrationConfig.database}"`,
     ].filter((arg) => arg.length > 0);
 
@@ -142,7 +140,6 @@ export class DatabaseOperations {
         portArg,
         '-u',
         `"${envConfig.user}"`,
-        `-p"${envConfig.password}"`,
         `"${envConfig.database}"`,
         '--skip-lock-tables',
         '--no-tablespaces',
@@ -161,6 +158,7 @@ export class DatabaseOperations {
         timeout: timeoutMinutes * 60 * 1000, // Convert minutes to milliseconds
         env: {
           ...process.env,
+          MYSQL_PWD: envConfig.password,
           PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
         },
       });
@@ -219,7 +217,6 @@ export class DatabaseOperations {
         `"${targetConfig.host}"`,
         '-u',
         `"${targetConfig.user}"`,
-        `-p"${targetConfig.password}"`,
         `"${targetConfig.database}"`,
         '--max_allowed_packet=1G',
         '<',
@@ -233,6 +230,7 @@ export class DatabaseOperations {
         timeout: timeoutMinutes * 60 * 1000, // Convert minutes to milliseconds
         env: {
           ...process.env,
+          MYSQL_PWD: targetConfig.password,
           PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
         },
       });
@@ -282,6 +280,7 @@ export class DatabaseOperations {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
@@ -329,6 +328,7 @@ export class DatabaseOperations {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
@@ -421,6 +421,7 @@ export class DatabaseOperations {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: migrationConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
@@ -471,6 +472,7 @@ export class DatabaseOperations {
                   stdio: 'ignore',
                   env: {
                     ...process.env,
+                    MYSQL_PWD: migrationConfig.password,
                     PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
                   },
                 }
@@ -489,6 +491,7 @@ export class DatabaseOperations {
                     stdio: 'ignore',
                     env: {
                       ...process.env,
+                      MYSQL_PWD: migrationConfig.password,
                       PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
                     },
                   }
@@ -552,11 +555,12 @@ export class DatabaseOperations {
       const query = 'SHOW TABLES';
       const portArg = dbConfig.port ? `-P "${dbConfig.port}"` : '';
       const output = execSync(
-        `mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" -p"${dbConfig.password}" "${dbConfig.database}" -e "${query}" -s`,
+        `mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" "${dbConfig.database}" -e "${query}" -s`,
         {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: dbConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
@@ -653,6 +657,7 @@ export class DatabaseOperations {
                   stdio: 'ignore',
                   env: {
                     ...process.env,
+                    MYSQL_PWD: envConfig.password,
                     PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
                   },
                 }
@@ -694,7 +699,6 @@ export class DatabaseOperations {
         portArg,
         '-u',
         `"${envConfig.user}"`,
-        `-p"${envConfig.password}"`,
         `"${envConfig.database}"`,
         '-e',
         '"SELECT 1 as connection_test"',
@@ -709,6 +713,7 @@ export class DatabaseOperations {
         timeout: 10000, // 10 seconds
         env: {
           ...process.env,
+          MYSQL_PWD: envConfig.password,
           PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
         },
       });
@@ -731,7 +736,7 @@ export class DatabaseOperations {
       const query = 'SHOW TABLES';
       const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
       const output = execSync(
-        `mysql -h "${envConfig.host}" ${portArg} -u "${envConfig.user}" -p"${envConfig.password}" "${envConfig.database}" -e "${query}" -s`,
+        `mysql -h "${envConfig.host}" ${portArg} -u "${envConfig.user}" "${envConfig.database}" -e "${query}" -s`,
         {
           encoding: 'utf8',
           stdio: 'pipe',
@@ -739,6 +744,7 @@ export class DatabaseOperations {
           timeout: 10000, // 10 seconds
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }

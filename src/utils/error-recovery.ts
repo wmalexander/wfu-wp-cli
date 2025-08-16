@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 import { BackupRecovery, BackupMetadata } from './backup-recovery';
-import { CacheFlush } from './cache-flush';
 
 interface MigrationContext {
   sourceEnv: string;
@@ -51,7 +50,6 @@ export class ErrorRecovery {
       portArg,
       '-u',
       `"${envConfig.user}"`,
-      `-p"${envConfig.password}"`,
       `"${envConfig.database}"`,
     ].filter((arg) => arg.length > 0);
 
@@ -288,7 +286,7 @@ export class ErrorRecovery {
 
     return new Promise((resolve) => {
       // Ring bell to draw attention to the recovery prompt
-      CacheFlush.ringTerminalBell();
+      process.stdout.write('\x07');
       readline.question(
         chalk.yellow('Select recovery action (1-4): '),
         async (answer: string) => {
@@ -426,6 +424,7 @@ export class ErrorRecovery {
           timeout: 30000,
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
@@ -457,6 +456,7 @@ export class ErrorRecovery {
           encoding: 'utf8',
           env: {
             ...process.env,
+            MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
         }
