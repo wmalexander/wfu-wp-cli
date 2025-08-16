@@ -1,6 +1,14 @@
 # WFU WordPress CLI Tool
 
-A command-line interface for WFU WordPress management tasks, including S3 synchronization between environments.
+A comprehensive command-line interface for managing WordPress multisite installations across multiple environments. Automates database migrations, S3 synchronization, EC2 management, and local development workflows.
+
+## 📚 Documentation
+
+- **[Getting Started Guide](docs/getting-started.md)** - New to wfuwp? Start here!
+- **[Quick Reference](docs/quick-reference.md)** - Command cheat sheet for quick lookups
+- **[Visual Workflows](docs/workflows.md)** - Diagrams showing how migrations work
+- **[Commands Reference](docs/commands.md)** - Detailed documentation for all commands
+- **[Troubleshooting Guide](docs/troubleshooting.md)** - Solutions to common problems
 
 ## Installation
 
@@ -48,6 +56,8 @@ wfuwp <command> [options] [arguments]
 ```
 
 ### Available Commands
+
+> **Note:** For complete command documentation, see the [Commands Reference](docs/commands.md) or [Quick Reference](docs/quick-reference.md)
 
 #### `syncs3` - Sync WordPress sites between S3 environments
 
@@ -251,6 +261,51 @@ wfuwp config verify
 # Reset all settings
 wfuwp config reset
 ```
+
+#### `db` - Database Connection Utilities
+
+Test and verify database connections for all configured environments.
+
+```bash
+wfuwp db <subcommand>
+```
+
+**Subcommands:**
+- `test <env>` - Test database connection for an environment
+- `list` - List all configured database environments
+
+**Examples:**
+```bash
+# Test production database connection
+wfuwp db test prod
+
+# List all configured environments
+wfuwp db list
+```
+
+**📖 Documentation:** See [wp-docs/db.md](wp-docs/db.md) for detailed usage and troubleshooting.
+
+#### `restore` - Restore Database from Backup
+
+Restore WordPress database from SQL backup files.
+
+```bash
+wfuwp restore <sql-file> --to <env> [options]
+```
+
+**Examples:**
+```bash
+# Restore backup to UAT environment
+wfuwp restore ./backup.sql --to uat
+
+# Preview restore without making changes
+wfuwp restore ./backup.sql --to dev --dry-run
+
+# Restore with increased timeout for large files
+wfuwp restore ./large_backup.sql --to pprd --timeout 60
+```
+
+**📖 Documentation:** See [wp-docs/restore.md](wp-docs/restore.md) for detailed usage and recovery workflows.
 
 #### `clickup` - ClickUp Task Management Integration
 
@@ -584,6 +639,26 @@ wfuwp local install --force      # Reinstall dependencies
 - macOS: Homebrew for automated installation
 - Linux: Native package managers (apt, yum, pacman)
 - Windows: WSL recommended, manual installation links provided
+
+## Quick Start
+
+New to wfuwp? Follow our **[Getting Started Guide](docs/getting-started.md)** for step-by-step setup instructions.
+
+```bash
+# 1. Install the tool
+npm install -g wfuwp
+
+# 2. Run configuration wizard
+wfuwp config wizard
+
+# 3. Verify your setup
+wfuwp config verify
+wfuwp db list
+
+# 4. Your first migration
+wfuwp migrate 43 --from prod --to pprd --dry-run  # Preview first
+wfuwp migrate 43 --from prod --to pprd            # Then execute
+```
 
 ## Safety Features
 
