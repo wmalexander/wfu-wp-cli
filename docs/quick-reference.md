@@ -5,6 +5,7 @@
 ### 🚀 Setup & Configuration
 ```bash
 npm install -g wfuwp              # Install the tool
+wfuwp install-deps                # Install Docker & MySQL client
 wfuwp config wizard               # Interactive setup
 wfuwp config verify               # Verify all connections
 wfuwp db test prod                # Test specific database

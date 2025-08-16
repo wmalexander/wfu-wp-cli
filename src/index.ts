@@ -18,6 +18,7 @@ import { clickupCommand } from './commands/clickup';
 import { localCommand } from './commands/local';
 import { registerDoctorCommand } from './commands/doctor';
 import { registerDocsCommand } from './commands/docs';
+import { registerInstallDepsCommand } from './commands/install-deps';
 import { checkFirstRun, showConfigurationHint } from './utils/first-run';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -70,6 +71,7 @@ program.addCommand(localCommand);
 // Add new commands
 registerDoctorCommand(program);
 registerDocsCommand(program);
+registerInstallDepsCommand(program);
 
 program
   .command('help')
@@ -79,6 +81,7 @@ program
     console.log('\nAvailable commands:');
     console.log(chalk.green('  doctor') + '      - Check system prerequisites and tool health');
     console.log(chalk.green('  docs') + '        - Browse and search documentation');
+    console.log(chalk.green('  install-deps') + ' - Install required system dependencies (Docker, MySQL client)');
     console.log(chalk.green('  syncs3') + '      - Sync WordPress sites between S3 environments');
     console.log(chalk.green('  listips') + '     - List EC2 instance IP addresses for an environment');
     console.log(chalk.green('  sshaws') + '      - SSH into EC2 instances for an environment');
