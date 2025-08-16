@@ -1,0 +1,32 @@
+# Base image with Node.js and common tools
+FROM node:20
+
+# Install essential tools that a developer might have
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    wget \
+    vim \
+    sudo \
+    default-mysql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker CLI (not the daemon)
+RUN curl -fsSL https://get.docker.com | sh
+
+# Create a non-root user to simulate a typical developer environment
+RUN useradd -m -s /bin/bash testuser && \
+    echo 'testuser ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Set working directory
+WORKDIR /home/testuser
+
+# Switch to the test user
+USER testuser
+
+# Set up npm global directory for non-root user
+RUN mkdir ~/.npm-global && \
+    npm config set prefix '~/.npm-global' && \
+    echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
+
+CMD ["/bin/bash"]
