@@ -22,7 +22,7 @@ export class DatabaseOperations {
   private static columnCache: Map<string, string[]> = new Map();
   // Cache for mysql client availability
   private static mysqlClientAvailable: boolean | null = null;
-  
+
   // Detect if native mysql client is available
   private static hasNativeMysqlClient(): boolean {
     if (this.mysqlClientAvailable !== null) {
@@ -59,12 +59,15 @@ export class DatabaseOperations {
       const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
       const baseArgs = [
         'docker run --rm',
-        '-e', `MYSQL_PWD="${envConfig.password}"`,
+        '-e',
+        `MYSQL_PWD="${envConfig.password}"`,
         'mysql:8.0',
         'mysql',
-        '-h', `"${envConfig.host}"`,
+        '-h',
+        `"${envConfig.host}"`,
         portArg,
-        '-u', `"${envConfig.user}"`,
+        '-u',
+        `"${envConfig.user}"`,
         `"${envConfig.database}"`,
       ].filter((arg) => arg.length > 0);
       return [...baseArgs, ...additionalArgs].join(' ');
@@ -77,7 +80,9 @@ export class DatabaseOperations {
     additionalArgs: string[] = []
   ): string {
     if (this.hasNativeMysqlClient()) {
-      const portArg = migrationConfig.port ? `-P "${migrationConfig.port}"` : '';
+      const portArg = migrationConfig.port
+        ? `-P "${migrationConfig.port}"`
+        : '';
       const baseArgs = [
         'mysql',
         '-h',
@@ -89,15 +94,20 @@ export class DatabaseOperations {
       ].filter((arg) => arg.length > 0);
       return [...baseArgs, ...additionalArgs].join(' ');
     } else {
-      const portArg = migrationConfig.port ? `--port=${migrationConfig.port}` : '';
+      const portArg = migrationConfig.port
+        ? `--port=${migrationConfig.port}`
+        : '';
       const baseArgs = [
         'docker run --rm',
-        '-e', `MYSQL_PWD="${migrationConfig.password}"`,
+        '-e',
+        `MYSQL_PWD="${migrationConfig.password}"`,
         'mysql:8.0',
         'mysql',
-        '-h', `"${migrationConfig.host}"`,
+        '-h',
+        `"${migrationConfig.host}"`,
         portArg,
-        '-u', `"${migrationConfig.user}"`,
+        '-u',
+        `"${migrationConfig.user}"`,
         `"${migrationConfig.database}"`,
       ].filter((arg) => arg.length > 0);
       return [...baseArgs, ...additionalArgs].join(' ');
@@ -115,16 +125,26 @@ export class DatabaseOperations {
     try {
       execSync('docker info', { stdio: 'ignore' });
     } catch (error) {
-      console.log(chalk.yellow('Docker daemon is not running. Attempting to start Docker...'));
+      console.log(
+        chalk.yellow(
+          'Docker daemon is not running. Attempting to start Docker...'
+        )
+      );
       try {
         if (process.platform === 'linux') {
           try {
-            execSync('sudo systemctl start docker 2>/dev/null', { stdio: 'ignore' });
+            execSync('sudo systemctl start docker 2>/dev/null', {
+              stdio: 'ignore',
+            });
             console.log(chalk.green('✓ Started Docker using systemctl'));
           } catch {
             try {
-              execSync('sudo service docker start 2>/dev/null', { stdio: 'ignore' });
-              console.log(chalk.green('✓ Started Docker using service command'));
+              execSync('sudo service docker start 2>/dev/null', {
+                stdio: 'ignore',
+              });
+              console.log(
+                chalk.green('✓ Started Docker using service command')
+              );
             } catch {
               throw new Error('Failed to start Docker daemon automatically');
             }
@@ -134,12 +154,18 @@ export class DatabaseOperations {
             execSync('docker info', { stdio: 'ignore' });
             console.log(chalk.green('✓ Docker daemon is now running'));
           } catch {
-            throw new Error('Docker started but not yet ready. Please wait a moment and try again.');
+            throw new Error(
+              'Docker started but not yet ready. Please wait a moment and try again.'
+            );
           }
         } else if (process.platform === 'darwin') {
           try {
             execSync('open -a Docker', { stdio: 'ignore' });
-            console.log(chalk.yellow('Starting Docker Desktop... Please wait 10-15 seconds'));
+            console.log(
+              chalk.yellow(
+                'Starting Docker Desktop... Please wait 10-15 seconds'
+              )
+            );
             execSync('sleep 10', { stdio: 'ignore' });
             let retries = 0;
             while (retries < 10) {
@@ -152,9 +178,13 @@ export class DatabaseOperations {
                 execSync('sleep 2', { stdio: 'ignore' });
               }
             }
-            throw new Error('Docker Desktop is starting. Please wait and try again in a few seconds.');
+            throw new Error(
+              'Docker Desktop is starting. Please wait and try again in a few seconds.'
+            );
           } catch (openError) {
-            throw new Error('Could not start Docker Desktop. Please start it manually.');
+            throw new Error(
+              'Could not start Docker Desktop. Please start it manually.'
+            );
           }
         } else {
           throw new Error(
@@ -162,10 +192,16 @@ export class DatabaseOperations {
           );
         }
       } catch (startError) {
-        if (startError instanceof Error && startError.message.includes('Docker started but not yet ready')) {
+        if (
+          startError instanceof Error &&
+          startError.message.includes('Docker started but not yet ready')
+        ) {
           throw startError;
         }
-        if (startError instanceof Error && startError.message.includes('Docker Desktop is starting')) {
+        if (
+          startError instanceof Error &&
+          startError.message.includes('Docker Desktop is starting')
+        ) {
           throw startError;
         }
         throw new Error(
@@ -234,7 +270,7 @@ export class DatabaseOperations {
       }
 
       let exportCommand: string;
-      
+
       if (this.hasNativeMysqlClient()) {
         const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
         exportCommand = [
@@ -254,7 +290,7 @@ export class DatabaseOperations {
         ]
           .filter((arg) => arg.length > 0)
           .join(' ');
-        
+
         execSync(exportCommand, {
           encoding: 'utf8',
           stdio: verbose ? 'inherit' : 'ignore',
@@ -268,24 +304,29 @@ export class DatabaseOperations {
         });
       } else {
         const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
-        exportCommand = [
-          'docker run --rm',
-          '-v', `"${dirname(outputPath)}:${dirname(outputPath)}"`,
-          '-e', `MYSQL_PWD="${envConfig.password}"`,
-          'mysql:8.0',
-          'mysqldump',
-          '-h', `"${envConfig.host}"`,
-          portArg,
-          '-u', `"${envConfig.user}"`,
-          `"${envConfig.database}"`,
-          '--skip-lock-tables',
-          '--no-tablespaces',
-          '--set-gtid-purged=OFF',
-          ...tables.map((table) => `"${table}"`),
-        ]
-          .filter((arg) => arg.length > 0)
-          .join(' ') + ` > "${outputPath}"`;
-        
+        exportCommand =
+          [
+            'docker run --rm',
+            '-v',
+            `"${dirname(outputPath)}:${dirname(outputPath)}"`,
+            '-e',
+            `MYSQL_PWD="${envConfig.password}"`,
+            'mysql:8.0',
+            'mysqldump',
+            '-h',
+            `"${envConfig.host}"`,
+            portArg,
+            '-u',
+            `"${envConfig.user}"`,
+            `"${envConfig.database}"`,
+            '--skip-lock-tables',
+            '--no-tablespaces',
+            '--set-gtid-purged=OFF',
+            ...tables.map((table) => `"${table}"`),
+          ]
+            .filter((arg) => arg.length > 0)
+            .join(' ') + ` > "${outputPath}"`;
+
         execSync(exportCommand, {
           encoding: 'utf8',
           stdio: verbose ? 'inherit' : 'ignore',
@@ -343,7 +384,7 @@ export class DatabaseOperations {
       }
 
       let importCommand: string;
-      
+
       if (this.hasNativeMysqlClient()) {
         importCommand = [
           'mysql',
@@ -356,7 +397,7 @@ export class DatabaseOperations {
           '<',
           `"${sqlFile}"`,
         ].join(' ');
-        
+
         execSync(importCommand, {
           encoding: 'utf8',
           stdio: verbose ? 'inherit' : 'ignore',
@@ -369,20 +410,25 @@ export class DatabaseOperations {
           },
         });
       } else {
-        importCommand = [
-          'docker run --rm',
-          '-v', `"${dirname(sqlFile)}:${dirname(sqlFile)}"`,
-          '-e', `MYSQL_PWD="${targetConfig.password}"`,
-          'mysql:8.0',
-          'mysql',
-          '-h', `"${targetConfig.host}"`,
-          '-u', `"${targetConfig.user}"`,
-          `"${targetConfig.database}"`,
-          '--max_allowed_packet=1G',
-        ]
-          .filter((arg) => arg.length > 0)
-          .join(' ') + ` < "${sqlFile}"`;
-        
+        importCommand =
+          [
+            'docker run --rm',
+            '-v',
+            `"${dirname(sqlFile)}:${dirname(sqlFile)}"`,
+            '-e',
+            `MYSQL_PWD="${targetConfig.password}"`,
+            'mysql:8.0',
+            'mysql',
+            '-h',
+            `"${targetConfig.host}"`,
+            '-u',
+            `"${targetConfig.user}"`,
+            `"${targetConfig.database}"`,
+            '--max_allowed_packet=1G',
+          ]
+            .filter((arg) => arg.length > 0)
+            .join(' ') + ` < "${sqlFile}"`;
+
         execSync(importCommand, {
           encoding: 'utf8',
           stdio: verbose ? 'inherit' : 'ignore',
@@ -430,18 +476,22 @@ export class DatabaseOperations {
 
     try {
       const query = 'SHOW TABLES';
-      const mysqlCommand = this.buildMysqlCommand(envConfig, ['-e', `"${query}"`, '-s']);
+      const mysqlCommand = this.buildMysqlCommand(envConfig, [
+        '-e',
+        `"${query}"`,
+        '-s',
+      ]);
       const execOptions = this.hasNativeMysqlClient()
         ? {
-            encoding: 'utf8' as BufferEncoding,
+            encoding: 'utf8',
             env: {
               ...process.env,
               MYSQL_PWD: envConfig.password,
               PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
             },
           }
-        : { encoding: 'utf8' as BufferEncoding };
-      
+        : { encoding: 'utf8' };
+
       const output = execSync(mysqlCommand, execOptions);
 
       const tables = output
@@ -480,18 +530,22 @@ export class DatabaseOperations {
 
     try {
       const columnsQuery = `DESCRIBE ${tableName}`;
-      const mysqlCommand = this.buildMysqlCommand(envConfig, ['-e', `"${columnsQuery}"`, '-s']);
+      const mysqlCommand = this.buildMysqlCommand(envConfig, [
+        '-e',
+        `"${columnsQuery}"`,
+        '-s',
+      ]);
       const execOptions = this.hasNativeMysqlClient()
         ? {
-            encoding: 'utf8' as BufferEncoding,
+            encoding: 'utf8',
             env: {
               ...process.env,
               MYSQL_PWD: envConfig.password,
               PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
             },
           }
-        : { encoding: 'utf8' as BufferEncoding };
-      
+        : { encoding: 'utf8' };
+
       const columnsOutput = execSync(mysqlCommand, execOptions);
 
       const columns = columnsOutput
@@ -578,15 +632,15 @@ export class DatabaseOperations {
       ]);
       const execOptions = this.hasNativeMysqlClient()
         ? {
-            encoding: 'utf8' as BufferEncoding,
+            encoding: 'utf8',
             env: {
               ...process.env,
               MYSQL_PWD: migrationConfig.password,
               PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
             },
           }
-        : { encoding: 'utf8' as BufferEncoding };
-      
+        : { encoding: 'utf8' };
+
       const tablesOutput = execSync(mysqlCommand, execOptions);
 
       const allTables = tablesOutput
@@ -624,13 +678,13 @@ export class DatabaseOperations {
           for (const table of batch) {
             try {
               const dropQuery = `DROP TABLE IF EXISTS ${table}`;
-              const mysqlCommand = this.buildMigrationMysqlCommand(migrationConfig, [
-                '-e',
-                `'${dropQuery}'`,
-              ]);
+              const mysqlCommand = this.buildMigrationMysqlCommand(
+                migrationConfig,
+                ['-e', `'${dropQuery}'`]
+              );
               const execOptions = this.hasNativeMysqlClient()
                 ? {
-                    encoding: 'utf8' as BufferEncoding,
+                    encoding: 'utf8',
                     stdio: 'ignore' as const,
                     env: {
                       ...process.env,
@@ -638,8 +692,11 @@ export class DatabaseOperations {
                       PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
                     },
                   }
-                : { encoding: 'utf8' as BufferEncoding, stdio: 'ignore' as const };
-              
+                : {
+                    encoding: 'utf8',
+                    stdio: 'ignore' as const,
+                  };
+
               execSync(mysqlCommand, execOptions);
             } catch (tableError) {
               // If DROP fails, try TRUNCATE as fallback to at least clear the data
@@ -719,12 +776,12 @@ export class DatabaseOperations {
       const query = 'SHOW TABLES';
       let mysqlCommand: string;
       let execOptions: any;
-      
+
       if (this.hasNativeMysqlClient()) {
         const portArg = dbConfig.port ? `-P "${dbConfig.port}"` : '';
         mysqlCommand = `mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" "${dbConfig.database}" -e "${query}" -s`;
         execOptions = {
-          encoding: 'utf8' as BufferEncoding,
+          encoding: 'utf8',
           env: {
             ...process.env,
             MYSQL_PWD: dbConfig.password,
@@ -734,9 +791,9 @@ export class DatabaseOperations {
       } else {
         const portArg = dbConfig.port ? `--port=${dbConfig.port}` : '';
         mysqlCommand = `docker run --rm -e MYSQL_PWD="${dbConfig.password}" mysql:8.0 mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" "${dbConfig.database}" -e "${query}" -s`;
-        execOptions = { encoding: 'utf8' as BufferEncoding };
+        execOptions = { encoding: 'utf8' };
       }
-      
+
       const output = execSync(mysqlCommand, execOptions);
 
       const tables = output
@@ -823,10 +880,13 @@ export class DatabaseOperations {
             if (columns.includes(field)) {
               const updateQuery = `UPDATE ${table} SET ${field} = REPLACE(${field}, '${replacement.from}', '${replacement.to}') WHERE ${field} LIKE '%${replacement.from}%'`;
 
-              const mysqlCommand = this.buildMysqlCommand(envConfig, ['-e', `"${updateQuery}"`]);
+              const mysqlCommand = this.buildMysqlCommand(envConfig, [
+                '-e',
+                `"${updateQuery}"`,
+              ]);
               const execOptions = this.hasNativeMysqlClient()
                 ? {
-                    encoding: 'utf8' as BufferEncoding,
+                    encoding: 'utf8',
                     stdio: 'ignore' as const,
                     env: {
                       ...process.env,
@@ -834,8 +894,11 @@ export class DatabaseOperations {
                       PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
                     },
                   }
-                : { encoding: 'utf8' as BufferEncoding, stdio: 'ignore' as const };
-              
+                : {
+                    encoding: 'utf8',
+                    stdio: 'ignore' as const,
+                  };
+
               execSync(mysqlCommand, execOptions);
 
               if (verbose) {
@@ -868,7 +931,7 @@ export class DatabaseOperations {
     try {
       let mysqlCommand: string;
       let execOptions: any;
-      
+
       if (this.hasNativeMysqlClient()) {
         const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
         mysqlCommand = [
@@ -884,9 +947,9 @@ export class DatabaseOperations {
         ]
           .filter((arg) => arg.length > 0)
           .join(' ');
-        
+
         execOptions = {
-          encoding: 'utf8' as BufferEncoding,
+          encoding: 'utf8',
           stdio: 'pipe' as const,
           shell: '/bin/bash',
           timeout: 10000,
@@ -900,27 +963,30 @@ export class DatabaseOperations {
         const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
         mysqlCommand = [
           'docker run --rm',
-          '-e', `MYSQL_PWD="${envConfig.password}"`,
+          '-e',
+          `MYSQL_PWD="${envConfig.password}"`,
           'mysql:8.0',
           'mysql',
-          '-h', `"${envConfig.host}"`,
+          '-h',
+          `"${envConfig.host}"`,
           portArg,
-          '-u', `"${envConfig.user}"`,
+          '-u',
+          `"${envConfig.user}"`,
           `"${envConfig.database}"`,
           '-e',
           '"SELECT 1 as connection_test"',
         ]
           .filter((arg) => arg.length > 0)
           .join(' ');
-        
+
         execOptions = {
-          encoding: 'utf8' as BufferEncoding,
+          encoding: 'utf8',
           stdio: 'pipe' as const,
           shell: '/bin/bash',
           timeout: 10000,
         };
       }
-      
+
       const result = execSync(mysqlCommand, execOptions);
 
       return result.includes('connection_test') || result.includes('1');
@@ -941,12 +1007,12 @@ export class DatabaseOperations {
       const query = 'SHOW TABLES';
       let mysqlCommand: string;
       let execOptions: any;
-      
+
       if (this.hasNativeMysqlClient()) {
         const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
         mysqlCommand = `mysql -h "${envConfig.host}" ${portArg} -u "${envConfig.user}" "${envConfig.database}" -e "${query}" -s`;
         execOptions = {
-          encoding: 'utf8' as BufferEncoding,
+          encoding: 'utf8',
           stdio: 'pipe' as const,
           shell: '/bin/bash',
           timeout: 10000,
@@ -960,13 +1026,13 @@ export class DatabaseOperations {
         const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
         mysqlCommand = `docker run --rm -e MYSQL_PWD="${envConfig.password}" mysql:8.0 mysql -h "${envConfig.host}" ${portArg} -u "${envConfig.user}" "${envConfig.database}" -e "${query}" -s`;
         execOptions = {
-          encoding: 'utf8' as BufferEncoding,
+          encoding: 'utf8',
           stdio: 'pipe' as const,
           shell: '/bin/bash',
           timeout: 10000,
         };
       }
-      
+
       const output = execSync(mysqlCommand, execOptions);
 
       const tables = output

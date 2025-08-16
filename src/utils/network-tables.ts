@@ -33,7 +33,7 @@ export class NetworkTableOperations {
   private static columnCache: Map<string, string[]> = new Map();
   // Cache for mysql client availability
   private static mysqlClientAvailable: boolean | null = null;
-  
+
   // Detect if native mysql client is available
   private static hasNativeMysqlClient(): boolean {
     if (this.mysqlClientAvailable !== null) {
@@ -71,12 +71,15 @@ export class NetworkTableOperations {
       const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
       const baseArgs = [
         'docker run --rm',
-        '-e', `MYSQL_PWD="${envConfig.password}"`,
+        '-e',
+        `MYSQL_PWD="${envConfig.password}"`,
         'mysql:8.0',
         'mysql',
-        '-h', `"${envConfig.host}"`,
+        '-h',
+        `"${envConfig.host}"`,
         portArg,
-        '-u', `"${envConfig.user}"`,
+        '-u',
+        `"${envConfig.user}"`,
         `"${envConfig.database}"`,
       ].filter((arg) => arg.length > 0);
       return [...baseArgs, ...additionalArgs].join(' ');
@@ -92,18 +95,22 @@ export class NetworkTableOperations {
 
     try {
       const columnsQuery = `DESCRIBE ${tableName}`;
-      const mysqlCommand = this.buildMysqlCommand(envConfig, ['-e', `"${columnsQuery}"`, '-s']);
+      const mysqlCommand = this.buildMysqlCommand(envConfig, [
+        '-e',
+        `"${columnsQuery}"`,
+        '-s',
+      ]);
       const execOptions = this.hasNativeMysqlClient()
         ? {
-            encoding: 'utf8' as BufferEncoding,
+            encoding: 'utf8',
             env: {
               ...process.env,
               MYSQL_PWD: envConfig.password,
               PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
             },
           }
-        : { encoding: 'utf8' as BufferEncoding };
-      
+        : { encoding: 'utf8' };
+
       const columnsOutput = execSync(mysqlCommand, execOptions);
 
       const columns = columnsOutput
@@ -198,18 +205,22 @@ export class NetworkTableOperations {
 
       // Single query to get all tables, then filter for network tables
       const query = 'SHOW TABLES';
-      const mysqlCommand = this.buildMysqlCommand(envConfig, ['-e', `"${query}"`, '-s']);
+      const mysqlCommand = this.buildMysqlCommand(envConfig, [
+        '-e',
+        `"${query}"`,
+        '-s',
+      ]);
       const execOptions = this.hasNativeMysqlClient()
         ? {
-            encoding: 'utf8' as BufferEncoding,
+            encoding: 'utf8',
             env: {
               ...process.env,
               MYSQL_PWD: envConfig.password,
               PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
             },
           }
-        : { encoding: 'utf8' as BufferEncoding };
-      
+        : { encoding: 'utf8' };
+
       const output = execSync(mysqlCommand, execOptions);
 
       const allTables = output
@@ -305,7 +316,7 @@ export class NetworkTableOperations {
       }
 
       let exportCommand: string;
-      
+
       if (this.hasNativeMysqlClient()) {
         const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
         exportCommand = [
@@ -325,7 +336,7 @@ export class NetworkTableOperations {
         ]
           .filter((arg) => arg.length > 0)
           .join(' ');
-        
+
         execSync(exportCommand, {
           encoding: 'utf8',
           stdio: verbose ? 'inherit' : 'ignore',
@@ -339,24 +350,29 @@ export class NetworkTableOperations {
         });
       } else {
         const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
-        exportCommand = [
-          'docker run --rm',
-          '-v', `"${dirname(outputPath)}:${dirname(outputPath)}"`,
-          '-e', `MYSQL_PWD="${envConfig.password}"`,
-          'mysql:8.0',
-          'mysqldump',
-          '-h', `"${envConfig.host}"`,
-          portArg,
-          '-u', `"${envConfig.user}"`,
-          `"${envConfig.database}"`,
-          '--skip-lock-tables',
-          '--no-tablespaces',
-          '--set-gtid-purged=OFF',
-          ...tablesToExport.map((table) => `"${table}"`),
-        ]
-          .filter((arg) => arg.length > 0)
-          .join(' ') + ` > "${outputPath}"`;
-        
+        exportCommand =
+          [
+            'docker run --rm',
+            '-v',
+            `"${dirname(outputPath)}:${dirname(outputPath)}"`,
+            '-e',
+            `MYSQL_PWD="${envConfig.password}"`,
+            'mysql:8.0',
+            'mysqldump',
+            '-h',
+            `"${envConfig.host}"`,
+            portArg,
+            '-u',
+            `"${envConfig.user}"`,
+            `"${envConfig.database}"`,
+            '--skip-lock-tables',
+            '--no-tablespaces',
+            '--set-gtid-purged=OFF',
+            ...tablesToExport.map((table) => `"${table}"`),
+          ]
+            .filter((arg) => arg.length > 0)
+            .join(' ') + ` > "${outputPath}"`;
+
         execSync(exportCommand, {
           encoding: 'utf8',
           stdio: verbose ? 'inherit' : 'ignore',
@@ -406,7 +422,7 @@ export class NetworkTableOperations {
       }
 
       let importCommand: string;
-      
+
       if (this.hasNativeMysqlClient()) {
         const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
         importCommand = [
@@ -423,7 +439,7 @@ export class NetworkTableOperations {
         ]
           .filter((arg) => arg.length > 0)
           .join(' ');
-        
+
         execSync(importCommand, {
           encoding: 'utf8',
           stdio: verbose ? 'inherit' : 'ignore',
@@ -437,21 +453,26 @@ export class NetworkTableOperations {
         });
       } else {
         const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
-        importCommand = [
-          'docker run --rm',
-          '-v', `"${dirname(sqlFile)}:${dirname(sqlFile)}"`,
-          '-e', `MYSQL_PWD="${envConfig.password}"`,
-          'mysql:8.0',
-          'mysql',
-          '-h', `"${envConfig.host}"`,
-          portArg,
-          '-u', `"${envConfig.user}"`,
-          `"${envConfig.database}"`,
-          '--max_allowed_packet=1G',
-        ]
-          .filter((arg) => arg.length > 0)
-          .join(' ') + ` < "${sqlFile}"`;
-        
+        importCommand =
+          [
+            'docker run --rm',
+            '-v',
+            `"${dirname(sqlFile)}:${dirname(sqlFile)}"`,
+            '-e',
+            `MYSQL_PWD="${envConfig.password}"`,
+            'mysql:8.0',
+            'mysql',
+            '-h',
+            `"${envConfig.host}"`,
+            portArg,
+            '-u',
+            `"${envConfig.user}"`,
+            `"${envConfig.database}"`,
+            '--max_allowed_packet=1G',
+          ]
+            .filter((arg) => arg.length > 0)
+            .join(' ') + ` < "${sqlFile}"`;
+
         execSync(importCommand, {
           encoding: 'utf8',
           stdio: verbose ? 'inherit' : 'ignore',
@@ -532,7 +553,7 @@ export class NetworkTableOperations {
       }
 
       let backupCommand: string;
-      
+
       if (this.hasNativeMysqlClient()) {
         const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
         backupCommand = [
@@ -552,7 +573,7 @@ export class NetworkTableOperations {
         ]
           .filter((arg) => arg.length > 0)
           .join(' ');
-        
+
         execSync(backupCommand, {
           encoding: 'utf8',
           stdio: verbose ? 'inherit' : 'ignore',
@@ -566,24 +587,29 @@ export class NetworkTableOperations {
         });
       } else {
         const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
-        backupCommand = [
-          'docker run --rm',
-          '-v', `"${dirname(backupPath)}:${dirname(backupPath)}"`,
-          '-e', `MYSQL_PWD="${envConfig.password}"`,
-          'mysql:8.0',
-          'mysqldump',
-          '-h', `"${envConfig.host}"`,
-          portArg,
-          '-u', `"${envConfig.user}"`,
-          `"${envConfig.database}"`,
-          '--skip-lock-tables',
-          '--no-tablespaces',
-          '--set-gtid-purged=OFF',
-          ...tablesToBackup.map((table) => `"${table}"`),
-        ]
-          .filter((arg) => arg.length > 0)
-          .join(' ') + ` > "${backupPath}"`;
-        
+        backupCommand =
+          [
+            'docker run --rm',
+            '-v',
+            `"${dirname(backupPath)}:${dirname(backupPath)}"`,
+            '-e',
+            `MYSQL_PWD="${envConfig.password}"`,
+            'mysql:8.0',
+            'mysqldump',
+            '-h',
+            `"${envConfig.host}"`,
+            portArg,
+            '-u',
+            `"${envConfig.user}"`,
+            `"${envConfig.database}"`,
+            '--skip-lock-tables',
+            '--no-tablespaces',
+            '--set-gtid-purged=OFF',
+            ...tablesToBackup.map((table) => `"${table}"`),
+          ]
+            .filter((arg) => arg.length > 0)
+            .join(' ') + ` > "${backupPath}"`;
+
         execSync(backupCommand, {
           encoding: 'utf8',
           stdio: verbose ? 'inherit' : 'ignore',
@@ -680,10 +706,13 @@ export class NetworkTableOperations {
             if (columns.includes(field)) {
               const updateQuery = `UPDATE ${table} SET ${field} = REPLACE(${field}, '${replacement.from}', '${replacement.to}') WHERE ${field} LIKE '%${replacement.from}%'`;
 
-              const mysqlCommand = this.buildMysqlCommand(envConfig, ['-e', `"${updateQuery}"`]);
+              const mysqlCommand = this.buildMysqlCommand(envConfig, [
+                '-e',
+                `"${updateQuery}"`,
+              ]);
               const execOptions = this.hasNativeMysqlClient()
                 ? {
-                    encoding: 'utf8' as BufferEncoding,
+                    encoding: 'utf8',
                     stdio: 'ignore' as const,
                     env: {
                       ...process.env,
@@ -691,8 +720,11 @@ export class NetworkTableOperations {
                       PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
                     },
                   }
-                : { encoding: 'utf8' as BufferEncoding, stdio: 'ignore' as const };
-              
+                : {
+                    encoding: 'utf8',
+                    stdio: 'ignore' as const,
+                  };
+
               execSync(mysqlCommand, execOptions);
 
               if (verbose) {

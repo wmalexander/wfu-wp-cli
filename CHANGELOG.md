@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] - 2025-08-16
+
+### Fixed
+- Fixed MySQL operations failing on EC2 instances without native MySQL client
+- Added dual-mode MySQL client support: uses native client on Mac, Docker on EC2
+- All database operations now automatically detect and use appropriate execution method
+- Resolved "mysqldump command not found" errors during network table migrations on EC2
+
 ## [0.7.0] - 2025-08-11
 
 ### Added
