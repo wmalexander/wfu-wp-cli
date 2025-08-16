@@ -189,7 +189,6 @@ async function runSimpleMigration(
     });
   }
 
-
   if (options.dryRun) {
     console.log(chalk.green('✓ Simple migration dry run completed'));
   } else {
@@ -591,7 +590,6 @@ async function runCompleteMigration(
         chalk.gray('  Would clean up migration database and temp files')
       );
     }
-
 
     if (options.dryRun) {
       console.log(
