@@ -20,23 +20,55 @@ export class DatabaseOperations {
   private static tableCache: Map<string, string[]> = new Map();
   // Cache for table columns to avoid repeated DESCRIBE queries
   private static columnCache: Map<string, string[]> = new Map();
+  // Cache for mysql client availability
+  private static mysqlClientAvailable: boolean | null = null;
+  
+  // Detect if native mysql client is available
+  private static hasNativeMysqlClient(): boolean {
+    if (this.mysqlClientAvailable !== null) {
+      return this.mysqlClientAvailable;
+    }
+    try {
+      execSync('which mysqldump', { stdio: 'ignore' });
+      execSync('which mysql', { stdio: 'ignore' });
+      this.mysqlClientAvailable = true;
+      return true;
+    } catch {
+      this.mysqlClientAvailable = false;
+      return false;
+    }
+  }
   // Helper method to build MySQL command with proper port handling
   private static buildMysqlCommand(
     envConfig: any,
     additionalArgs: string[] = []
   ): string {
-    const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
-    const baseArgs = [
-      'mysql',
-      '-h',
-      `"${envConfig.host}"`,
-      portArg,
-      '-u',
-      `"${envConfig.user}"`,
-      `"${envConfig.database}"`,
-    ].filter((arg) => arg.length > 0);
-
-    return [...baseArgs, ...additionalArgs].join(' ');
+    if (this.hasNativeMysqlClient()) {
+      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+      const baseArgs = [
+        'mysql',
+        '-h',
+        `"${envConfig.host}"`,
+        portArg,
+        '-u',
+        `"${envConfig.user}"`,
+        `"${envConfig.database}"`,
+      ].filter((arg) => arg.length > 0);
+      return [...baseArgs, ...additionalArgs].join(' ');
+    } else {
+      const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
+      const baseArgs = [
+        'docker run --rm',
+        '-e', `MYSQL_PWD="${envConfig.password}"`,
+        'mysql:8.0',
+        'mysql',
+        '-h', `"${envConfig.host}"`,
+        portArg,
+        '-u', `"${envConfig.user}"`,
+        `"${envConfig.database}"`,
+      ].filter((arg) => arg.length > 0);
+      return [...baseArgs, ...additionalArgs].join(' ');
+    }
   }
 
   // Helper method specifically for migration database commands
@@ -44,18 +76,32 @@ export class DatabaseOperations {
     migrationConfig: any,
     additionalArgs: string[] = []
   ): string {
-    const portArg = migrationConfig.port ? `-P "${migrationConfig.port}"` : '';
-    const baseArgs = [
-      'mysql',
-      '-h',
-      `"${migrationConfig.host}"`,
-      portArg,
-      '-u',
-      `"${migrationConfig.user}"`,
-      `"${migrationConfig.database}"`,
-    ].filter((arg) => arg.length > 0);
-
-    return [...baseArgs, ...additionalArgs].join(' ');
+    if (this.hasNativeMysqlClient()) {
+      const portArg = migrationConfig.port ? `-P "${migrationConfig.port}"` : '';
+      const baseArgs = [
+        'mysql',
+        '-h',
+        `"${migrationConfig.host}"`,
+        portArg,
+        '-u',
+        `"${migrationConfig.user}"`,
+        `"${migrationConfig.database}"`,
+      ].filter((arg) => arg.length > 0);
+      return [...baseArgs, ...additionalArgs].join(' ');
+    } else {
+      const portArg = migrationConfig.port ? `--port=${migrationConfig.port}` : '';
+      const baseArgs = [
+        'docker run --rm',
+        '-e', `MYSQL_PWD="${migrationConfig.password}"`,
+        'mysql:8.0',
+        'mysql',
+        '-h', `"${migrationConfig.host}"`,
+        portArg,
+        '-u', `"${migrationConfig.user}"`,
+        `"${migrationConfig.database}"`,
+      ].filter((arg) => arg.length > 0);
+      return [...baseArgs, ...additionalArgs].join(' ');
+    }
   }
 
   static checkDockerAvailability(): void {
@@ -187,36 +233,66 @@ export class DatabaseOperations {
         console.log(chalk.gray('Running mysqldump export...'));
       }
 
-      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
-      const mysqldumpCommand = [
-        'mysqldump',
-        '-h',
-        `"${envConfig.host}"`,
-        portArg,
-        '-u',
-        `"${envConfig.user}"`,
-        `"${envConfig.database}"`,
-        '--skip-lock-tables',
-        '--no-tablespaces',
-        '--set-gtid-purged=OFF',
-        ...tables.map((table) => `"${table}"`),
-        '>',
-        `"${outputPath}"`,
-      ]
-        .filter((arg) => arg.length > 0)
-        .join(' ');
-
-      execSync(mysqldumpCommand, {
-        encoding: 'utf8',
-        stdio: verbose ? 'inherit' : 'ignore',
-        shell: '/bin/bash',
-        timeout: timeoutMinutes * 60 * 1000, // Convert minutes to milliseconds
-        env: {
-          ...process.env,
-          MYSQL_PWD: envConfig.password,
-          PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-        },
-      });
+      let exportCommand: string;
+      
+      if (this.hasNativeMysqlClient()) {
+        const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+        exportCommand = [
+          'mysqldump',
+          '-h',
+          `"${envConfig.host}"`,
+          portArg,
+          '-u',
+          `"${envConfig.user}"`,
+          `"${envConfig.database}"`,
+          '--skip-lock-tables',
+          '--no-tablespaces',
+          '--set-gtid-purged=OFF',
+          ...tables.map((table) => `"${table}"`),
+          '>',
+          `"${outputPath}"`,
+        ]
+          .filter((arg) => arg.length > 0)
+          .join(' ');
+        
+        execSync(exportCommand, {
+          encoding: 'utf8',
+          stdio: verbose ? 'inherit' : 'ignore',
+          shell: '/bin/bash',
+          timeout: timeoutMinutes * 60 * 1000,
+          env: {
+            ...process.env,
+            MYSQL_PWD: envConfig.password,
+            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+          },
+        });
+      } else {
+        const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
+        exportCommand = [
+          'docker run --rm',
+          '-v', `"${dirname(outputPath)}:${dirname(outputPath)}"`,
+          '-e', `MYSQL_PWD="${envConfig.password}"`,
+          'mysql:8.0',
+          'mysqldump',
+          '-h', `"${envConfig.host}"`,
+          portArg,
+          '-u', `"${envConfig.user}"`,
+          `"${envConfig.database}"`,
+          '--skip-lock-tables',
+          '--no-tablespaces',
+          '--set-gtid-purged=OFF',
+          ...tables.map((table) => `"${table}"`),
+        ]
+          .filter((arg) => arg.length > 0)
+          .join(' ') + ` > "${outputPath}"`;
+        
+        execSync(exportCommand, {
+          encoding: 'utf8',
+          stdio: verbose ? 'inherit' : 'ignore',
+          shell: '/bin/bash',
+          timeout: timeoutMinutes * 60 * 1000,
+        });
+      }
 
       if (!existsSync(outputPath)) {
         throw new Error('Export file was not created');
@@ -266,29 +342,54 @@ export class DatabaseOperations {
         console.log(chalk.gray('Running mysql import...'));
       }
 
-      const mysqlCommand = [
-        'mysql',
-        '-h',
-        `"${targetConfig.host}"`,
-        '-u',
-        `"${targetConfig.user}"`,
-        `"${targetConfig.database}"`,
-        '--max_allowed_packet=1G',
-        '<',
-        `"${sqlFile}"`,
-      ].join(' ');
-
-      execSync(mysqlCommand, {
-        encoding: 'utf8',
-        stdio: verbose ? 'inherit' : 'ignore',
-        shell: '/bin/bash',
-        timeout: timeoutMinutes * 60 * 1000, // Convert minutes to milliseconds
-        env: {
-          ...process.env,
-          MYSQL_PWD: targetConfig.password,
-          PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-        },
-      });
+      let importCommand: string;
+      
+      if (this.hasNativeMysqlClient()) {
+        importCommand = [
+          'mysql',
+          '-h',
+          `"${targetConfig.host}"`,
+          '-u',
+          `"${targetConfig.user}"`,
+          `"${targetConfig.database}"`,
+          '--max_allowed_packet=1G',
+          '<',
+          `"${sqlFile}"`,
+        ].join(' ');
+        
+        execSync(importCommand, {
+          encoding: 'utf8',
+          stdio: verbose ? 'inherit' : 'ignore',
+          shell: '/bin/bash',
+          timeout: timeoutMinutes * 60 * 1000,
+          env: {
+            ...process.env,
+            MYSQL_PWD: targetConfig.password,
+            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+          },
+        });
+      } else {
+        importCommand = [
+          'docker run --rm',
+          '-v', `"${dirname(sqlFile)}:${dirname(sqlFile)}"`,
+          '-e', `MYSQL_PWD="${targetConfig.password}"`,
+          'mysql:8.0',
+          'mysql',
+          '-h', `"${targetConfig.host}"`,
+          '-u', `"${targetConfig.user}"`,
+          `"${targetConfig.database}"`,
+          '--max_allowed_packet=1G',
+        ]
+          .filter((arg) => arg.length > 0)
+          .join(' ') + ` < "${sqlFile}"`;
+        
+        execSync(importCommand, {
+          encoding: 'utf8',
+          stdio: verbose ? 'inherit' : 'ignore',
+          shell: '/bin/bash',
+          timeout: timeoutMinutes * 60 * 1000,
+        });
+      }
 
       // Count the number of CREATE TABLE statements in the SQL file to get accurate import count
       const fileContent = require('fs').readFileSync(sqlFile, 'utf8');
@@ -329,17 +430,19 @@ export class DatabaseOperations {
 
     try {
       const query = 'SHOW TABLES';
-      const output = execSync(
-        this.buildMysqlCommand(envConfig, ['-e', `"${query}"`, '-s']),
-        {
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            MYSQL_PWD: envConfig.password,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        }
-      );
+      const mysqlCommand = this.buildMysqlCommand(envConfig, ['-e', `"${query}"`, '-s']);
+      const execOptions = this.hasNativeMysqlClient()
+        ? {
+            encoding: 'utf8' as BufferEncoding,
+            env: {
+              ...process.env,
+              MYSQL_PWD: envConfig.password,
+              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+            },
+          }
+        : { encoding: 'utf8' as BufferEncoding };
+      
+      const output = execSync(mysqlCommand, execOptions);
 
       const tables = output
         .trim()
@@ -377,17 +480,19 @@ export class DatabaseOperations {
 
     try {
       const columnsQuery = `DESCRIBE ${tableName}`;
-      const columnsOutput = execSync(
-        this.buildMysqlCommand(envConfig, ['-e', `"${columnsQuery}"`, '-s']),
-        {
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            MYSQL_PWD: envConfig.password,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        }
-      );
+      const mysqlCommand = this.buildMysqlCommand(envConfig, ['-e', `"${columnsQuery}"`, '-s']);
+      const execOptions = this.hasNativeMysqlClient()
+        ? {
+            encoding: 'utf8' as BufferEncoding,
+            env: {
+              ...process.env,
+              MYSQL_PWD: envConfig.password,
+              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+            },
+          }
+        : { encoding: 'utf8' as BufferEncoding };
+      
+      const columnsOutput = execSync(mysqlCommand, execOptions);
 
       const columns = columnsOutput
         .trim()
@@ -466,21 +571,23 @@ export class DatabaseOperations {
     try {
       // Get all tables in the migration database
       const showTablesQuery = 'SHOW TABLES';
-      const tablesOutput = execSync(
-        this.buildMigrationMysqlCommand(migrationConfig, [
-          '-e',
-          `"${showTablesQuery}"`,
-          '-s',
-        ]),
-        {
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            MYSQL_PWD: migrationConfig.password,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        }
-      );
+      const mysqlCommand = this.buildMigrationMysqlCommand(migrationConfig, [
+        '-e',
+        `"${showTablesQuery}"`,
+        '-s',
+      ]);
+      const execOptions = this.hasNativeMysqlClient()
+        ? {
+            encoding: 'utf8' as BufferEncoding,
+            env: {
+              ...process.env,
+              MYSQL_PWD: migrationConfig.password,
+              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+            },
+          }
+        : { encoding: 'utf8' as BufferEncoding };
+      
+      const tablesOutput = execSync(mysqlCommand, execOptions);
 
       const allTables = tablesOutput
         .trim()
@@ -517,21 +624,23 @@ export class DatabaseOperations {
           for (const table of batch) {
             try {
               const dropQuery = `DROP TABLE IF EXISTS ${table}`;
-              execSync(
-                this.buildMigrationMysqlCommand(migrationConfig, [
-                  '-e',
-                  `'${dropQuery}'`,
-                ]),
-                {
-                  encoding: 'utf8',
-                  stdio: 'ignore',
-                  env: {
-                    ...process.env,
-                    MYSQL_PWD: migrationConfig.password,
-                    PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-                  },
-                }
-              );
+              const mysqlCommand = this.buildMigrationMysqlCommand(migrationConfig, [
+                '-e',
+                `'${dropQuery}'`,
+              ]);
+              const execOptions = this.hasNativeMysqlClient()
+                ? {
+                    encoding: 'utf8' as BufferEncoding,
+                    stdio: 'ignore' as const,
+                    env: {
+                      ...process.env,
+                      MYSQL_PWD: migrationConfig.password,
+                      PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+                    },
+                  }
+                : { encoding: 'utf8' as BufferEncoding, stdio: 'ignore' as const };
+              
+              execSync(mysqlCommand, execOptions);
             } catch (tableError) {
               // If DROP fails, try TRUNCATE as fallback to at least clear the data
               try {
@@ -608,18 +717,27 @@ export class DatabaseOperations {
     // Use direct MySQL query to get table count (much more efficient than WP-CLI)
     try {
       const query = 'SHOW TABLES';
-      const portArg = dbConfig.port ? `-P "${dbConfig.port}"` : '';
-      const output = execSync(
-        `mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" "${dbConfig.database}" -e "${query}" -s`,
-        {
-          encoding: 'utf8',
+      let mysqlCommand: string;
+      let execOptions: any;
+      
+      if (this.hasNativeMysqlClient()) {
+        const portArg = dbConfig.port ? `-P "${dbConfig.port}"` : '';
+        mysqlCommand = `mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" "${dbConfig.database}" -e "${query}" -s`;
+        execOptions = {
+          encoding: 'utf8' as BufferEncoding,
           env: {
             ...process.env,
             MYSQL_PWD: dbConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
-        }
-      );
+        };
+      } else {
+        const portArg = dbConfig.port ? `--port=${dbConfig.port}` : '';
+        mysqlCommand = `docker run --rm -e MYSQL_PWD="${dbConfig.password}" mysql:8.0 mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" "${dbConfig.database}" -e "${query}" -s`;
+        execOptions = { encoding: 'utf8' as BufferEncoding };
+      }
+      
+      const output = execSync(mysqlCommand, execOptions);
 
       const tables = output
         .trim()
@@ -705,18 +823,20 @@ export class DatabaseOperations {
             if (columns.includes(field)) {
               const updateQuery = `UPDATE ${table} SET ${field} = REPLACE(${field}, '${replacement.from}', '${replacement.to}') WHERE ${field} LIKE '%${replacement.from}%'`;
 
-              execSync(
-                this.buildMysqlCommand(envConfig, ['-e', `"${updateQuery}"`]),
-                {
-                  encoding: 'utf8',
-                  stdio: 'ignore',
-                  env: {
-                    ...process.env,
-                    MYSQL_PWD: envConfig.password,
-                    PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-                  },
-                }
-              );
+              const mysqlCommand = this.buildMysqlCommand(envConfig, ['-e', `"${updateQuery}"`]);
+              const execOptions = this.hasNativeMysqlClient()
+                ? {
+                    encoding: 'utf8' as BufferEncoding,
+                    stdio: 'ignore' as const,
+                    env: {
+                      ...process.env,
+                      MYSQL_PWD: envConfig.password,
+                      PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+                    },
+                  }
+                : { encoding: 'utf8' as BufferEncoding, stdio: 'ignore' as const };
+              
+              execSync(mysqlCommand, execOptions);
 
               if (verbose) {
                 console.log(chalk.gray(`  Updated ${table}.${field}`));
@@ -746,32 +866,62 @@ export class DatabaseOperations {
 
     // Use direct MySQL connection test (much more efficient than WP-CLI)
     try {
-      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
-      const mysqlCommand = [
-        'mysql',
-        '-h',
-        `"${envConfig.host}"`,
-        portArg,
-        '-u',
-        `"${envConfig.user}"`,
-        `"${envConfig.database}"`,
-        '-e',
-        '"SELECT 1 as connection_test"',
-      ]
-        .filter((arg) => arg.length > 0)
-        .join(' ');
-
-      const result = execSync(mysqlCommand, {
-        encoding: 'utf8',
-        stdio: 'pipe',
-        shell: '/bin/bash',
-        timeout: 10000, // 10 seconds
-        env: {
-          ...process.env,
-          MYSQL_PWD: envConfig.password,
-          PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-        },
-      });
+      let mysqlCommand: string;
+      let execOptions: any;
+      
+      if (this.hasNativeMysqlClient()) {
+        const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+        mysqlCommand = [
+          'mysql',
+          '-h',
+          `"${envConfig.host}"`,
+          portArg,
+          '-u',
+          `"${envConfig.user}"`,
+          `"${envConfig.database}"`,
+          '-e',
+          '"SELECT 1 as connection_test"',
+        ]
+          .filter((arg) => arg.length > 0)
+          .join(' ');
+        
+        execOptions = {
+          encoding: 'utf8' as BufferEncoding,
+          stdio: 'pipe' as const,
+          shell: '/bin/bash',
+          timeout: 10000,
+          env: {
+            ...process.env,
+            MYSQL_PWD: envConfig.password,
+            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+          },
+        };
+      } else {
+        const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
+        mysqlCommand = [
+          'docker run --rm',
+          '-e', `MYSQL_PWD="${envConfig.password}"`,
+          'mysql:8.0',
+          'mysql',
+          '-h', `"${envConfig.host}"`,
+          portArg,
+          '-u', `"${envConfig.user}"`,
+          `"${envConfig.database}"`,
+          '-e',
+          '"SELECT 1 as connection_test"',
+        ]
+          .filter((arg) => arg.length > 0)
+          .join(' ');
+        
+        execOptions = {
+          encoding: 'utf8' as BufferEncoding,
+          stdio: 'pipe' as const,
+          shell: '/bin/bash',
+          timeout: 10000,
+        };
+      }
+      
+      const result = execSync(mysqlCommand, execOptions);
 
       return result.includes('connection_test') || result.includes('1');
     } catch (error) {
@@ -789,21 +939,35 @@ export class DatabaseOperations {
     // Use direct MySQL query to get table count
     try {
       const query = 'SHOW TABLES';
-      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
-      const output = execSync(
-        `mysql -h "${envConfig.host}" ${portArg} -u "${envConfig.user}" "${envConfig.database}" -e "${query}" -s`,
-        {
-          encoding: 'utf8',
-          stdio: 'pipe',
+      let mysqlCommand: string;
+      let execOptions: any;
+      
+      if (this.hasNativeMysqlClient()) {
+        const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+        mysqlCommand = `mysql -h "${envConfig.host}" ${portArg} -u "${envConfig.user}" "${envConfig.database}" -e "${query}" -s`;
+        execOptions = {
+          encoding: 'utf8' as BufferEncoding,
+          stdio: 'pipe' as const,
           shell: '/bin/bash',
-          timeout: 10000, // 10 seconds
+          timeout: 10000,
           env: {
             ...process.env,
             MYSQL_PWD: envConfig.password,
             PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
           },
-        }
-      );
+        };
+      } else {
+        const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
+        mysqlCommand = `docker run --rm -e MYSQL_PWD="${envConfig.password}" mysql:8.0 mysql -h "${envConfig.host}" ${portArg} -u "${envConfig.user}" "${envConfig.database}" -e "${query}" -s`;
+        execOptions = {
+          encoding: 'utf8' as BufferEncoding,
+          stdio: 'pipe' as const,
+          shell: '/bin/bash',
+          timeout: 10000,
+        };
+      }
+      
+      const output = execSync(mysqlCommand, execOptions);
 
       const tables = output
         .trim()
