@@ -144,6 +144,58 @@ async function runConfigWizard(): Promise<void> {
   };
 
   try {
+    // Check if user wants to use default configuration
+    console.log(chalk.yellow('--- Default Configuration Option ---'));
+    console.log(chalk.gray('A default configuration template is available from S3.'));
+    const useDefault = await question('Would you like to download and use the default configuration? (y/N): ');
+    
+    if (useDefault.toLowerCase() === 'y' || useDefault.toLowerCase() === 'yes') {
+      console.log(chalk.cyan('Downloading default configuration from S3...'));
+      try {
+        const { execSync } = require('child_process');
+        const tempFile = '/tmp/wfuwp-default-config.json';
+        execSync(`aws s3 cp s3://wfu-cer-ait-ua-internal/wordpress/mysql-dumps/wfuwp-default-config.json ${tempFile}`, { stdio: 'pipe' });
+        
+        const fs = require('fs');
+        const defaultConfig = JSON.parse(fs.readFileSync(tempFile, 'utf8'));
+        
+        // Apply default configuration
+        if (defaultConfig.environments) {
+          for (const [env, config] of Object.entries(defaultConfig.environments)) {
+            for (const [key, value] of Object.entries(config as any)) {
+              if (value) {
+                Config.set(`env.${env}.${key}`, value as string);
+              }
+            }
+          }
+        }
+        
+        if (defaultConfig.migration) {
+          for (const [key, value] of Object.entries(defaultConfig.migration)) {
+            if (value) {
+              Config.set(`migration.${key}`, value as string);
+            }
+          }
+        }
+        
+        if (defaultConfig.s3) {
+          for (const [key, value] of Object.entries(defaultConfig.s3)) {
+            if (value) {
+              Config.set(`s3.${key}`, value as string);
+            }
+          }
+        }
+        
+        console.log(chalk.green('✓ Default configuration loaded successfully'));
+        console.log(chalk.cyan('\nYou will now be prompted to set passwords and any missing values.\n'));
+        
+        // Clean up temp file
+        fs.unlinkSync(tempFile);
+      } catch (error) {
+        console.log(chalk.yellow('Could not download default configuration. Proceeding with manual setup.'));
+      }
+    }
+
     // Configure environments (standard ones first)
     const standardEnvironments = ['dev', 'uat', 'pprd', 'prod'];
 
@@ -160,10 +212,13 @@ async function runConfigWizard(): Promise<void> {
         continue;
       }
 
-      const host = await question(`${env} database host: `);
-      const user = await question(`${env} database user: `);
+      // Get existing config or use defaults
+      const existingConfig = Config.getEnvironmentConfig(env);
+      
+      const host = await question(`${env} database host${existingConfig.host ? ` (current: ${existingConfig.host})` : ''}: `);
+      const user = await question(`${env} database user (default: admin): `) || 'admin';
       const password = await question(`${env} database password: `);
-      const database = await question(`${env} database name: `);
+      const database = await question(`${env} database name (default: wordpress): `) || 'wordpress';
 
       if (host) Config.set(`env.${env}.host`, host);
       if (user) Config.set(`env.${env}.user`, user);
@@ -182,45 +237,44 @@ async function runConfigWizard(): Promise<void> {
     );
     console.log(
       chalk.gray(
-        'This configures your local DDEV WordPress development environment'
+        'This configures your local development environment'
       )
     );
 
     // Ring bell for local environment configuration decision
     process.stdout.write('\x07');
     const configureLocal = await question(
-      'Configure local DDEV environment for development? (y/N): '
+      'Configure local environment for development? (y/N): '
     );
     if (
       configureLocal.toLowerCase() === 'y' ||
       configureLocal.toLowerCase() === 'yes'
     ) {
-      console.log(chalk.cyan('\n💡 DDEV Configuration:'));
+      console.log(chalk.cyan('\n💡 Local Database Configuration:'));
       console.log(
         chalk.gray(
-          '  Run "ddev describe" in your project to get the exact connection details'
-        )
-      );
-      console.log(
-        chalk.gray(
-          '  Typical DDEV setup: Host=ddev-<project>-db, Port=3306, User=db, Password=db, Database=db\n'
+          '  Default settings for local development environment\n'
         )
       );
 
       const localHost = await question(
-        'Local database host (e.g., ddev-myproject-db): '
-      );
-      const localPort =
-        (await question('Local database port (default: 3306): ')) || '3306';
-      const localUser =
-        (await question('Local database user (default: db): ')) || 'db';
-      const localPassword =
-        (await question('Local database password (default: db): ')) || 'db';
-      const localDatabase =
-        (await question('Local database name (default: db): ')) || 'db';
+        'Local database host (default: 127.0.0.1): '
+      ) || '127.0.0.1';
+      const localPort = await question(
+        'Local database port (default: 55030): '
+      ) || '55030';
+      const localUser = await question(
+        'Local database user (default: db): '
+      ) || 'db';
+      const localPassword = await question(
+        'Local database password (default: db): '
+      ) || 'db';
+      const localDatabase = await question(
+        'Local database name (default: db): '
+      ) || 'db';
 
       Config.set('env.local.host', localHost);
-      if (localPort) Config.set('env.local.port', localPort);
+      Config.set('env.local.port', localPort);
       Config.set('env.local.user', localUser);
       Config.set('env.local.password', localPassword);
       Config.set('env.local.database', localDatabase);
@@ -235,36 +289,59 @@ async function runConfigWizard(): Promise<void> {
 
     // Configure migration database
     console.log(chalk.yellow('\n--- Migration Database ---'));
-    const migrationHost = await question(
-      'Migration database host (usually same as one of the environments): '
+    console.log(
+      chalk.gray(
+        'Migration database is used for temporary storage during site migrations'
+      )
     );
-    const migrationUser = await question('Migration database user: ');
-    const migrationPassword = await question('Migration database password: ');
-    const migrationDatabase = await question(
-      'Migration database name (e.g., wp_migration): '
+    
+    // Ring bell for migration database configuration decision
+    process.stdout.write('\x07');
+    const configureMigration = await question(
+      'Configure migration database? (y/N): '
     );
+    
+    if (
+      configureMigration.toLowerCase() === 'y' ||
+      configureMigration.toLowerCase() === 'yes'
+    ) {
+      // Get UAT host as default if available
+      const uatConfig = Config.getEnvironmentConfig('uat');
+      const defaultHost = uatConfig.host || '';
+      
+      const migrationHost = await question(
+        `Migration database host${defaultHost ? ` (default: ${defaultHost})` : ' (usually same as UAT)'}: `
+      ) || defaultHost;
+      const migrationUser = await question('Migration database user (default: admin): ') || 'admin';
+      const migrationPassword = await question('Migration database password: ');
+      const migrationDatabase = await question(
+        'Migration database name (default: wp_migration): '
+      ) || 'wp_migration';
 
-    if (migrationHost) Config.set('migration.host', migrationHost);
-    if (migrationUser) Config.set('migration.user', migrationUser);
-    if (migrationPassword) Config.set('migration.password', migrationPassword);
-    if (migrationDatabase) Config.set('migration.database', migrationDatabase);
+      if (migrationHost) Config.set('migration.host', migrationHost);
+      if (migrationUser) Config.set('migration.user', migrationUser);
+      if (migrationPassword) Config.set('migration.password', migrationPassword);
+      if (migrationDatabase) Config.set('migration.database', migrationDatabase);
 
-    console.log(chalk.green('✓ Migration database configured'));
+      console.log(chalk.green('✓ Migration database configured'));
+    }
 
     // Configure S3 (optional)
     console.log(chalk.yellow('\n--- S3 Configuration (Optional) ---'));
     console.log(
-      chalk.gray('Leave S3 bucket empty to use local backups instead')
+      chalk.gray('S3 is used for backup storage and file synchronization')
     );
     const s3Bucket = await question(
-      'S3 bucket for backups (leave empty for local backups): '
-    );
+      'S3 bucket for backups (default: wfu-cer-ait-ua-internal, leave empty for local backups): '
+    ) || 'wfu-cer-ait-ua-internal';
 
     if (s3Bucket) {
-      const s3Region =
-        (await question('S3 region (default: us-east-1): ')) || 'us-east-1';
-      const s3Prefix =
-        (await question('S3 prefix (default: migrations): ')) || 'migrations';
+      const s3Region = await question(
+        'S3 region (default: us-east-1): '
+      ) || 'us-east-1';
+      const s3Prefix = await question(
+        'S3 prefix (default: wordpress/mysql-dumps/sql-backups): '
+      ) || 'wordpress/mysql-dumps/sql-backups';
 
       Config.set('s3.bucket', s3Bucket);
       Config.set('s3.region', s3Region);
