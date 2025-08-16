@@ -269,7 +269,6 @@ async function runEnvironmentMigration(
       }
     }
 
-
     console.log(
       chalk.green(
         '\n🎉 Environment migration completed successfully: ' +
@@ -1061,7 +1060,6 @@ async function migrateSingleSite(
       cwd: process.cwd(),
       encoding: 'utf8',
     });
-
   } catch (error) {
     throw new Error(
       'Site ' +

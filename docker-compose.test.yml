@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  fresh-install-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: wfuwp-fresh-test
+    volumes:
+      # Mount the current directory to simulate a fresh clone
+      - .:/home/testuser/wfu-wp-cli:ro
+      # Mount docker socket to allow Docker-in-Docker
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TERM=xterm-256color
+    stdin_open: true
+    tty: true
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge

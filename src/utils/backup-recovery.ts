@@ -355,7 +355,9 @@ export class BackupRecovery {
       `--user=${envConfig.user}`,
       envConfig.database,
       tablesArg,
-    ].filter((arg) => arg && arg.length > 0).join(' ');
+    ]
+      .filter((arg) => arg && arg.length > 0)
+      .join(' ');
 
     try {
       execSync(`${mysqldumpCmd} > "${outputPath}"`, {
