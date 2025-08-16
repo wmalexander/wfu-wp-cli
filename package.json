@@ -1,6 +1,6 @@
 {
   "name": "wfuwp",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "CLI tool for WFU WordPress management tasks",
   "main": "dist/index.js",
   "bin": {
@@ -29,11 +29,11 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
-    "@types/marked": "^5.0.2",
+    "@types/marked": "^4.3.1",
     "axios": "^1.11.0",
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
-    "marked": "^16.1.2"
+    "marked": "^4.3.0"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

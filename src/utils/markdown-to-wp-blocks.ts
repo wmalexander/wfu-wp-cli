@@ -1,4 +1,6 @@
-import { marked, Token, Tokens } from 'marked';
+import { marked } from 'marked';
+
+type Token = marked.Token;
 
 export interface ConversionOptions {
   escapeHtml?: boolean;
@@ -26,25 +28,25 @@ export class MarkdownToWpBlocks {
   private tokenToBlock(token: Token): string {
     switch (token.type) {
       case 'heading':
-        return this.headingToBlock(token as Tokens.Heading);
+        return this.headingToBlock(token as marked.Tokens.Heading);
 
       case 'paragraph':
-        return this.paragraphToBlock(token as Tokens.Paragraph);
+        return this.paragraphToBlock(token as marked.Tokens.Paragraph);
 
       case 'list':
-        return this.listToBlock(token as Tokens.List);
+        return this.listToBlock(token as marked.Tokens.List);
 
       case 'code':
-        return this.codeToBlock(token as Tokens.Code);
+        return this.codeToBlock(token as marked.Tokens.Code);
 
       case 'blockquote':
-        return this.blockquoteToBlock(token as Tokens.Blockquote);
+        return this.blockquoteToBlock(token as marked.Tokens.Blockquote);
 
       case 'hr':
         return this.separatorToBlock();
 
       case 'html':
-        return this.htmlToBlock(token as Tokens.HTML);
+        return this.htmlToBlock(token as marked.Tokens.HTML);
 
       case 'space':
         return '';
@@ -55,7 +57,7 @@ export class MarkdownToWpBlocks {
     }
   }
 
-  private headingToBlock(token: Tokens.Heading): string {
+  private headingToBlock(token: marked.Tokens.Heading): string {
     const level = token.depth;
     const text = this.parseInlineTokens(token.tokens);
 
@@ -70,16 +72,16 @@ export class MarkdownToWpBlocks {
     }
   }
 
-  private paragraphToBlock(token: Tokens.Paragraph): string {
+  private paragraphToBlock(token: marked.Tokens.Paragraph): string {
     const text = this.parseInlineTokens(token.tokens);
     return `<!-- wp:paragraph -->
 <p>${text}</p>
 <!-- /wp:paragraph -->`;
   }
 
-  private listToBlock(token: Tokens.List): string {
+  private listToBlock(token: marked.Tokens.List): string {
     const listItems = token.items
-      .map((item) => {
+      .map((item: marked.Tokens.ListItem) => {
         let text: string;
 
         // Always try the regex approach first for raw text
@@ -104,7 +106,7 @@ export class MarkdownToWpBlocks {
         } else if (item.tokens && item.tokens.length > 0) {
           // If the item has parsed tokens, use them
           if (item.tokens[0]?.type === 'paragraph') {
-            const paragraphToken = item.tokens[0] as Tokens.Paragraph;
+            const paragraphToken = item.tokens[0] as marked.Tokens.Paragraph;
             text = this.parseInlineTokens(paragraphToken.tokens);
           } else {
             // Parse as inline tokens
@@ -125,14 +127,14 @@ export class MarkdownToWpBlocks {
 <!-- /wp:list -->`;
   }
 
-  private codeToBlock(token: Tokens.Code): string {
+  private codeToBlock(token: marked.Tokens.Code): string {
     const code = this.escapeHtml(token.text);
     return `<!-- wp:code -->
 <pre class="wp-block-code"><code>${code}</code></pre>
 <!-- /wp:code -->`;
   }
 
-  private blockquoteToBlock(token: Tokens.Blockquote): string {
+  private blockquoteToBlock(token: marked.Tokens.Blockquote): string {
     const content = this.tokensToBlocks(token.tokens);
     return `<!-- wp:quote -->
 <blockquote class="wp-block-quote">${content}</blockquote>
@@ -145,7 +147,7 @@ export class MarkdownToWpBlocks {
 <!-- /wp:separator -->`;
   }
 
-  private htmlToBlock(token: Tokens.HTML): string {
+  private htmlToBlock(token: marked.Tokens.HTML): string {
     return `<!-- wp:html -->
 ${token.text}
 <!-- /wp:html -->`;
@@ -158,25 +160,25 @@ ${token.text}
   private inlineTokenToHtml(token: Token): string {
     switch (token.type) {
       case 'text':
-        return this.escapeHtml((token as Tokens.Text).text);
+        return this.escapeHtml((token as marked.Tokens.Text).text);
 
       case 'strong': {
         const strongText = this.parseInlineTokens(
-          (token as Tokens.Strong).tokens
+          (token as marked.Tokens.Strong).tokens
         );
         return `<strong>${strongText}</strong>`;
       }
 
       case 'em': {
-        const emText = this.parseInlineTokens((token as Tokens.Em).tokens);
+        const emText = this.parseInlineTokens((token as marked.Tokens.Em).tokens);
         return `<em>${emText}</em>`;
       }
 
       case 'codespan':
-        return `<code>${this.escapeHtml((token as Tokens.Codespan).text)}</code>`;
+        return `<code>${this.escapeHtml((token as marked.Tokens.Codespan).text)}</code>`;
 
       case 'link': {
-        const linkToken = token as Tokens.Link;
+        const linkToken = token as marked.Tokens.Link;
         const linkText = this.parseInlineTokens(linkToken.tokens);
         // Convert .md links to .html for WordPress
         let href = linkToken.href;
@@ -191,7 +193,7 @@ ${token.text}
       }
 
       case 'image': {
-        const imgToken = token as Tokens.Image;
+        const imgToken = token as marked.Tokens.Image;
         const alt = this.escapeHtml(imgToken.text);
         const src = this.escapeHtml(imgToken.href);
         const imgTitle = imgToken.title
@@ -204,12 +206,12 @@ ${token.text}
         return '<br />';
 
       case 'del': {
-        const delText = this.parseInlineTokens((token as Tokens.Del).tokens);
+        const delText = this.parseInlineTokens((token as marked.Tokens.Del).tokens);
         return `<del>${delText}</del>`;
       }
 
       case 'html': {
-        const htmlToken = token as Tokens.Tag;
+        const htmlToken = token as marked.Tokens.HTML;
         // When escapeHtml is enabled, treat HTML as literal text
         if (this.options.escapeHtml) {
           return this.escapeHtml(htmlToken.text);
