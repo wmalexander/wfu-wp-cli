@@ -81,6 +81,49 @@ wfuwp migrate 43 --from prod --to pprd --dry-run
 
 ---
 
+### install-deps - Install System Dependencies
+
+Install required system dependencies (Docker and MySQL client) for the WFU WordPress CLI tool.
+
+```bash
+wfuwp install-deps [options]
+```
+
+#### Options
+- `--docker-only` - Install only Docker
+- `--mysql-only` - Install only MySQL client
+- `--check` - Check which dependencies are missing without installing
+- `--force` - Force installation even if already installed
+
+#### Examples
+```bash
+# Check current dependency status
+wfuwp install-deps --check
+
+# Install all missing dependencies
+wfuwp install-deps
+
+# Install only Docker
+wfuwp install-deps --docker-only
+
+# Force reinstall all dependencies
+wfuwp install-deps --force
+```
+
+#### Supported Operating Systems
+- Amazon Linux (EC2)
+- Ubuntu
+- Red Hat Enterprise Linux (RHEL)
+- macOS (partial - Docker requires manual installation)
+
+#### Notes
+- Requires sudo privileges on Linux systems
+- May require logout/login for Docker group changes to take effect
+- On macOS, Docker Desktop must be installed manually
+- MySQL client installation uses MariaDB client on Amazon Linux (fully compatible)
+
+---
+
 ### config - Configuration Management
 
 Manage multi-environment configuration settings.
