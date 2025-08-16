@@ -475,31 +475,102 @@ export class MigrationValidator {
     const errors: string[] = [];
     const warnings: string[] = [];
     const recommendations: string[] = [];
-
+    // Check if dependencies are missing and attempt auto-install
+    let dockerMissing = false;
+    let mysqlClientMissing = false;
     // Check Docker availability
     try {
       const { DatabaseOperations } = await import('./database');
       DatabaseOperations.checkDockerAvailability();
     } catch (error) {
-      errors.push(
-        `Docker is not available: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      dockerMissing = true;
+      if (error instanceof Error && !error.message.includes('Docker is not installed')) {
+        // Docker is installed but not running, will be auto-started
+        dockerMissing = false;
+      }
     }
-
     // Check MySQL client availability
     try {
-      execSync('mysql --version', { stdio: 'pipe' });
+      execSync('mysql --version', { stdio: 'pipe', env: { 
+        ...process.env,
+        PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`
+      }});
     } catch (error) {
-      errors.push('MySQL client is not available in PATH');
-      recommendations.push('Install MySQL client or ensure it is in PATH');
+      mysqlClientMissing = true;
     }
-
-    // Check mysqldump availability
+    // Check mysqldump availability (usually comes with mysql client)
+    let mysqldumpMissing = false;
     try {
-      execSync('mysqldump --version', { stdio: 'pipe' });
+      execSync('mysqldump --version', { stdio: 'pipe', env: {
+        ...process.env,
+        PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`
+      }});
     } catch (error) {
+      mysqldumpMissing = true;
+    }
+    // Auto-install missing dependencies
+    if (dockerMissing || mysqlClientMissing || mysqldumpMissing) {
+      console.log(chalk.yellow('\n⚠ Missing required dependencies detected'));
+      console.log(chalk.cyan('Attempting to install missing dependencies automatically...\n'));
+      try {
+        const installCmd = ['npx', 'wfuwp', 'install-deps'];
+        if (dockerMissing && !mysqlClientMissing) {
+          installCmd.push('--docker-only');
+        } else if (!dockerMissing && mysqlClientMissing) {
+          installCmd.push('--mysql-only');
+        }
+        console.log(chalk.gray(`Running: ${installCmd.join(' ')}`));
+        execSync(installCmd.join(' '), { 
+          stdio: 'inherit',
+          env: process.env
+        });
+        console.log(chalk.green('\n✓ Dependencies installed successfully'));
+        console.log(chalk.cyan('Continuing with migration...\n'));
+        // Re-check after installation
+        dockerMissing = false;
+        mysqlClientMissing = false;
+        mysqldumpMissing = false;
+        // Verify Docker is now available
+        try {
+          const { DatabaseOperations } = await import('./database');
+          DatabaseOperations.checkDockerAvailability();
+        } catch (error) {
+          dockerMissing = true;
+        }
+        // Verify MySQL client is now available
+        try {
+          execSync('mysql --version', { stdio: 'pipe', env: {
+            ...process.env,
+            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`
+          }});
+        } catch (error) {
+          mysqlClientMissing = true;
+        }
+        // Verify mysqldump is now available
+        try {
+          execSync('mysqldump --version', { stdio: 'pipe', env: {
+            ...process.env,
+            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`
+          }});
+        } catch (error) {
+          mysqldumpMissing = true;
+        }
+      } catch (installError) {
+        console.log(chalk.red('\n✗ Automatic dependency installation failed'));
+        console.log(chalk.yellow('Please run "wfuwp install-deps" manually\n'));
+      }
+    }
+    // Final check - report any remaining issues
+    if (dockerMissing) {
+      errors.push('Docker is not installed. Run "wfuwp install-deps" to install');
+    }
+    if (mysqlClientMissing) {
+      errors.push('MySQL client is not available in PATH');
+      recommendations.push('Run "wfuwp install-deps" to install MySQL client');
+    }
+    if (mysqldumpMissing) {
       errors.push('mysqldump is not available in PATH');
-      recommendations.push('Install mysqldump or ensure it is in PATH');
+      recommendations.push('Run "wfuwp install-deps" to install mysqldump');
     }
 
     // Check available disk space

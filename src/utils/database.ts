@@ -63,16 +63,71 @@ export class DatabaseOperations {
       execSync('docker --version', { stdio: 'ignore' });
     } catch (error) {
       throw new Error(
-        'Docker is not installed or not running. Please install Docker: https://www.docker.com/get-started'
+        'Docker is not installed. Please install Docker: https://www.docker.com/get-started'
       );
     }
-
     try {
       execSync('docker info', { stdio: 'ignore' });
     } catch (error) {
-      throw new Error(
-        'Docker is installed but not running. Please start Docker daemon.'
-      );
+      console.log(chalk.yellow('Docker daemon is not running. Attempting to start Docker...'));
+      try {
+        if (process.platform === 'linux') {
+          try {
+            execSync('sudo systemctl start docker 2>/dev/null', { stdio: 'ignore' });
+            console.log(chalk.green('✓ Started Docker using systemctl'));
+          } catch {
+            try {
+              execSync('sudo service docker start 2>/dev/null', { stdio: 'ignore' });
+              console.log(chalk.green('✓ Started Docker using service command'));
+            } catch {
+              throw new Error('Failed to start Docker daemon automatically');
+            }
+          }
+          execSync('sleep 2', { stdio: 'ignore' });
+          try {
+            execSync('docker info', { stdio: 'ignore' });
+            console.log(chalk.green('✓ Docker daemon is now running'));
+          } catch {
+            throw new Error('Docker started but not yet ready. Please wait a moment and try again.');
+          }
+        } else if (process.platform === 'darwin') {
+          try {
+            execSync('open -a Docker', { stdio: 'ignore' });
+            console.log(chalk.yellow('Starting Docker Desktop... Please wait 10-15 seconds'));
+            execSync('sleep 10', { stdio: 'ignore' });
+            let retries = 0;
+            while (retries < 10) {
+              try {
+                execSync('docker info', { stdio: 'ignore' });
+                console.log(chalk.green('✓ Docker Desktop is now running'));
+                return;
+              } catch {
+                retries++;
+                execSync('sleep 2', { stdio: 'ignore' });
+              }
+            }
+            throw new Error('Docker Desktop is starting. Please wait and try again in a few seconds.');
+          } catch (openError) {
+            throw new Error('Could not start Docker Desktop. Please start it manually.');
+          }
+        } else {
+          throw new Error(
+            'Docker is installed but not running. Please start Docker daemon manually.'
+          );
+        }
+      } catch (startError) {
+        if (startError instanceof Error && startError.message.includes('Docker started but not yet ready')) {
+          throw startError;
+        }
+        if (startError instanceof Error && startError.message.includes('Docker Desktop is starting')) {
+          throw startError;
+        }
+        throw new Error(
+          `Docker is installed but not running. Unable to start automatically: ${
+            startError instanceof Error ? startError.message : 'Unknown error'
+          }`
+        );
+      }
     }
   }
 
