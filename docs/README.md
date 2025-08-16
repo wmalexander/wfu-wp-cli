@@ -6,12 +6,23 @@ The WFU WordPress CLI (`wfuwp`) is a comprehensive command-line tool designed fo
 
 ## Table of Contents
 
-- [Installation](./installation.md) - System requirements and setup instructions
-- [Configuration](./configuration.md) - Setting up multi-environment configurations
+### Getting Started
+- [**Getting Started Guide**](./getting-started.md) - **Start here if you're new!**
+- [**Quick Reference**](./quick-reference.md) - Command cheat sheet for quick lookups
+- [Installation](./installation.md) - Detailed installation and system requirements
+
+### Core Documentation
 - [Commands Reference](./commands.md) - Detailed documentation for all CLI commands
+- [Configuration](./configuration.md) - Setting up multi-environment configurations
 - [Migration Workflows](./migration.md) - Complete guide to database migration processes
-- [Architecture](./architecture.md) - Technical architecture and design patterns
+- [Visual Workflows](./workflows.md) - ASCII diagrams showing how processes work
+
+### Troubleshooting & Support
 - [Troubleshooting](./troubleshooting.md) - Common issues and solutions
+- [Command-Specific Troubleshooting](./troubleshooting-by-command.md) - Issues by command
+
+### Advanced Topics
+- [Architecture](./architecture.md) - Technical architecture and design patterns
 - [Development](./development.md) - Contributing and development guidelines
 
 ## Quick Start

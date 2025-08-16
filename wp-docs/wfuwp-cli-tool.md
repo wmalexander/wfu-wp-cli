@@ -23,7 +23,9 @@ Prerequisites:
 
 - **[local](local.md)** - Local development environment management with DDEV integration and automated Docker startup
 - **[migrate](migrate.md)** - Complete WordPress multisite database migration with automated export/import/archival
-- **[config](config.md)** - Multi-environment configuration management with interactive wizard  
+- **[config](config.md)** - Multi-environment configuration management with interactive wizard
+- **[db](db.md)** - Test and verify database connections for troubleshooting
+- **[restore](restore.md)** - Restore WordPress databases from SQL backup files
 - **[syncs3](syncs3.md)** - Sync S3 assets (uploads, media files, etc.) between WordPress environments
 - **[listips](listips.md)** - Display IP addresses of running EC2 instances in specified environments
 - **[sshaws](sshaws.md)** - SSH into EC2 instances with automatic key management and connection handling
