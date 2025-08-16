@@ -128,7 +128,9 @@ export class MarkdownToWpBlocks {
   private tableToBlock(token: any): string {
     const headers = token.header
       .map((cell: any) => {
-        const text = cell.tokens ? this.processTextToken(cell.tokens) : cell.text;
+        const text = cell.tokens
+          ? this.processTextToken(cell.tokens)
+          : cell.text;
         return `<th>${text}</th>`;
       })
       .join('');

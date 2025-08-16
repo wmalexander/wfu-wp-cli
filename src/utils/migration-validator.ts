@@ -484,34 +484,47 @@ export class MigrationValidator {
       DatabaseOperations.checkDockerAvailability();
     } catch (error) {
       dockerMissing = true;
-      if (error instanceof Error && !error.message.includes('Docker is not installed')) {
+      if (
+        error instanceof Error &&
+        !error.message.includes('Docker is not installed')
+      ) {
         // Docker is installed but not running, will be auto-started
         dockerMissing = false;
       }
     }
     // Check MySQL client availability
     try {
-      execSync('mysql --version', { stdio: 'pipe', env: { 
-        ...process.env,
-        PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`
-      }});
+      execSync('mysql --version', {
+        stdio: 'pipe',
+        env: {
+          ...process.env,
+          PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+        },
+      });
     } catch (error) {
       mysqlClientMissing = true;
     }
     // Check mysqldump availability (usually comes with mysql client)
     let mysqldumpMissing = false;
     try {
-      execSync('mysqldump --version', { stdio: 'pipe', env: {
-        ...process.env,
-        PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`
-      }});
+      execSync('mysqldump --version', {
+        stdio: 'pipe',
+        env: {
+          ...process.env,
+          PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+        },
+      });
     } catch (error) {
       mysqldumpMissing = true;
     }
     // Auto-install missing dependencies
     if (dockerMissing || mysqlClientMissing || mysqldumpMissing) {
       console.log(chalk.yellow('\n⚠ Missing required dependencies detected'));
-      console.log(chalk.cyan('Attempting to install missing dependencies automatically...\n'));
+      console.log(
+        chalk.cyan(
+          'Attempting to install missing dependencies automatically...\n'
+        )
+      );
       try {
         const installCmd = ['npx', 'wfuwp', 'install-deps'];
         if (dockerMissing && !mysqlClientMissing) {
@@ -520,9 +533,9 @@ export class MigrationValidator {
           installCmd.push('--mysql-only');
         }
         console.log(chalk.gray(`Running: ${installCmd.join(' ')}`));
-        execSync(installCmd.join(' '), { 
+        execSync(installCmd.join(' '), {
           stdio: 'inherit',
-          env: process.env
+          env: process.env,
         });
         console.log(chalk.green('\n✓ Dependencies installed successfully'));
         console.log(chalk.cyan('Continuing with migration...\n'));
@@ -539,19 +552,25 @@ export class MigrationValidator {
         }
         // Verify MySQL client is now available
         try {
-          execSync('mysql --version', { stdio: 'pipe', env: {
-            ...process.env,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`
-          }});
+          execSync('mysql --version', {
+            stdio: 'pipe',
+            env: {
+              ...process.env,
+              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+            },
+          });
         } catch (error) {
           mysqlClientMissing = true;
         }
         // Verify mysqldump is now available
         try {
-          execSync('mysqldump --version', { stdio: 'pipe', env: {
-            ...process.env,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`
-          }});
+          execSync('mysqldump --version', {
+            stdio: 'pipe',
+            env: {
+              ...process.env,
+              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+            },
+          });
         } catch (error) {
           mysqldumpMissing = true;
         }
@@ -562,7 +581,9 @@ export class MigrationValidator {
     }
     // Final check - report any remaining issues
     if (dockerMissing) {
-      errors.push('Docker is not installed. Run "wfuwp install-deps" to install');
+      errors.push(
+        'Docker is not installed. Run "wfuwp install-deps" to install'
+      );
     }
     if (mysqlClientMissing) {
       errors.push('MySQL client is not available in PATH');

@@ -102,14 +102,14 @@ export class NetworkTableOperations {
       ]);
       const execOptions = this.hasNativeMysqlClient()
         ? {
-            encoding: 'utf8',
+            encoding: 'utf8' as const,
             env: {
               ...process.env,
               MYSQL_PWD: envConfig.password,
               PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
             },
           }
-        : { encoding: 'utf8' };
+        : { encoding: 'utf8' as const };
 
       const columnsOutput = execSync(mysqlCommand, execOptions);
 
@@ -212,14 +212,14 @@ export class NetworkTableOperations {
       ]);
       const execOptions = this.hasNativeMysqlClient()
         ? {
-            encoding: 'utf8',
+            encoding: 'utf8' as const,
             env: {
               ...process.env,
               MYSQL_PWD: envConfig.password,
               PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
             },
           }
-        : { encoding: 'utf8' };
+        : { encoding: 'utf8' as const };
 
       const output = execSync(mysqlCommand, execOptions);
 
@@ -338,7 +338,7 @@ export class NetworkTableOperations {
           .join(' ');
 
         execSync(exportCommand, {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: verbose ? 'inherit' : 'ignore',
           shell: '/bin/bash',
           timeout: timeoutMinutes * 60 * 1000,
@@ -374,7 +374,7 @@ export class NetworkTableOperations {
             .join(' ') + ` > "${outputPath}"`;
 
         execSync(exportCommand, {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: verbose ? 'inherit' : 'ignore',
           shell: '/bin/bash',
           timeout: timeoutMinutes * 60 * 1000,
@@ -441,7 +441,7 @@ export class NetworkTableOperations {
           .join(' ');
 
         execSync(importCommand, {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: verbose ? 'inherit' : 'ignore',
           shell: '/bin/bash',
           timeout: timeoutMinutes * 60 * 1000,
@@ -474,7 +474,7 @@ export class NetworkTableOperations {
             .join(' ') + ` < "${sqlFile}"`;
 
         execSync(importCommand, {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: verbose ? 'inherit' : 'ignore',
           shell: '/bin/bash',
           timeout: timeoutMinutes * 60 * 1000,
@@ -575,7 +575,7 @@ export class NetworkTableOperations {
           .join(' ');
 
         execSync(backupCommand, {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: verbose ? 'inherit' : 'ignore',
           shell: '/bin/bash',
           timeout: timeoutMinutes * 60 * 1000,
@@ -611,7 +611,7 @@ export class NetworkTableOperations {
             .join(' ') + ` > "${backupPath}"`;
 
         execSync(backupCommand, {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: verbose ? 'inherit' : 'ignore',
           shell: '/bin/bash',
           timeout: timeoutMinutes * 60 * 1000,
@@ -712,7 +712,7 @@ export class NetworkTableOperations {
               ]);
               const execOptions = this.hasNativeMysqlClient()
                 ? {
-                    encoding: 'utf8',
+                    encoding: 'utf8' as const,
                     stdio: 'ignore' as const,
                     env: {
                       ...process.env,
@@ -721,7 +721,7 @@ export class NetworkTableOperations {
                     },
                   }
                 : {
-                    encoding: 'utf8',
+                    encoding: 'utf8' as const,
                     stdio: 'ignore' as const,
                   };
 

@@ -292,7 +292,7 @@ export class DatabaseOperations {
           .join(' ');
 
         execSync(exportCommand, {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: verbose ? 'inherit' : 'ignore',
           shell: '/bin/bash',
           timeout: timeoutMinutes * 60 * 1000,
@@ -328,7 +328,7 @@ export class DatabaseOperations {
             .join(' ') + ` > "${outputPath}"`;
 
         execSync(exportCommand, {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: verbose ? 'inherit' : 'ignore',
           shell: '/bin/bash',
           timeout: timeoutMinutes * 60 * 1000,
@@ -399,7 +399,7 @@ export class DatabaseOperations {
         ].join(' ');
 
         execSync(importCommand, {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: verbose ? 'inherit' : 'ignore',
           shell: '/bin/bash',
           timeout: timeoutMinutes * 60 * 1000,
@@ -430,7 +430,7 @@ export class DatabaseOperations {
             .join(' ') + ` < "${sqlFile}"`;
 
         execSync(importCommand, {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: verbose ? 'inherit' : 'ignore',
           shell: '/bin/bash',
           timeout: timeoutMinutes * 60 * 1000,
@@ -483,14 +483,14 @@ export class DatabaseOperations {
       ]);
       const execOptions = this.hasNativeMysqlClient()
         ? {
-            encoding: 'utf8',
+            encoding: 'utf8' as const,
             env: {
               ...process.env,
               MYSQL_PWD: envConfig.password,
               PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
             },
           }
-        : { encoding: 'utf8' };
+        : { encoding: 'utf8' as const };
 
       const output = execSync(mysqlCommand, execOptions);
 
@@ -537,14 +537,14 @@ export class DatabaseOperations {
       ]);
       const execOptions = this.hasNativeMysqlClient()
         ? {
-            encoding: 'utf8',
+            encoding: 'utf8' as const,
             env: {
               ...process.env,
               MYSQL_PWD: envConfig.password,
               PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
             },
           }
-        : { encoding: 'utf8' };
+        : { encoding: 'utf8' as const };
 
       const columnsOutput = execSync(mysqlCommand, execOptions);
 
@@ -632,14 +632,14 @@ export class DatabaseOperations {
       ]);
       const execOptions = this.hasNativeMysqlClient()
         ? {
-            encoding: 'utf8',
+            encoding: 'utf8' as const,
             env: {
               ...process.env,
               MYSQL_PWD: migrationConfig.password,
               PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
             },
           }
-        : { encoding: 'utf8' };
+        : { encoding: 'utf8' as const };
 
       const tablesOutput = execSync(mysqlCommand, execOptions);
 
@@ -684,7 +684,7 @@ export class DatabaseOperations {
               );
               const execOptions = this.hasNativeMysqlClient()
                 ? {
-                    encoding: 'utf8',
+                    encoding: 'utf8' as const,
                     stdio: 'ignore' as const,
                     env: {
                       ...process.env,
@@ -693,7 +693,7 @@ export class DatabaseOperations {
                     },
                   }
                 : {
-                    encoding: 'utf8',
+                    encoding: 'utf8' as const,
                     stdio: 'ignore' as const,
                   };
 
@@ -708,7 +708,7 @@ export class DatabaseOperations {
                     `'${truncateQuery}'`,
                   ]),
                   {
-                    encoding: 'utf8',
+                    encoding: 'utf8' as const,
                     stdio: 'ignore',
                     env: {
                       ...process.env,
@@ -781,7 +781,7 @@ export class DatabaseOperations {
         const portArg = dbConfig.port ? `-P "${dbConfig.port}"` : '';
         mysqlCommand = `mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" "${dbConfig.database}" -e "${query}" -s`;
         execOptions = {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           env: {
             ...process.env,
             MYSQL_PWD: dbConfig.password,
@@ -791,7 +791,7 @@ export class DatabaseOperations {
       } else {
         const portArg = dbConfig.port ? `--port=${dbConfig.port}` : '';
         mysqlCommand = `docker run --rm -e MYSQL_PWD="${dbConfig.password}" mysql:8.0 mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" "${dbConfig.database}" -e "${query}" -s`;
-        execOptions = { encoding: 'utf8' };
+        execOptions = { encoding: 'utf8' as const };
       }
 
       const output = execSync(mysqlCommand, execOptions);
@@ -886,7 +886,7 @@ export class DatabaseOperations {
               ]);
               const execOptions = this.hasNativeMysqlClient()
                 ? {
-                    encoding: 'utf8',
+                    encoding: 'utf8' as const,
                     stdio: 'ignore' as const,
                     env: {
                       ...process.env,
@@ -895,7 +895,7 @@ export class DatabaseOperations {
                     },
                   }
                 : {
-                    encoding: 'utf8',
+                    encoding: 'utf8' as const,
                     stdio: 'ignore' as const,
                   };
 
@@ -949,7 +949,7 @@ export class DatabaseOperations {
           .join(' ');
 
         execOptions = {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: 'pipe' as const,
           shell: '/bin/bash',
           timeout: 10000,
@@ -980,7 +980,7 @@ export class DatabaseOperations {
           .join(' ');
 
         execOptions = {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: 'pipe' as const,
           shell: '/bin/bash',
           timeout: 10000,
@@ -1012,7 +1012,7 @@ export class DatabaseOperations {
         const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
         mysqlCommand = `mysql -h "${envConfig.host}" ${portArg} -u "${envConfig.user}" "${envConfig.database}" -e "${query}" -s`;
         execOptions = {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: 'pipe' as const,
           shell: '/bin/bash',
           timeout: 10000,
@@ -1026,7 +1026,7 @@ export class DatabaseOperations {
         const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
         mysqlCommand = `docker run --rm -e MYSQL_PWD="${envConfig.password}" mysql:8.0 mysql -h "${envConfig.host}" ${portArg} -u "${envConfig.user}" "${envConfig.database}" -e "${query}" -s`;
         execOptions = {
-          encoding: 'utf8',
+          encoding: 'utf8' as const,
           stdio: 'pipe' as const,
           shell: '/bin/bash',
           timeout: 10000,
