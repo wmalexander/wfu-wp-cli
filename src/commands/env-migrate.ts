@@ -8,6 +8,7 @@ import { ErrorRecovery } from '../utils/error-recovery';
 import { MigrationValidator } from '../utils/migration-validator';
 import { S3Operations } from '../utils/s3';
 import { S3Sync } from '../utils/s3sync';
+import { DatabaseOperations } from '../utils/database';
 
 interface EnvMigrateOptions {
   dryRun?: boolean;
@@ -974,6 +975,29 @@ async function migrateSingleSite(
     return;
   }
 
+  // Defensive cleanup: Clean migration database before starting to ensure no leftover tables
+  try {
+    await DatabaseOperations.cleanMigrationDatabase(siteId.toString());
+    if (options.verbose) {
+      console.log(
+        chalk.gray(`      Cleaned migration database for site ${siteId}`)
+      );
+    }
+  } catch (cleanupError) {
+    // Log warning but don't fail the migration for cleanup issues
+    if (options.verbose) {
+      console.log(
+        chalk.yellow(
+          `      Warning: Pre-migration cleanup failed for site ${siteId}: ${
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : 'Unknown error'
+          }`
+        )
+      );
+    }
+  }
+
   // For Phase 3, we'll use execSync to call the migrate command
   // In later phases, this can be refactored to call migrate functions directly
   const { execSync } = require('child_process');
@@ -1061,6 +1085,31 @@ async function migrateSingleSite(
       encoding: 'utf8',
     });
   } catch (error) {
+    // Clean up migration database on failure to prevent leftover tables
+    try {
+      await DatabaseOperations.cleanMigrationDatabase(siteId.toString());
+      if (options.verbose) {
+        console.log(
+          chalk.gray(
+            `      Cleaned migration database after failure for site ${siteId}`
+          )
+        );
+      }
+    } catch (cleanupError) {
+      // Log cleanup failure but don't mask the original error
+      if (options.verbose) {
+        console.log(
+          chalk.yellow(
+            `      Warning: Post-failure cleanup failed for site ${siteId}: ${
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : 'Unknown error'
+            }`
+          )
+        );
+      }
+    }
+
     throw new Error(
       'Site ' +
         siteId +
