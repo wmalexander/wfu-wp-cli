@@ -32,6 +32,7 @@ interface EnvMigrateOptions {
   healthCheck?: boolean;
   s3StorageClass?: string;
   archiveBackups?: boolean;
+  exportLocalDb?: boolean;
 }
 
 interface MigrationProgress {
@@ -113,6 +114,11 @@ export const envMigrateCommand = new Command('env-migrate')
   .option(
     '--health-check',
     'Perform health checks before and after migration',
+    false
+  )
+  .option(
+    '--export-local-db',
+    'Export completed local database to S3 (prod → local only)',
     false
   )
   .action(
@@ -278,6 +284,13 @@ async function runEnvironmentMigration(
       )
     );
 
+    // Export local database to S3 if requested
+    if (options.exportLocalDb && sourceEnv === 'prod' && targetEnv === 'local') {
+      console.log(chalk.blue('\nExporting completed local database to S3...'));
+      await exportLocalDatabaseToS3(options);
+      console.log(chalk.green('✓ Local database exported to S3'));
+    }
+
     // Ring terminal bell on success
     process.stdout.write('\x07');
 
@@ -362,6 +375,22 @@ function validateInputs(
           'Use: prod → local'
       );
     }
+  }
+
+  // Validate export-local-db option
+  if (options.exportLocalDb) {
+    if (sourceEnv !== 'prod' || targetEnv !== 'local') {
+      throw new Error(
+        '--export-local-db option is only supported for prod → local migrations'
+      );
+    }
+    if (!Config.hasRequiredS3Config()) {
+      throw new Error(
+        '--export-local-db requires S3 configuration. Run "wfuwp config wizard" to set up.'
+      );
+    }
+    // For EC2 export, we'll create a temporary local database
+    console.log(chalk.yellow('Note: Running on EC2 - will create temporary local database for export'));
   }
 
   if (sourceEnv === 'local') {
@@ -1106,6 +1135,10 @@ async function confirmEnvironmentMigration(
     console.log(chalk.white('  WordPress Files: Will be synced via S3'));
   }
 
+  if (options.exportLocalDb) {
+    console.log(chalk.white('  Local DB Export: Complete database will be exported to S3 after migration'));
+  }
+
   console.log(chalk.cyan('\nMigration Settings:'));
   console.log(
     chalk.white('  Batch Size: ' + (options.batchSize || '5') + ' sites')
@@ -1403,4 +1436,202 @@ async function processWithConcurrencyLimit<T>(
   }
 
   await Promise.all(executing);
+}
+
+async function exportLocalDatabaseToS3(options: EnvMigrateOptions): Promise<void> {
+  const { execSync } = require('child_process');
+  const fs = require('fs');
+  const path = require('path');
+
+  try {
+    // Get local environment config
+    const localConfig = Config.getEnvironmentConfig('local');
+    if (!Config.hasRequiredEnvironmentConfig('local')) {
+      throw new Error('Local environment is not configured');
+    }
+
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, 19);
+    const workDir = options.workDir || `/tmp/wp-local-export-${timestamp}`;
+    
+    // Create work directory
+    if (!fs.existsSync(workDir)) {
+      fs.mkdirSync(workDir, { recursive: true });
+    }
+
+    const exportPath = path.join(workDir, `complete-local-database-${timestamp}.sql`);
+
+    if (options.verbose) {
+      console.log(chalk.gray(`  Exporting complete local database to: ${exportPath}`));
+    }
+
+    // Use mysqldump to export the entire local database
+    let exportCommand: string;
+    const timeoutMinutes = parseInt(options.timeout || '30', 10);
+
+    // Check if native MySQL client is available
+    let hasNativeClient = false;
+    try {
+      execSync('which mysqldump', { stdio: 'ignore' });
+      hasNativeClient = true;
+    } catch {
+      hasNativeClient = false;
+    }
+
+    if (hasNativeClient) {
+      const portArg = localConfig.port ? `-P ${localConfig.port}` : '';
+      
+      // Build base command without GTID option first
+      const baseCommand = [
+        'mysqldump',
+        '-h',
+        localConfig.host,
+        portArg,
+        '-u',
+        localConfig.user,
+        localConfig.database,
+        '--single-transaction',
+        '--routines',
+        '--triggers',
+        '--complete-insert',
+        '--skip-lock-tables',
+        '--no-tablespaces',
+        '>',
+        `"${exportPath}"`
+      ].filter(arg => arg && arg.length > 0);
+
+      // Check if MySQL version supports GTID options
+      let supportsGtid = false;
+      try {
+        const versionCheck = execSync(`mysqldump --help | grep "set-gtid-purged" || echo "no-gtid"`, {
+          encoding: 'utf8',
+          stdio: 'pipe',
+          env: {
+            ...process.env,
+            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+          },
+        });
+        supportsGtid = versionCheck.includes('set-gtid-purged') && !versionCheck.includes('no-gtid');
+        if (options.verbose) {
+          console.log(chalk.gray(`  GTID support check: ${supportsGtid ? 'supported' : 'not supported'}`));
+        }
+      } catch {
+        supportsGtid = false;
+      }
+
+      // Add GTID option only if supported
+      if (supportsGtid) {
+        const insertIndex = baseCommand.indexOf('--no-tablespaces') + 1;
+        baseCommand.splice(insertIndex, 0, '--set-gtid-purged=OFF');
+      }
+
+      exportCommand = baseCommand.join(' ');
+
+      execSync(exportCommand, {
+        encoding: 'utf8',
+        stdio: options.verbose ? 'inherit' : 'pipe',
+        shell: '/bin/bash',
+        timeout: timeoutMinutes * 60 * 1000,
+        env: {
+          ...process.env,
+          MYSQL_PWD: localConfig.password,
+          PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+        },
+      });
+    } else {
+      // Use Docker fallback
+      const portArg = localConfig.port ? `--port=${localConfig.port}` : '';
+      exportCommand = [
+        'docker run --rm',
+        '-v',
+        `"${path.dirname(exportPath)}:${path.dirname(exportPath)}"`,
+        '-e',
+        `MYSQL_PWD="${localConfig.password}"`,
+        'mysql:8.0',
+        'mysqldump',
+        '-h',
+        `"${localConfig.host}"`,
+        portArg,
+        '-u',
+        `"${localConfig.user}"`,
+        `"${localConfig.database}"`,
+        '--single-transaction',
+        '--routines',
+        '--triggers',
+        '--complete-insert',
+        '--skip-lock-tables',
+        '--no-tablespaces',
+        '--set-gtid-purged=OFF'
+      ].filter(arg => arg.length > 0).join(' ') + ` > "${exportPath}"`;
+
+      execSync(exportCommand, {
+        encoding: 'utf8',
+        stdio: options.verbose ? 'inherit' : 'pipe',
+        shell: '/bin/bash',
+        timeout: timeoutMinutes * 60 * 1000,
+      });
+    }
+
+    // Verify export file was created
+    if (!fs.existsSync(exportPath)) {
+      throw new Error('Local database export file was not created');
+    }
+
+    const stats = fs.statSync(exportPath);
+    const fileSizeMB = (stats.size / 1024 / 1024).toFixed(2);
+
+    if (options.verbose) {
+      console.log(chalk.green(`  ✓ Database exported successfully (${fileSizeMB} MB)`));
+    }
+
+    // Upload to S3
+    const metadata = {
+      siteId: 'complete-local-db',
+      fromEnvironment: 'prod',
+      toEnvironment: 'local',
+      timestamp,
+      siteName: 'complete-local-database',
+      sourceExport: exportPath,
+      migratedExport: exportPath
+    };
+
+    const s3Result = await S3Operations.archiveToS3(
+      [exportPath],
+      metadata,
+      options.verbose,
+      options.s3StorageClass || 'STANDARD'
+    );
+
+    console.log(chalk.cyan(`
+📦 Local Database Export Complete!
+
+S3 Location: s3://${s3Result.bucket}/${s3Result.path}
+File Size: ${fileSizeMB} MB
+Timestamp: ${timestamp}
+
+To use this database locally:
+1. Download from S3: aws s3 cp "s3://${s3Result.bucket}/${s3Result.path}complete-local-database-${timestamp}.sql" ./
+2. Import to DDEV: ddev import-db --src=complete-local-database-${timestamp}.sql
+3. Clear caches: ddev wp cache flush
+
+The database contains the complete prod dataset with URLs transformed for local development.
+    `));
+
+    // Clean up temporary files unless keeping them
+    if (!options.keepFiles) {
+      fs.unlinkSync(exportPath);
+      if (fs.existsSync(workDir) && fs.readdirSync(workDir).length === 0) {
+        fs.rmdirSync(workDir);
+      }
+    } else {
+      console.log(chalk.gray(`Local export file preserved: ${exportPath}`));
+    }
+
+  } catch (error) {
+    throw new Error(
+      `Local database export failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
 }
