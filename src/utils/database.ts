@@ -1084,4 +1084,238 @@ export class DatabaseOperations {
       );
     }
   }
+
+  static async exportCompleteLocalDatabase(
+    sourceEnv: string,
+    workDir: string,
+    verbose = false,
+    timeout = 20
+  ): Promise<ExportResult> {
+    const migrationConfig = Config.getMigrationDbConfig();
+
+    if (!Config.hasRequiredMigrationConfig()) {
+      throw new Error('Migration database is not configured');
+    }
+
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, 19);
+
+    const exportPath = require('path').join(
+      workDir,
+      `complete-local-database-${timestamp}.sql`
+    );
+
+    try {
+      if (verbose) {
+        console.log(
+          chalk.gray('Creating complete database dump for local import...')
+        );
+      }
+
+      let mysqldumpCommand: string;
+      let execOptions: any;
+
+      if (this.hasNativeMysqlClient()) {
+        const portArg = migrationConfig.port
+          ? `-P ${migrationConfig.port}`
+          : '';
+        mysqldumpCommand = [
+          'mysqldump',
+          '-h',
+          migrationConfig.host,
+          portArg,
+          '-u',
+          migrationConfig.user,
+          '--single-transaction',
+          '--routines',
+          '--triggers',
+          '--add-drop-table',
+          '--complete-insert',
+          '--hex-blob',
+          migrationConfig.database,
+        ]
+          .filter((arg) => arg && arg.length > 0)
+          .join(' ');
+
+        execOptions = {
+          encoding: 'utf8' as const,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: timeout * 60 * 1000,
+          env: {
+            ...process.env,
+            MYSQL_PWD: migrationConfig.password,
+            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+          },
+        };
+      } else {
+        const portArg = migrationConfig.port
+          ? `--port=${migrationConfig.port}`
+          : '';
+        mysqldumpCommand = [
+          'docker run --rm',
+          '-e',
+          `MYSQL_PWD="${migrationConfig.password}"`,
+          'mysql:8.0',
+          'mysqldump',
+          '-h',
+          `"${migrationConfig.host}"`,
+          portArg,
+          '-u',
+          `"${migrationConfig.user}"`,
+          '--single-transaction',
+          '--routines',
+          '--triggers',
+          '--add-drop-table',
+          '--complete-insert',
+          '--hex-blob',
+          `"${migrationConfig.database}"`,
+        ]
+          .filter((arg) => arg && arg.length > 0)
+          .join(' ');
+
+        execOptions = {
+          encoding: 'utf8' as const,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          timeout: timeout * 60 * 1000,
+        };
+      }
+
+      const output = execSync(mysqldumpCommand, execOptions);
+
+      require('fs').writeFileSync(exportPath, output);
+
+      const stats = require('fs').statSync(exportPath);
+      const tableCount = this.countTablesInDump(output);
+
+      if (verbose) {
+        console.log(
+          chalk.green(
+            `✓ Exported ${tableCount} tables (${(stats.size / 1024 / 1024).toFixed(2)} MB)`
+          )
+        );
+      }
+
+      return {
+        filePath: exportPath,
+        tableCount,
+        fileSize: stats.size,
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to export complete database: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  static async compressDatabaseExport(
+    sqlFilePath: string,
+    verbose = false
+  ): Promise<string> {
+    const gzipPath = `${sqlFilePath}.gz`;
+
+    try {
+      if (verbose) {
+        console.log(chalk.gray('Compressing database export...'));
+      }
+
+      execSync(`gzip -9 "${sqlFilePath}"`, {
+        stdio: verbose ? 'inherit' : 'ignore',
+      });
+
+      const stats = require('fs').statSync(gzipPath);
+
+      if (verbose) {
+        console.log(
+          chalk.green(
+            `✓ Compressed to ${(stats.size / 1024 / 1024).toFixed(2)} MB`
+          )
+        );
+      }
+
+      return gzipPath;
+    } catch (error) {
+      throw new Error(
+        `Failed to compress database export: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  private static countTablesInDump(dumpContent: string): number {
+    const tableMatches = dumpContent.match(/CREATE TABLE/gi);
+    return tableMatches ? tableMatches.length : 0;
+  }
+
+  static async performLocalSearchReplace(
+    environment: string,
+    verbose = false
+  ): Promise<void> {
+    const envConfig = Config.getEnvironmentConfig(environment);
+    const migrationConfig = Config.getMigrationDbConfig();
+
+    if (!Config.hasRequiredMigrationConfig()) {
+      throw new Error('Migration database is not configured');
+    }
+
+    if (verbose) {
+      console.log(
+        chalk.gray('Performing search-replace for local environment...')
+      );
+    }
+
+    const host = envConfig.host || 'localhost';
+    const searchReplaceOperations = [
+      {
+        from: host.includes('prod') ? 'https://www.wfu.edu' : `https://${host}`,
+        to: 'http://localhost:8080',
+      },
+      {
+        from: host.includes('prod') ? 'www.wfu.edu' : host,
+        to: 'localhost:8080',
+      },
+    ];
+
+    try {
+      for (const operation of searchReplaceOperations) {
+        const wpCliArgs = [
+          'search-replace',
+          `"${operation.from}"`,
+          `"${operation.to}"`,
+          '--skip-columns=guid',
+          '--dry-run=false',
+          '--quiet',
+        ];
+
+        if (verbose) {
+          console.log(
+            chalk.gray(`  Replacing: ${operation.from} → ${operation.to}`)
+          );
+        }
+
+        const dockerCommand = [
+          'docker run --rm',
+          `-e WORDPRESS_DB_HOST="${migrationConfig.host}:${migrationConfig.port || 3306}"`,
+          `-e WORDPRESS_DB_USER="${migrationConfig.user}"`,
+          `-e WORDPRESS_DB_PASSWORD="${migrationConfig.password}"`,
+          `-e WORDPRESS_DB_NAME="${migrationConfig.database}"`,
+          'wordpress:cli',
+          'wp',
+          ...wpCliArgs,
+        ].join(' ');
+
+        execSync(dockerCommand, {
+          stdio: verbose ? 'inherit' : 'ignore',
+        });
+      }
+
+      if (verbose) {
+        console.log(chalk.green('✓ Search-replace operations completed'));
+      }
+    } catch (error) {
+      throw new Error(
+        `Search-replace failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
 }

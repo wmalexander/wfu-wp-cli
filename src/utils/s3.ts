@@ -250,4 +250,244 @@ export class S3Operations {
       return false;
     }
   }
+
+  static async uploadLocalExport(
+    compressedFilePath: string,
+    sourceEnv: string,
+    verbose = false,
+    storageClass = 'STANDARD'
+  ): Promise<S3Result> {
+    const s3Config = Config.getS3Config();
+
+    if (!Config.hasRequiredS3Config()) {
+      throw new Error(
+        'S3 configuration is incomplete. Run "wfuwp config wizard" to set up.'
+      );
+    }
+
+    this.checkAwsCliAvailability();
+
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, 19);
+
+    const s3Path = this.getLocalExportS3Path(sourceEnv, timestamp);
+    const fileName = basename(compressedFilePath);
+    const s3FilePath = `${s3Path}${fileName}`;
+
+    if (verbose) {
+      console.log(chalk.gray(`Uploading local export to S3: ${fileName}`));
+    }
+
+    try {
+      const awsCommand = [
+        'aws s3 cp',
+        `"${compressedFilePath}"`,
+        `"s3://${s3Config.bucket}/${s3FilePath}"`,
+        `--storage-class ${storageClass}`,
+      ];
+
+      execSync(awsCommand.join(' '), {
+        encoding: 'utf8',
+        stdio: verbose ? 'inherit' : 'ignore',
+      });
+
+      const metadata = {
+        siteId: 'complete',
+        fromEnvironment: sourceEnv,
+        toEnvironment: 'local',
+        timestamp,
+        exportType: 'local-complete',
+        fileName,
+      };
+
+      const metadataContent = JSON.stringify(metadata, null, 2);
+      const metadataPath = `/tmp/local-export-metadata-${timestamp}.json`;
+      require('fs').writeFileSync(metadataPath, metadataContent);
+
+      try {
+        const metadataS3Path = `${s3Path}metadata.json`;
+        const awsMetadataCommand = [
+          'aws s3 cp',
+          `"${metadataPath}"`,
+          `"s3://${s3Config.bucket}/${metadataS3Path}"`,
+        ];
+
+        execSync(awsMetadataCommand.join(' '), { stdio: 'ignore' });
+
+        require('fs').unlinkSync(metadataPath);
+      } catch (error) {
+        console.warn(chalk.yellow('Warning: Failed to upload metadata file'));
+      }
+
+      if (verbose) {
+        console.log(
+          chalk.green(`✓ Uploaded to S3: ${s3Config.bucket}/${s3FilePath}`)
+        );
+      }
+
+      return {
+        bucket: s3Config.bucket!,
+        path: s3Path,
+        files: [fileName, 'metadata.json'],
+      };
+    } catch (error) {
+      throw new Error(
+        `Failed to upload local export to S3: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  static getLocalExportS3Path(sourceEnv: string, timestamp: string): string {
+    const s3Config = Config.getS3Config();
+    const prefix = s3Config.prefix || 'migrations';
+
+    let date: Date;
+    if (timestamp.includes('T') && timestamp.includes('-')) {
+      const [datePart] = timestamp.split('T');
+      const [year, month, day] = datePart.split('-').map(Number);
+      date = new Date(year, month - 1, day);
+    } else {
+      date = new Date(timestamp);
+    }
+
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const year = date.getFullYear();
+    const dateStr = `${month}-${day}-${year}`;
+
+    const directoryName = `${sourceEnv}-to-local-complete-${dateStr}-${timestamp.split('T')[1] || 'export'}`;
+
+    return `${prefix}/local-exports/${directoryName}/`;
+  }
+
+  static async listLocalExports(verbose = false): Promise<any[]> {
+    const s3Config = Config.getS3Config();
+
+    if (!Config.hasRequiredS3Config()) {
+      throw new Error('S3 configuration is incomplete');
+    }
+
+    this.checkAwsCliAvailability();
+
+    const prefix = s3Config.prefix || 'migrations';
+    const searchPrefix = `${prefix}/local-exports/`;
+
+    try {
+      const awsCommand = [
+        'aws s3api list-objects-v2',
+        `--bucket ${s3Config.bucket}`,
+        `--prefix "${searchPrefix}"`,
+        '--query "Contents[?ends_with(Key, \\`metadata.json\\`)].[Key,LastModified,Size]"',
+        '--output json',
+      ];
+
+      const output = execSync(awsCommand.join(' '), { encoding: 'utf8' });
+      const results = JSON.parse(output || '[]');
+
+      const exports = [];
+      for (const [key, lastModified, size] of results) {
+        try {
+          const metadataCommand = [
+            'aws s3 cp',
+            `"s3://${s3Config.bucket}/${key}"`,
+            '-',
+          ];
+
+          const metadataOutput = execSync(metadataCommand.join(' '), {
+            encoding: 'utf8',
+          });
+
+          const metadata = JSON.parse(metadataOutput);
+          const pathParts = key.split('/');
+          const exportId = pathParts[pathParts.length - 2];
+
+          exports.push({
+            id: exportId,
+            sourceEnvironment: metadata.fromEnvironment,
+            timestamp: metadata.timestamp,
+            lastModified: new Date(lastModified),
+            size: size,
+            s3Path: key.replace('/metadata.json', ''),
+            fileName: metadata.fileName,
+          });
+        } catch (error) {
+          if (verbose) {
+            console.warn(
+              chalk.yellow(`Warning: Could not parse metadata for ${key}`)
+            );
+          }
+        }
+      }
+
+      return exports.sort(
+        (a, b) => b.lastModified.getTime() - a.lastModified.getTime()
+      );
+    } catch (error) {
+      throw new Error(
+        `Failed to list local exports: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  static async downloadLocalExport(
+    exportId: string,
+    localPath: string,
+    verbose = false
+  ): Promise<string> {
+    const s3Config = Config.getS3Config();
+
+    if (!Config.hasRequiredS3Config()) {
+      throw new Error('S3 configuration is incomplete');
+    }
+
+    this.checkAwsCliAvailability();
+
+    const prefix = s3Config.prefix || 'migrations';
+    const s3ExportPath = `${prefix}/local-exports/${exportId}/`;
+
+    try {
+      const listCommand = [
+        'aws s3 ls',
+        `"s3://${s3Config.bucket}/${s3ExportPath}"`,
+        '--recursive',
+      ];
+
+      const listOutput = execSync(listCommand.join(' '), { encoding: 'utf8' });
+      const files = listOutput.split('\n').filter((line) => line.trim());
+
+      const sqlGzFile = files.find((line) => line.includes('.sql.gz'));
+      if (!sqlGzFile) {
+        throw new Error('No .sql.gz file found in export');
+      }
+
+      const fileName = sqlGzFile.split(/\s+/).pop()!.split('/').pop()!;
+      const localFilePath = require('path').join(localPath, fileName);
+
+      const downloadCommand = [
+        'aws s3 cp',
+        `"s3://${s3Config.bucket}/${s3ExportPath}${fileName}"`,
+        `"${localFilePath}"`,
+      ];
+
+      if (verbose) {
+        console.log(chalk.gray(`Downloading: ${fileName}`));
+      }
+
+      execSync(downloadCommand.join(' '), {
+        stdio: verbose ? 'inherit' : 'ignore',
+      });
+
+      if (verbose) {
+        console.log(chalk.green(`✓ Downloaded to: ${localFilePath}`));
+      }
+
+      return localFilePath;
+    } catch (error) {
+      throw new Error(
+        `Failed to download local export: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
 }

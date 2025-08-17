@@ -9,6 +9,7 @@ import { MigrationValidator } from '../utils/migration-validator';
 import { S3Operations } from '../utils/s3';
 import { S3Sync } from '../utils/s3sync';
 import { DatabaseOperations } from '../utils/database';
+import { EC2Detector } from '../utils/ec2-detector';
 import {
   MigrationStateManager,
   MigrationState,
@@ -43,6 +44,7 @@ interface EnvMigrateOptions {
   skipTimeouts?: boolean;
   retryFailed?: boolean;
   listMigrations?: boolean;
+  ec2Export?: boolean;
 }
 
 interface MigrationProgress {
@@ -150,6 +152,11 @@ export const envMigrateCommand = new Command('env-migrate')
     'List incomplete migrations that can be resumed',
     false
   )
+  .option(
+    '--ec2-export',
+    'Export complete database to S3 for local download (EC2 mode)',
+    false
+  )
   .action(
     async (
       sourceEnv: string | undefined,
@@ -186,7 +193,14 @@ export const envMigrateCommand = new Command('env-migrate')
           process.exit(1);
         }
 
-        await handleNewMigration(sourceEnv, targetEnv, options);
+        if (
+          targetEnv === 'local' &&
+          (options.ec2Export || EC2Detector.isRunningOnEC2())
+        ) {
+          await handleEC2LocalExport(sourceEnv, options);
+        } else {
+          await handleNewMigration(sourceEnv, targetEnv, options);
+        }
       } catch (error) {
         console.error(
           chalk.red(
@@ -1825,6 +1839,240 @@ async function promptForResume(migration: any): Promise<boolean> {
     readline.question(question, (answer: string) => {
       readline.close();
       resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
+    });
+  });
+}
+
+async function handleEC2LocalExport(
+  sourceEnv: string,
+  options: EnvMigrateOptions
+): Promise<void> {
+  console.log(
+    chalk.blue.bold('🚀 Starting EC2 Local Export: ' + sourceEnv + ' → S3')
+  );
+
+  if (options.verbose) {
+    EC2Detector.printEC2Info(true);
+  }
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const workDir = options.workDir || `/tmp/wp-ec2-local-export-${timestamp}`;
+
+  if (!require('fs').existsSync(workDir)) {
+    require('fs').mkdirSync(workDir, { recursive: true });
+  }
+
+  try {
+    console.log(chalk.blue('Step 1: Running pre-flight checks...'));
+    await runPreflightChecks(sourceEnv, 'local', options);
+
+    if (!Config.hasRequiredS3Config()) {
+      throw new Error(
+        'S3 configuration is required for EC2 local export. Run "wfuwp config wizard" to configure S3.'
+      );
+    }
+
+    if (!options.force && !options.dryRun) {
+      const confirmation = await confirmEC2LocalExport(sourceEnv, options);
+      if (!confirmation) {
+        console.log(chalk.yellow('EC2 local export cancelled'));
+        return;
+      }
+    }
+
+    if (options.dryRun) {
+      console.log(
+        chalk.yellow('DRY RUN MODE - No actual export will be performed')
+      );
+      console.log(chalk.gray('Would perform complete database export to S3'));
+      return;
+    }
+
+    console.log(chalk.blue('Step 2: Discovering and exporting all sites...'));
+
+    const sites = await discoverSites(sourceEnv, options);
+    console.log(
+      chalk.green(`✓ Found ${sites.length} sites to include in export`)
+    );
+
+    await migrateAllSitesToMigrationDB(sites, sourceEnv, options);
+
+    console.log(chalk.blue('Step 3: Exporting network tables...'));
+    await migrateNetworkTables(sourceEnv, 'migration', options);
+
+    console.log(
+      chalk.blue('Step 4: Performing search-replace for local environment...')
+    );
+    await DatabaseOperations.performLocalSearchReplace(
+      sourceEnv,
+      options.verbose
+    );
+
+    console.log(chalk.blue('Step 5: Creating complete database export...'));
+    const exportResult = await DatabaseOperations.exportCompleteLocalDatabase(
+      sourceEnv,
+      workDir,
+      options.verbose,
+      parseInt(options.timeout || '20', 10)
+    );
+
+    console.log(chalk.blue('Step 6: Compressing export...'));
+    const compressedPath = await DatabaseOperations.compressDatabaseExport(
+      exportResult.filePath,
+      options.verbose
+    );
+
+    console.log(chalk.blue('Step 7: Uploading to S3...'));
+    const s3Result = await S3Operations.uploadLocalExport(
+      compressedPath,
+      sourceEnv,
+      options.verbose,
+      options.s3StorageClass
+    );
+
+    console.log(chalk.green('\n🎉 EC2 Local Export completed successfully!'));
+    console.log(chalk.cyan('Export Details:'));
+    console.log(chalk.white(`  Source Environment: ${sourceEnv}`));
+    console.log(chalk.white(`  Sites Exported: ${sites.length}`));
+    console.log(chalk.white(`  Tables Exported: ${exportResult.tableCount}`));
+    console.log(
+      chalk.white(
+        `  Compressed Size: ${(require('fs').statSync(compressedPath).size / 1024 / 1024).toFixed(2)} MB`
+      )
+    );
+    console.log(
+      chalk.white(`  S3 Location: s3://${s3Result.bucket}/${s3Result.path}`)
+    );
+
+    console.log(chalk.yellow('\n📥 To download and use locally:'));
+    console.log(chalk.white('  wfuwp download-local --list'));
+    console.log(
+      chalk.white(
+        `  wfuwp download-local --id ${s3Result.path.split('/').slice(-2, -1)[0]}`
+      )
+    );
+
+    if (!options.keepFiles) {
+      console.log(chalk.gray('Cleaning up temporary files...'));
+      require('fs').unlinkSync(compressedPath);
+      require('fs').rmdirSync(workDir, { recursive: true });
+    }
+
+    process.stdout.write('\x07');
+  } catch (error) {
+    console.error(
+      chalk.red(
+        'EC2 local export failed: ' +
+          (error instanceof Error ? error.message : 'Unknown error')
+      )
+    );
+    process.stdout.write('\x07');
+    throw error;
+  }
+}
+
+async function migrateAllSitesToMigrationDB(
+  siteIds: number[],
+  sourceEnv: string,
+  options: EnvMigrateOptions
+): Promise<void> {
+  const { execSync } = require('child_process');
+
+  for (const siteId of siteIds) {
+    try {
+      if (options.verbose) {
+        console.log(chalk.gray(`  Exporting site ${siteId}...`));
+      }
+
+      const migrateArgs = [
+        'migrate',
+        siteId.toString(),
+        '--from',
+        sourceEnv,
+        '--to',
+        'migration',
+        '--force',
+        '--skip-backup',
+        '--skip-s3',
+      ];
+
+      if (options.verbose) {
+        migrateArgs.push('--verbose');
+      }
+
+      execSync('wfuwp ' + migrateArgs.join(' '), {
+        stdio: options.verbose ? 'inherit' : 'pipe',
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      });
+    } catch (error) {
+      if (options.verbose) {
+        console.log(
+          chalk.yellow(
+            `  Warning: Failed to export site ${siteId}, continuing...`
+          )
+        );
+      }
+    }
+  }
+}
+
+async function confirmEC2LocalExport(
+  sourceEnv: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+  _options: EnvMigrateOptions
+): Promise<boolean> {
+  const readline = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  console.log(chalk.yellow.bold('\nEC2 LOCAL EXPORT CONFIRMATION'));
+  console.log(
+    chalk.white('\nYou are about to export the complete database to S3:')
+  );
+  console.log(chalk.cyan(`\n  Source Environment: ${chalk.bold(sourceEnv)}`));
+  console.log(
+    chalk.white('  Export Type: Complete database (all sites + network tables)')
+  );
+  console.log(chalk.white('  Destination: S3 bucket for local download'));
+  console.log(chalk.white('  Processing: Search-replace for localhost URLs'));
+
+  if (EC2Detector.isRunningOnEC2()) {
+    const instanceId = EC2Detector.getEC2InstanceId();
+    const region = EC2Detector.getEC2Region();
+    console.log(chalk.cyan('\nEC2 Instance Details:'));
+    if (instanceId) console.log(chalk.white(`  Instance ID: ${instanceId}`));
+    if (region) console.log(chalk.white(`  Region: ${region}`));
+  }
+
+  console.log(chalk.green('\n✓ This will create a compressed database export'));
+  console.log(
+    chalk.green('✓ All URLs will be converted for local development')
+  );
+  console.log(chalk.green('✓ Export will be uploaded to S3 for download'));
+
+  const confirmationMessage =
+    '\n' +
+    chalk.yellow.bold('Proceed with EC2 local export?') +
+    ' ' +
+    chalk.gray('(y/N): ') +
+    ' ';
+
+  return new Promise((resolve) => {
+    process.stdout.write('\x07');
+    readline.question(confirmationMessage, (answer: string) => {
+      readline.close();
+      const confirmed =
+        answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes';
+
+      if (confirmed) {
+        console.log(chalk.green('\nExport confirmed. Starting process...'));
+      } else {
+        console.log(chalk.yellow('\nExport cancelled by user.'));
+      }
+
+      resolve(confirmed);
     });
   });
 }
