@@ -319,7 +319,7 @@ export class NetworkTableOperations {
 
       if (this.hasNativeMysqlClient()) {
         const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
-        
+
         // Build base command without GTID option first
         const baseCommand = [
           'mysqldump',
@@ -339,22 +339,33 @@ export class NetworkTableOperations {
         // Check if MySQL version supports GTID options
         let supportsGtid = false;
         try {
-          const versionCheck = execSync(`mysqldump --help | grep "set-gtid-purged" || echo "no-gtid"`, {
-            encoding: 'utf8',
-            stdio: 'pipe',
-            env: {
-              ...process.env,
-              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-            },
-          });
-          supportsGtid = versionCheck.includes('set-gtid-purged') && !versionCheck.includes('no-gtid');
+          const versionCheck = execSync(
+            `mysqldump --help | grep "set-gtid-purged" || echo "no-gtid"`,
+            {
+              encoding: 'utf8',
+              stdio: 'pipe',
+              env: {
+                ...process.env,
+                PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+              },
+            }
+          );
+          supportsGtid =
+            versionCheck.includes('set-gtid-purged') &&
+            !versionCheck.includes('no-gtid');
           if (verbose) {
-            console.log(chalk.gray(`GTID support check: ${supportsGtid ? 'supported' : 'not supported'}`));
+            console.log(
+              chalk.gray(
+                `GTID support check: ${supportsGtid ? 'supported' : 'not supported'}`
+              )
+            );
           }
         } catch {
           supportsGtid = false;
           if (verbose) {
-            console.log(chalk.gray('GTID support check: failed, assuming not supported'));
+            console.log(
+              chalk.gray('GTID support check: failed, assuming not supported')
+            );
           }
         }
 
@@ -435,12 +446,20 @@ export class NetworkTableOperations {
       }
       if (verbose) {
         console.log(chalk.red(`Command that failed: ${exportCommand}`));
-        console.log(chalk.red(`Environment config: ${JSON.stringify({
-          host: envConfig.host,
-          port: envConfig.port,
-          user: envConfig.user,
-          database: envConfig.database
-        }, null, 2)}`));
+        console.log(
+          chalk.red(
+            `Environment config: ${JSON.stringify(
+              {
+                host: envConfig.host,
+                port: envConfig.port,
+                user: envConfig.user,
+                database: envConfig.database,
+              },
+              null,
+              2
+            )}`
+          )
+        );
       }
       throw new Error(`Network tables export failed: ${errorMessage}`);
     }
@@ -603,7 +622,7 @@ export class NetworkTableOperations {
 
       if (this.hasNativeMysqlClient()) {
         const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
-        
+
         // Build base command without GTID option first
         const baseCommand = [
           'mysqldump',
@@ -623,22 +642,33 @@ export class NetworkTableOperations {
         // Check if MySQL version supports GTID options
         let supportsGtid = false;
         try {
-          const versionCheck = execSync(`mysqldump --help | grep "set-gtid-purged" || echo "no-gtid"`, {
-            encoding: 'utf8',
-            stdio: 'pipe',
-            env: {
-              ...process.env,
-              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-            },
-          });
-          supportsGtid = versionCheck.includes('set-gtid-purged') && !versionCheck.includes('no-gtid');
+          const versionCheck = execSync(
+            `mysqldump --help | grep "set-gtid-purged" || echo "no-gtid"`,
+            {
+              encoding: 'utf8',
+              stdio: 'pipe',
+              env: {
+                ...process.env,
+                PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+              },
+            }
+          );
+          supportsGtid =
+            versionCheck.includes('set-gtid-purged') &&
+            !versionCheck.includes('no-gtid');
           if (verbose) {
-            console.log(chalk.gray(`GTID support check: ${supportsGtid ? 'supported' : 'not supported'}`));
+            console.log(
+              chalk.gray(
+                `GTID support check: ${supportsGtid ? 'supported' : 'not supported'}`
+              )
+            );
           }
         } catch {
           supportsGtid = false;
           if (verbose) {
-            console.log(chalk.gray('GTID support check: failed, assuming not supported'));
+            console.log(
+              chalk.gray('GTID support check: failed, assuming not supported')
+            );
           }
         }
 
