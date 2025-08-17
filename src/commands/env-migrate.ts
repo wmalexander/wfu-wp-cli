@@ -64,8 +64,8 @@ export const envMigrateCommand = new Command('env-migrate')
   .description(
     'Migrate entire WordPress multisite environment between environments'
   )
-  .argument('<source-env>', 'Source environment (dev, uat, pprd, prod)')
-  .argument('<target-env>', 'Target environment (dev, uat, pprd, prod, local)')
+  .argument('[source-env]', 'Source environment (dev, uat, pprd, prod)')
+  .argument('[target-env]', 'Target environment (dev, uat, pprd, prod, local)')
   .option('--dry-run', 'Preview changes without executing', false)
   .option('-f, --force', 'Skip confirmation prompts', false)
   .option('-v, --verbose', 'Show detailed output', false)
@@ -148,8 +148,8 @@ export const envMigrateCommand = new Command('env-migrate')
   )
   .action(
     async (
-      sourceEnv: string,
-      targetEnv: string,
+      sourceEnv: string | undefined,
+      targetEnv: string | undefined,
       options: EnvMigrateOptions
     ) => {
       try {
@@ -161,6 +161,15 @@ export const envMigrateCommand = new Command('env-migrate')
         if (options.resume) {
           await resumeMigration(options.resume, options);
           return;
+        }
+        
+        if (!sourceEnv || !targetEnv) {
+          console.error(chalk.red('Source and target environments are required for new migrations'));
+          console.log(chalk.cyan('Usage:'));
+          console.log(chalk.white('  wfuwp env-migrate <source-env> <target-env> [options]'));
+          console.log(chalk.white('  wfuwp env-migrate --list-migrations'));
+          console.log(chalk.white('  wfuwp env-migrate --resume <migration-id>'));
+          process.exit(1);
         }
         
         await handleNewMigration(sourceEnv, targetEnv, options);
