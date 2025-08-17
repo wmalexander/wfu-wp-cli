@@ -17,6 +17,7 @@ import { md2wpblockCommand } from './commands/md2wpblock';
 import { restoreCommand } from './commands/restore';
 import { clickupCommand } from './commands/clickup';
 import { localCommand } from './commands/local';
+import { cleanupCommand } from './commands/cleanup';
 import { registerDoctorCommand } from './commands/doctor';
 import { registerDocsCommand } from './commands/docs';
 import { registerInstallDepsCommand } from './commands/install-deps';
@@ -69,6 +70,7 @@ program.addCommand(md2wpblockCommand);
 program.addCommand(restoreCommand);
 program.addCommand(clickupCommand);
 program.addCommand(localCommand);
+program.addCommand(cleanupCommand);
 
 // Add new commands
 registerDoctorCommand(program);
@@ -97,6 +99,7 @@ program
     console.log(chalk.green('  download-local') + ' - Download database exports from S3 for local import');
     console.log(chalk.green('  md2wpblock') + '  - Convert Markdown files to WordPress block editor HTML');
     console.log(chalk.green('  local') + '       - Manage local development environment (DDEV, domains, setup)');
+    console.log(chalk.green('  cleanup') + '     - Clean up orphaned migration temporary directories');
     console.log('\nUse "wfuwp <command> --help" for more information about a command.');
     console.log('\n' + chalk.bold('📚 Need help?'));
     console.log('  Documentation: ' + chalk.cyan('wfuwp docs'));

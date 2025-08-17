@@ -31,7 +31,9 @@
       "Bash(npx eslint:*)",
       "Bash(npx tsc:*)",
       "Bash(npx ts-node:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(wfuwp sshaws:*)",
+      "Bash(ssh:*)"
     ],
     "deny": []
   }

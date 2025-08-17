@@ -5,6 +5,11 @@ import { existsSync, mkdirSync } from 'fs';
 import { join, dirname, basename, resolve } from 'path';
 import { Config } from '../utils/config';
 import { FileNaming } from '../utils/file-naming';
+import {
+  checkDiskSpace,
+  displayDiskSpaceStatus,
+  shouldBlockMigration,
+} from '../utils/disk-space';
 
 interface MigrateOptions {
   from: string;
@@ -215,6 +220,18 @@ async function runCompleteMigration(
   // Pre-flight checks
   await runPreflightChecks(siteId, options, DatabaseOperations, S3Operations);
 
+  // Check disk space before starting migration
+  console.log(chalk.blue('Checking disk space...'));
+  const diskCheck = await checkDiskSpace('/tmp', true); // Auto cleanup if needed
+  displayDiskSpaceStatus(diskCheck, options.verbose);
+
+  if (shouldBlockMigration(diskCheck)) {
+    throw new Error(
+      'Migration cancelled: Insufficient disk space and no cleanup possible. ' +
+        'Free up disk space manually and try again.'
+    );
+  }
+
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const workDir = options.workDir || `/tmp/wp-migrate-${timestamp}`;
 
@@ -224,6 +241,29 @@ async function runCompleteMigration(
   }
 
   console.log(chalk.cyan(`Working directory: ${workDir}`));
+
+  // Set up signal handlers for graceful cleanup on interruption
+  let cleanupInProgress = false;
+  const cleanup = async () => {
+    if (cleanupInProgress) return;
+    cleanupInProgress = true;
+
+    console.log(chalk.yellow('\n\n🛑 Migration interrupted - cleaning up...'));
+    try {
+      await DatabaseOperations.cleanMigrationDatabase(siteId);
+      if (!options.keepFiles && existsSync(workDir)) {
+        require('fs').rmSync(workDir, { recursive: true, force: true });
+        console.log(chalk.green('✓ Cleaned up temporary files'));
+      }
+    } catch (error) {
+      console.warn(chalk.yellow('Warning: Cleanup failed'));
+    }
+    process.exit(1);
+  };
+
+  const signalHandler = () => cleanup();
+  process.on('SIGINT', signalHandler);
+  process.on('SIGTERM', signalHandler);
 
   if (options.dryRun) {
     console.log(chalk.yellow('DRY RUN MODE - No actual changes will be made'));
@@ -567,30 +607,6 @@ async function runCompleteMigration(
       );
     }
 
-    // Step 9: Cleanup
-    console.log(chalk.blue('Step 9: Cleaning up...'));
-    if (!options.dryRun) {
-      await DatabaseOperations.cleanMigrationDatabase(siteId);
-
-      if (!options.keepFiles) {
-        sqlFiles.forEach((file) => {
-          try {
-            require('fs').unlinkSync(file);
-          } catch (error) {
-            console.warn(chalk.yellow(`Warning: Could not delete ${file}`));
-          }
-        });
-        require('fs').rmdirSync(workDir, { recursive: true });
-        console.log(chalk.green('✓ Cleaned up temporary files'));
-      } else {
-        console.log(chalk.cyan(`✓ Kept local files in: ${workDir}`));
-      }
-    } else {
-      console.log(
-        chalk.gray('  Would clean up migration database and temp files')
-      );
-    }
-
     if (options.dryRun) {
       console.log(
         chalk.green(
@@ -611,21 +627,57 @@ async function runCompleteMigration(
       )
     );
 
-    // Attempt cleanup on failure
-    if (!options.dryRun) {
-      console.log(chalk.yellow('Attempting to clean up migration database...'));
-      try {
-        await DatabaseOperations.cleanMigrationDatabase(siteId);
-      } catch (cleanupError) {
-        console.warn(
-          chalk.yellow('Warning: Could not clean migration database')
-        );
-      }
-    }
-
     // Ring bell on failure
     process.stdout.write('\x07');
     throw error;
+  } finally {
+    // Remove signal handlers
+    process.off('SIGINT', signalHandler);
+    process.off('SIGTERM', signalHandler);
+
+    // Always cleanup, regardless of success or failure
+    if (!cleanupInProgress) {
+      console.log(chalk.blue('🧹 Cleaning up...'));
+
+      // Clean migration database
+      if (!options.dryRun) {
+        try {
+          await DatabaseOperations.cleanMigrationDatabase(siteId);
+          if (options.verbose) {
+            console.log(chalk.gray('  ✓ Cleaned migration database'));
+          }
+        } catch (cleanupError) {
+          console.warn(
+            chalk.yellow('Warning: Could not clean migration database')
+          );
+        }
+
+        // Clean up temporary files and directory
+        if (!options.keepFiles) {
+          sqlFiles.forEach((file) => {
+            try {
+              require('fs').unlinkSync(file);
+            } catch (error) {
+              console.warn(chalk.yellow(`Warning: Could not delete ${file}`));
+            }
+          });
+          try {
+            require('fs').rmdirSync(workDir, { recursive: true });
+            console.log(chalk.green('✓ Cleaned up temporary files'));
+          } catch (error) {
+            console.warn(
+              chalk.yellow(`Warning: Could not remove directory ${workDir}`)
+            );
+          }
+        } else {
+          console.log(chalk.cyan(`✓ Kept local files in: ${workDir}`));
+        }
+      } else {
+        console.log(
+          chalk.gray('  Would clean up migration database and temp files')
+        );
+      }
+    }
   }
 }
 

@@ -8,6 +8,11 @@ import { ErrorRecovery } from '../utils/error-recovery';
 import { MigrationValidator } from '../utils/migration-validator';
 import { S3Operations } from '../utils/s3';
 import { S3Sync } from '../utils/s3sync';
+import {
+  checkDiskSpace,
+  displayDiskSpaceStatus,
+  shouldBlockMigration,
+} from '../utils/disk-space';
 import { DatabaseOperations } from '../utils/database';
 import { EC2Detector } from '../utils/ec2-detector';
 import {
@@ -163,6 +168,27 @@ export const envMigrateCommand = new Command('env-migrate')
       targetEnv: string | undefined,
       options: EnvMigrateOptions
     ) => {
+      // Set up global signal handlers for cleanup
+      let cleanupHandlers: (() => Promise<void>)[] = [];
+
+      const globalCleanup = async () => {
+        console.log(
+          chalk.yellow('\n\n🛑 Process interrupted - performing cleanup...')
+        );
+        for (const handler of cleanupHandlers) {
+          try {
+            await handler();
+          } catch (error) {
+            console.warn(chalk.yellow('Warning: Cleanup handler failed'));
+          }
+        }
+        process.exit(1);
+      };
+
+      const signalHandler = () => globalCleanup();
+      process.on('SIGINT', signalHandler);
+      process.on('SIGTERM', signalHandler);
+
       try {
         if (options.listMigrations) {
           await listIncompleteMigrations();
@@ -210,6 +236,10 @@ export const envMigrateCommand = new Command('env-migrate')
         );
         process.stdout.write('\x07');
         process.exit(1);
+      } finally {
+        // Clean up signal handlers
+        process.off('SIGINT', signalHandler);
+        process.off('SIGTERM', signalHandler);
       }
     }
   );
@@ -243,6 +273,18 @@ async function runEnvironmentMigration(
       currentStep: 'pre-flight checks',
     });
     await runPreflightChecks(sourceEnv, targetEnv, options);
+
+    // Check disk space before starting migration
+    console.log(chalk.blue('Checking disk space...'));
+    const diskCheck = await checkDiskSpace('/tmp', true); // Auto cleanup if needed
+    displayDiskSpaceStatus(diskCheck, options.verbose);
+
+    if (shouldBlockMigration(diskCheck)) {
+      throw new Error(
+        'Migration cancelled: Insufficient disk space and no cleanup possible. ' +
+          'Free up disk space manually and try again.'
+      );
+    }
 
     // Perform initial health check if requested
     if (options.healthCheck) {
@@ -1280,8 +1322,14 @@ async function migrateSingleSite(
     }
   }
 
-  if (options.workDir) {
-    migrateArgs.push('--work-dir', options.workDir);
+  // Use site-specific subdirectory within shared workDir
+  const siteWorkDir = options.workDir
+    ? require('path').join(options.workDir, `site-${siteId}`)
+    : undefined;
+  if (siteWorkDir) {
+    // Ensure site directory exists
+    require('fs').mkdirSync(siteWorkDir, { recursive: true });
+    migrateArgs.push('--work-dir', siteWorkDir);
   }
 
   if (options.keepFiles) {
