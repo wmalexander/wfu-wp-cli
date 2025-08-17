@@ -147,11 +147,26 @@ export class DatabaseOperations {
               throw new Error('Failed to start Docker daemon automatically');
             }
           }
-          execSync('sleep 2', { stdio: 'ignore' });
-          try {
-            execSync('docker info', { stdio: 'ignore' });
-            console.log(chalk.green('✓ Docker daemon is now running'));
-          } catch {
+          // Wait longer for Docker daemon to be ready
+          console.log(
+            chalk.yellow('  Waiting for Docker daemon to initialize...')
+          );
+          let dockerReady = false;
+          let retries = 0;
+          const maxRetries = 30; // 30 seconds total
+
+          while (retries < maxRetries && !dockerReady) {
+            execSync('sleep 1', { stdio: 'ignore' });
+            try {
+              execSync('docker info', { stdio: 'ignore' });
+              dockerReady = true;
+              console.log(chalk.green('✓ Docker daemon is now running'));
+            } catch {
+              retries++;
+            }
+          }
+
+          if (!dockerReady) {
             throw new Error(
               'Docker started but not yet ready. Please wait a moment and try again.'
             );
