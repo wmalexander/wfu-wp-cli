@@ -560,7 +560,7 @@ localCommand
 localCommand
   .command('start')
   .description('Start local development environment')
-  .action(async (options) => {
+  .action(async () => {
     try {
       console.log(chalk.bold('\n🚀 Starting Local Development Environment\n'));
 
@@ -611,7 +611,7 @@ localCommand
 localCommand
   .command('stop')
   .description('Stop local development environment')
-  .action(async (options) => {
+  .action(async () => {
     try {
       console.log(chalk.bold('\n🛑 Stopping Local Development Environment\n'));
       const manager = new DDEVManager();
@@ -650,7 +650,7 @@ localCommand
 localCommand
   .command('restart')
   .description('Restart local development environment')
-  .action(async (options) => {
+  .action(async () => {
     try {
       console.log(
         chalk.bold('\n🔄 Restarting Local Development Environment\n')

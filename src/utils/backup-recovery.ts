@@ -331,7 +331,6 @@ export class BackupRecovery {
     }
 
     // Get site table names
-    const tablePrefix = siteId === 1 ? 'wp_' : `wp_${siteId}_`;
     const siteTableNames = await this.getSiteTableNames(environment, siteId);
 
     if (siteTableNames.length === 0) {
