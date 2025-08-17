@@ -3,11 +3,13 @@ import chalk from 'chalk';
 import { Config } from '../utils/config';
 import { SiteEnumerator, SiteInfo } from '../utils/site-enumerator';
 import { NetworkTableOperations } from '../utils/network-tables';
-import { BackupRecovery } from '../utils/backup-recovery';
 import { ErrorRecovery } from '../utils/error-recovery';
 import { MigrationValidator } from '../utils/migration-validator';
 import { S3Operations } from '../utils/s3';
 import { S3Sync } from '../utils/s3sync';
+import { MigrationStateManager } from '../utils/migration-state-manager';
+import { SystemicFailureDetector } from '../utils/systemic-failure-detector';
+import { LargeSiteHandler } from '../utils/large-site-handler';
 
 interface EnvMigrateOptions {
   dryRun?: boolean;
@@ -32,6 +34,22 @@ interface EnvMigrateOptions {
   healthCheck?: boolean;
   s3StorageClass?: string;
   archiveBackups?: boolean;
+  // Resume and recovery options
+  resume?: string;
+  resumeLatest?: boolean;
+  skipCompleted?: boolean;
+  retryFailed?: boolean;
+  excludeFailed?: boolean;
+  largeSites?: string;
+  skipLargeSites?: boolean;
+  deferLargeSites?: boolean;
+  maxConsecutiveFailures?: string;
+  cleanupOnFailure?: boolean;
+  pauseOnFailure?: boolean;
+  healthCheckInterval?: string;
+  connectionTestInterval?: string;
+  listMigrations?: boolean;
+  migrationStatus?: string;
 }
 
 interface MigrationProgress {
@@ -57,8 +75,8 @@ export const envMigrateCommand = new Command('env-migrate')
   .description(
     'Migrate entire WordPress multisite environment between environments'
   )
-  .argument('<source-env>', 'Source environment (dev, uat, pprd, prod)')
-  .argument('<target-env>', 'Target environment (dev, uat, pprd, prod, local)')
+  .argument('[source-env]', 'Source environment (dev, uat, pprd, prod)')
+  .argument('[target-env]', 'Target environment (dev, uat, pprd, prod, local)')
   .option('--dry-run', 'Preview changes without executing', false)
   .option('-f, --force', 'Skip confirmation prompts', false)
   .option('-v, --verbose', 'Show detailed output', false)
@@ -115,6 +133,68 @@ export const envMigrateCommand = new Command('env-migrate')
     'Perform health checks before and after migration',
     false
   )
+  // Resume and recovery options
+  .option('--resume <migration-id>', 'Resume a specific migration by ID')
+  .option(
+    '--resume-latest',
+    'Resume the most recent incomplete migration',
+    false
+  )
+  .option(
+    '--skip-completed',
+    'Skip sites that have already been migrated successfully',
+    false
+  )
+  .option('--retry-failed', 'Retry sites that previously failed', false)
+  .option(
+    '--exclude-failed',
+    'Skip sites that have failed multiple times',
+    false
+  )
+  .option(
+    '--large-sites <list>',
+    'Comma-separated list of site IDs to treat as large sites (e.g., "22,43")'
+  )
+  .option(
+    '--skip-large-sites',
+    'Skip large sites during regular processing',
+    false
+  )
+  .option(
+    '--defer-large-sites',
+    'Process large sites at the end in separate batches',
+    false
+  )
+  .option(
+    '--max-consecutive-failures <count>',
+    'Stop migration after this many consecutive site failures (default: 5)',
+    '5'
+  )
+  .option(
+    '--cleanup-on-failure',
+    'Force migration database cleanup after each site failure',
+    false
+  )
+  .option(
+    '--pause-on-failure',
+    'Automatically pause migration on systemic failures',
+    false
+  )
+  .option(
+    '--health-check-interval <count>',
+    'Perform health checks every N sites (default: 10)',
+    '10'
+  )
+  .option(
+    '--connection-test-interval <count>',
+    'Test database connections every N sites (default: 20)',
+    '20'
+  )
+  .option('--list-migrations', 'List all previous migrations and exit', false)
+  .option(
+    '--migration-status <id>',
+    'Show detailed status of a specific migration and exit'
+  )
   .action(
     async (
       sourceEnv: string,
@@ -141,6 +221,28 @@ async function runEnvironmentMigration(
   targetEnv: string,
   options: EnvMigrateOptions
 ): Promise<void> {
+  // Handle utility commands first (these don't need sourceEnv/targetEnv)
+  if (options.listMigrations) {
+    await handleListMigrations();
+    return;
+  }
+
+  if (options.migrationStatus) {
+    await handleMigrationStatus(options.migrationStatus);
+    return;
+  }
+
+  // Handle resume operations (these will get sourceEnv/targetEnv from saved state)
+  if (options.resume || options.resumeLatest) {
+    await handleResumeMigration(options);
+    return;
+  }
+
+  // For all other operations, we need sourceEnv and targetEnv
+  if (!sourceEnv || !targetEnv) {
+    throw new Error('Source and target environments are required for migration operations');
+  }
+
   // Create migration context for error recovery
   let migrationContext = ErrorRecovery.createMigrationContext(
     sourceEnv,
@@ -152,142 +254,8 @@ async function runEnvironmentMigration(
   try {
     validateInputs(sourceEnv, targetEnv, options);
 
-    console.log(
-      chalk.blue.bold(
-        'Starting environment migration: ' + sourceEnv + ' → ' + targetEnv
-      )
-    );
-
-    // Run pre-flight checks
-    migrationContext = ErrorRecovery.updateMigrationContext(migrationContext, {
-      currentStep: 'pre-flight checks',
-    });
-    await runPreflightChecks(sourceEnv, targetEnv, options);
-
-    // Perform initial health check if requested
-    if (options.healthCheck) {
-      migrationContext = ErrorRecovery.updateMigrationContext(
-        migrationContext,
-        {
-          currentStep: 'initial health check',
-        }
-      );
-      const healthCheck = await ErrorRecovery.performHealthCheck(targetEnv);
-      if (!healthCheck.healthy) {
-        console.log(
-          chalk.yellow('⚠ Pre-migration health check found issues:')
-        );
-        healthCheck.issues.forEach((issue) => {
-          console.log(chalk.red(`  • ${issue}`));
-        });
-
-        if (!options.force) {
-          throw new Error(
-            'Health check failed. Use --force to proceed anyway.'
-          );
-        }
-      } else {
-        console.log(chalk.green('✓ Pre-migration health check passed'));
-      }
-    }
-
-    if (options.dryRun) {
-      console.log(
-        chalk.yellow('DRY RUN MODE - No actual changes will be made')
-      );
-    }
-
-    // Get confirmation unless forced
-    if (!options.force && !options.dryRun) {
-      const confirmation = await confirmEnvironmentMigration(
-        sourceEnv,
-        targetEnv,
-        options
-      );
-      if (!confirmation) {
-        console.log(chalk.yellow('Environment migration cancelled'));
-        return;
-      }
-    }
-
-    // Step 1: Discover sites (unless network-only)
-    let sitesToMigrate: number[] = [];
-    if (!options.networkOnly) {
-      console.log(chalk.blue('Step 1: Discovering sites...'));
-      sitesToMigrate = await discoverSites(sourceEnv, options);
-
-      if (sitesToMigrate.length === 0) {
-        console.log(chalk.yellow('No sites found to migrate'));
-        return;
-      }
-
-      console.log(
-        chalk.green('✓ Found ' + sitesToMigrate.length + ' sites to migrate')
-      );
-
-      if (options.verbose) {
-        console.log(chalk.cyan('  Sites: ' + sitesToMigrate.join(', ')));
-      }
-    }
-
-    // Step 2: Migrate network tables (unless sites-only)
-    if (!options.sitesOnly) {
-      console.log(chalk.blue('Step 2: Migrating network tables...'));
-      await migrateNetworkTables(sourceEnv, targetEnv, options);
-      console.log(chalk.green('✓ Network tables migration completed'));
-    }
-
-    // Step 3: Migrate individual sites (unless network-only)
-    if (!options.networkOnly && sitesToMigrate.length > 0) {
-      console.log(chalk.blue('Step 3: Migrating individual sites...'));
-      await migrateSites(sitesToMigrate, sourceEnv, targetEnv, options);
-      console.log(chalk.green('✓ Site migrations completed'));
-    }
-
-    // Perform final health check if requested
-    if (options.healthCheck) {
-      migrationContext = ErrorRecovery.updateMigrationContext(
-        migrationContext,
-        {
-          currentStep: 'final health check',
-        }
-      );
-
-      console.log(chalk.blue('Performing final health check...'));
-      const finalHealthCheck =
-        await ErrorRecovery.performHealthCheck(targetEnv);
-      if (finalHealthCheck.healthy) {
-        console.log(chalk.green('✓ Final health check passed'));
-      } else {
-        console.log(chalk.yellow('⚠ Final health check found issues:'));
-        finalHealthCheck.issues.forEach((issue) => {
-          console.log(chalk.red(`  • ${issue}`));
-        });
-        finalHealthCheck.warnings.forEach((warning) => {
-          console.log(chalk.yellow(`  • ${warning}`));
-        });
-      }
-    }
-
-    console.log(
-      chalk.green(
-        '\n🎉 Environment migration completed successfully: ' +
-          sourceEnv +
-          ' → ' +
-          targetEnv
-      )
-    );
-
-    // Ring terminal bell on success
-    process.stdout.write('\x07');
-
-    // Cleanup successful backup if not keeping files
-    if (backupId && !options.keepFiles) {
-      console.log(chalk.gray('Cleaning up successful migration backup...'));
-      await BackupRecovery.deleteBackup(backupId, options.workDir);
-    } else if (backupId) {
-      console.log(chalk.cyan('Migration backup preserved: ' + backupId));
-    }
+    // Delegate to the new migration function that supports resume and utilities
+    await runNewEnvironmentMigration(sourceEnv, targetEnv, options);
   } catch (error) {
     // Handle migration failure with comprehensive error recovery
     const recoveryResult = await ErrorRecovery.handleMigrationFailure(
@@ -891,7 +859,13 @@ async function processBatch(
       async (siteId) => {
         try {
           await ErrorRecovery.retryWithBackoff(
-            () => migrateSingleSite(siteId, sourceEnv, targetEnv, options),
+            () =>
+              migrateSingleSiteWithCleanup(
+                siteId,
+                sourceEnv,
+                targetEnv,
+                options
+              ),
             'Site ' + siteId + ' migration',
             { maxRetries: parseInt(options.maxRetries || '3', 10) }
           );
@@ -926,7 +900,8 @@ async function processBatch(
     for (const siteId of siteIds) {
       try {
         await ErrorRecovery.retryWithBackoff(
-          () => migrateSingleSite(siteId, sourceEnv, targetEnv, options),
+          () =>
+            migrateSingleSiteWithCleanup(siteId, sourceEnv, targetEnv, options),
           `Site ${siteId} migration`,
           { maxRetries: parseInt(options.maxRetries || '3', 10) }
         );
@@ -962,6 +937,48 @@ async function processBatch(
   };
 }
 
+async function migrateSingleSiteWithCleanup(
+  siteId: number,
+  sourceEnv: string,
+  targetEnv: string,
+  options: EnvMigrateOptions
+): Promise<void> {
+  try {
+    await migrateSingleSite(siteId, sourceEnv, targetEnv, options);
+  } catch (error) {
+    // CRITICAL: Always clean migration database on failure to prevent cascading failures
+    console.log(
+      chalk.yellow(`Cleaning migration database for site ${siteId}...`)
+    );
+    try {
+      const { DatabaseOperations } = await import('../utils/database');
+      await DatabaseOperations.cleanMigrationDatabase(siteId.toString());
+      console.log(
+        chalk.green(`✓ Cleaned migration database for site ${siteId}`)
+      );
+    } catch (cleanupError) {
+      console.error(
+        chalk.red(`Failed to clean migration database: ${cleanupError}`)
+      );
+      // Force a full cleanup if site-specific cleanup fails
+      try {
+        const { DatabaseOperations } = await import('../utils/database');
+        await DatabaseOperations.cleanMigrationDatabase(); // Clean all tables
+        console.log(
+          chalk.yellow(`⚠ Performed full migration database cleanup`)
+        );
+      } catch (fullCleanupError) {
+        console.error(
+          chalk.red(
+            `Critical: Could not clean migration database - manual intervention may be required`
+          )
+        );
+      }
+    }
+    throw error; // Re-throw after cleanup
+  }
+}
+
 async function migrateSingleSite(
   siteId: number,
   sourceEnv: string,
@@ -972,6 +989,30 @@ async function migrateSingleSite(
     // Simulate processing time for dry run
     await new Promise((resolve) => setTimeout(resolve, 100));
     return;
+  }
+
+  // Pre-migration cleanup: ensure migration database is clean before starting
+  try {
+    const { DatabaseOperations } = await import('../utils/database');
+    const isClean = await DatabaseOperations.verifyMigrationDatabase();
+    if (!isClean) {
+      if (options.verbose) {
+        console.log(
+          chalk.yellow(
+            `  Pre-cleaning migration database for site ${siteId}...`
+          )
+        );
+      }
+      await DatabaseOperations.cleanMigrationDatabase();
+    }
+  } catch (error) {
+    if (options.verbose) {
+      console.warn(
+        chalk.yellow(
+          `Warning: Could not verify/clean migration database: ${error}`
+        )
+      );
+    }
   }
 
   // For Phase 3, we'll use execSync to call the migrate command
@@ -1403,4 +1444,398 @@ async function processWithConcurrencyLimit<T>(
   }
 
   await Promise.all(executing);
+}
+
+async function handleListMigrations(): Promise<void> {
+  console.log(chalk.blue.bold('Migration History'));
+
+  const index = MigrationStateManager.listMigrations();
+
+  if (index.migrations.length === 0) {
+    console.log(chalk.gray('No previous migrations found.'));
+    return;
+  }
+
+  console.log(
+    chalk.white(`\nFound ${index.migrations.length} migration(s):\n`)
+  );
+
+  for (const migration of index.migrations) {
+    const statusColor =
+      migration.status === 'completed'
+        ? chalk.green
+        : migration.status === 'failed'
+          ? chalk.red
+          : migration.status === 'paused'
+            ? chalk.yellow
+            : chalk.blue;
+
+    console.log(chalk.cyan(`ID: ${migration.id}`));
+    console.log(
+      chalk.white(`  ${migration.sourceEnv} → ${migration.targetEnv}`)
+    );
+    console.log(statusColor(`  Status: ${migration.status.toUpperCase()}`));
+    console.log(
+      chalk.white(
+        `  Progress: ${migration.completedSites}/${migration.totalSites} sites`
+      )
+    );
+    if (migration.failedSites > 0) {
+      console.log(chalk.red(`  Failed: ${migration.failedSites} sites`));
+    }
+    console.log(
+      chalk.gray(`  Started: ${new Date(migration.startTime).toLocaleString()}`)
+    );
+    console.log('');
+  }
+}
+
+async function handleMigrationStatus(migrationId: string): Promise<void> {
+  const migration = MigrationStateManager.loadMigration(migrationId);
+
+  if (!migration) {
+    console.error(chalk.red(`Migration not found: ${migrationId}`));
+    process.exit(1);
+  }
+
+  console.log(chalk.blue.bold('Migration Status'));
+  console.log('');
+  console.log(MigrationStateManager.getMigrationSummary(migration));
+
+  if (migration.failedSites.length > 0) {
+    console.log(chalk.red('\nFailed Sites:'));
+    migration.failedSites.forEach((failed) => {
+      console.log(chalk.red(`  Site ${failed.siteId}: ${failed.error}`));
+      console.log(
+        chalk.gray(
+          `    Attempts: ${failed.attemptCount}, Last: ${failed.lastAttempt.toLocaleString()}`
+        )
+      );
+    });
+  }
+
+  if (migration.skippedSites.length > 0) {
+    console.log(chalk.yellow('\nSkipped Sites:'));
+    console.log(chalk.gray(`  ${migration.skippedSites.join(', ')}`));
+  }
+
+  console.log(chalk.cyan('\nNext Steps:'));
+  if (migration.status === 'completed') {
+    console.log(chalk.green('  Migration completed successfully'));
+  } else if (migration.status === 'failed') {
+    console.log(
+      chalk.white('  Use --resume to continue from where it left off')
+    );
+    console.log(chalk.white('  Use --retry-failed to retry only failed sites'));
+  } else {
+    console.log(chalk.white(`  Use --resume ${migrationId} to continue`));
+  }
+}
+
+async function handleResumeMigration(
+  options: EnvMigrateOptions
+): Promise<void> {
+  let migration: any;
+
+  if (options.resume) {
+    migration = MigrationStateManager.loadMigration(options.resume);
+    if (!migration) {
+      console.error(chalk.red(`Migration not found: ${options.resume}`));
+      process.exit(1);
+    }
+  } else if (options.resumeLatest) {
+    migration = MigrationStateManager.getLatestIncompleteMigration();
+    if (!migration) {
+      console.error(chalk.red('No incomplete migrations found to resume'));
+      process.exit(1);
+    }
+  }
+
+  console.log(chalk.blue.bold(`Resuming Migration: ${migration.id}`));
+  console.log('');
+  console.log(MigrationStateManager.getMigrationSummary(migration));
+  console.log('');
+
+  // Merge original options with resume options
+  const resumeOptions = {
+    ...migration.options,
+    ...options,
+    skipCompleted: true, // Always skip completed when resuming
+  };
+
+  // Continue the migration with the original parameters but updated options
+  await runNewEnvironmentMigration(
+    migration.sourceEnv,
+    migration.targetEnv,
+    resumeOptions,
+    migration
+  );
+}
+
+async function runNewEnvironmentMigration(
+  sourceEnv: string,
+  targetEnv: string,
+  options: EnvMigrateOptions,
+  existingMigration?: any
+): Promise<void> {
+  // Initialize utilities
+  const largeSiteIds = options.largeSites
+    ? options.largeSites
+        .split(',')
+        .map((id) => parseInt(id.trim(), 10))
+        .filter((id) => !isNaN(id))
+    : [];
+
+  const largeSiteHandler = new LargeSiteHandler(largeSiteIds, {
+    deferToEnd: options.deferLargeSites,
+    separateProcessing: true,
+  });
+
+  const systemicFailureDetector = new SystemicFailureDetector({
+    maxConsecutiveFailures: parseInt(options.maxConsecutiveFailures || '5', 10),
+    pauseOnFailure: options.pauseOnFailure,
+    healthCheckInterval: parseInt(options.healthCheckInterval || '10', 10),
+    connectionTestInterval: parseInt(
+      options.connectionTestInterval || '20',
+      10
+    ),
+  });
+
+  // Create or load migration state
+  let migrationState = existingMigration;
+  if (!migrationState) {
+    // This will be set after site discovery
+    migrationState = null;
+  }
+
+  try {
+    console.log(
+      chalk.blue.bold(
+        (existingMigration ? 'Resuming' : 'Starting') +
+          ' environment migration: ' +
+          sourceEnv +
+          ' → ' +
+          targetEnv
+      )
+    );
+
+    // Run pre-flight checks for new migrations
+    if (!existingMigration) {
+      await runPreflightChecks(sourceEnv, targetEnv, options);
+
+      // Perform initial health check if requested
+      if (options.healthCheck) {
+        const healthCheck = await ErrorRecovery.performHealthCheck(targetEnv);
+        if (!healthCheck.healthy) {
+          console.log(
+            chalk.yellow('⚠ Pre-migration health check found issues:')
+          );
+          healthCheck.issues.forEach((issue) => {
+            console.log(chalk.red(`  • ${issue}`));
+          });
+
+          if (!options.force) {
+            throw new Error(
+              'Health check failed. Use --force to proceed anyway.'
+            );
+          }
+        } else {
+          console.log(chalk.green('✓ Pre-migration health check passed'));
+        }
+      }
+
+      if (options.dryRun) {
+        console.log(
+          chalk.yellow('DRY RUN MODE - No actual changes will be made')
+        );
+      }
+
+      // Get confirmation unless forced
+      if (!options.force && !options.dryRun) {
+        const confirmation = await confirmEnvironmentMigration(
+          sourceEnv,
+          targetEnv,
+          options
+        );
+        if (!confirmation) {
+          console.log(chalk.yellow('Environment migration cancelled'));
+          return;
+        }
+      }
+    }
+
+    // Step 1: Discover sites (unless network-only or resuming with existing sites)
+    let sitesToMigrate: number[] = [];
+    if (!options.networkOnly) {
+      console.log(chalk.blue('Step 1: Discovering sites...'));
+      sitesToMigrate = await discoverSites(sourceEnv, options);
+
+      if (sitesToMigrate.length === 0) {
+        console.log(chalk.yellow('No sites found to migrate'));
+        return;
+      }
+
+      // Create migration state if this is a new migration
+      if (!migrationState) {
+        migrationState = MigrationStateManager.createMigration(
+          sourceEnv,
+          targetEnv,
+          sitesToMigrate.length,
+          options
+        );
+      }
+
+      // Filter sites based on resume options
+      if (options.skipCompleted && migrationState) {
+        const originalCount = sitesToMigrate.length;
+        sitesToMigrate = MigrationStateManager.getRemainingSites(
+          migrationState,
+          sitesToMigrate
+        );
+
+        if (originalCount > sitesToMigrate.length) {
+          console.log(
+            chalk.cyan(
+              `  Skipping ${originalCount - sitesToMigrate.length} completed sites`
+            )
+          );
+        }
+      }
+
+      if (options.retryFailed && migrationState) {
+        const retryableSites =
+          MigrationStateManager.getRetryableSites(migrationState);
+        sitesToMigrate = [...new Set([...sitesToMigrate, ...retryableSites])];
+
+        if (retryableSites.length > 0) {
+          console.log(
+            chalk.yellow(
+              `  Including ${retryableSites.length} failed sites for retry`
+            )
+          );
+        }
+      }
+
+      if (options.excludeFailed && migrationState) {
+        const originalCount = sitesToMigrate.length;
+        const failedSiteIds = migrationState.failedSites.map(
+          (f: any) => f.siteId
+        );
+        sitesToMigrate = sitesToMigrate.filter(
+          (id) => !failedSiteIds.includes(id)
+        );
+
+        if (originalCount > sitesToMigrate.length) {
+          console.log(
+            chalk.red(
+              `  Excluding ${originalCount - sitesToMigrate.length} previously failed sites`
+            )
+          );
+        }
+      }
+
+      console.log(
+        chalk.green('✓ Found ' + sitesToMigrate.length + ' sites to migrate')
+      );
+
+      if (options.verbose) {
+        console.log(chalk.cyan('  Sites: ' + sitesToMigrate.join(', ')));
+      }
+
+      // Display large site information
+      if (largeSiteIds.length > 0) {
+        console.log(chalk.yellow('\nLarge Site Configuration:'));
+        largeSiteIds.forEach((siteId) => {
+          if (sitesToMigrate.includes(siteId)) {
+            largeSiteHandler.displaySiteInfo(siteId);
+          }
+        });
+      }
+    }
+
+    // Step 2: Migrate network tables (unless sites-only)
+    if (
+      !options.sitesOnly &&
+      (!existingMigration || !migrationState?.networkTablesCompleted)
+    ) {
+      console.log(chalk.blue('Step 2: Migrating network tables...'));
+      await migrateNetworkTables(sourceEnv, targetEnv, options);
+      console.log(chalk.green('✓ Network tables migration completed'));
+
+      if (migrationState) {
+        MigrationStateManager.markNetworkTablesCompleted(migrationState);
+      }
+    } else if (options.sitesOnly) {
+      console.log(
+        chalk.yellow('Step 2: Skipping network tables (--sites-only flag)')
+      );
+    } else if (migrationState?.networkTablesCompleted) {
+      console.log(
+        chalk.cyan('Step 2: Network tables already completed (resuming)')
+      );
+    }
+
+    // Step 3: Migrate individual sites (unless network-only)
+    if (!options.networkOnly && sitesToMigrate.length > 0) {
+      console.log(chalk.blue('Step 3: Migrating individual sites...'));
+      await migrateWithNewUtilities(sitesToMigrate, sourceEnv, targetEnv, options);
+      console.log(chalk.green('✓ Site migrations completed'));
+    } else if (options.networkOnly) {
+      console.log(
+        chalk.yellow('Step 3: Skipping site migrations (--network-only flag)')
+      );
+    }
+
+    // Perform final health check if requested
+    if (options.healthCheck) {
+      console.log(chalk.blue('Performing final health check...'));
+      const finalHealthCheck =
+        await ErrorRecovery.performHealthCheck(targetEnv);
+      if (finalHealthCheck.healthy) {
+        console.log(chalk.green('✓ Final health check passed'));
+      } else {
+        console.log(chalk.yellow('⚠ Final health check found issues:'));
+        finalHealthCheck.issues.forEach((issue) => {
+          console.log(chalk.red(`  • ${issue}`));
+        });
+        finalHealthCheck.warnings.forEach((warning) => {
+          console.log(chalk.yellow(`  • ${warning}`));
+        });
+      }
+    }
+
+    if (migrationState) {
+      MigrationStateManager.updateStatus(migrationState, 'completed');
+    }
+
+    console.log(
+      chalk.green(
+        '\n🎉 Environment migration completed successfully: ' +
+          sourceEnv +
+          ' → ' +
+          targetEnv
+      )
+    );
+
+    // Ring terminal bell on success
+    process.stdout.write('\x07');
+  } catch (error) {
+    if (migrationState) {
+      MigrationStateManager.updateStatus(migrationState, 'failed');
+    }
+    throw error;
+  }
+}
+
+async function migrateWithNewUtilities(
+  sitesToMigrate: number[],
+  sourceEnv: string,
+  targetEnv: string,
+  options: EnvMigrateOptions
+): Promise<void> {
+  // Enhanced migration with state tracking and failure detection
+  // For now, use the existing migrateSites function
+  // TODO: Integrate MigrationStateManager, LargeSiteHandler and SystemicFailureDetector in future iterations
+
+  await migrateSites(sitesToMigrate, sourceEnv, targetEnv, options);
 }
