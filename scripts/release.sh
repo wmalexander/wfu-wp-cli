@@ -28,9 +28,13 @@ fi
 echo -e "${YELLOW}Pulling latest changes...${NC}"
 git pull origin main
 
-# Run tests
-echo -e "${YELLOW}Running tests...${NC}"
-npm test
+# Run tests (skip if SKIP_TESTS=1)
+if [ "$SKIP_TESTS" = "1" ]; then
+    echo -e "${YELLOW}Skipping tests (SKIP_TESTS=1)...${NC}"
+else
+    echo -e "${YELLOW}Running tests...${NC}"
+    npm test
+fi
 
 # Run linting
 echo -e "${YELLOW}Running linter...${NC}"
