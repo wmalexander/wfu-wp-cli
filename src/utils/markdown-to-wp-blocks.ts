@@ -168,12 +168,13 @@ export class MarkdownToWpBlocks {
           case 'em':
             return `<em>${this.processTextToken((token as any).tokens)}</em>`;
 
-          case 'link':
+          case 'link': {
             const linkToken = token as any;
             const linkText = this.processTextToken(linkToken.tokens);
             return `<a href="${linkToken.href}"${
               linkToken.title ? ` title="${linkToken.title}"` : ''
             }>${linkText}</a>`;
+          }
 
           case 'codespan':
             return `<code>${this.escapeHtml((token as any).text)}</code>`;
@@ -187,11 +188,12 @@ export class MarkdownToWpBlocks {
           case 'escape':
             return (token as any).text;
 
-          case 'image':
+          case 'image': {
             const imgToken = token as any;
             return `<img src="${imgToken.href}" alt="${imgToken.text}"${
               imgToken.title ? ` title="${imgToken.title}"` : ''
             }>`;
+          }
 
           default:
             return '';

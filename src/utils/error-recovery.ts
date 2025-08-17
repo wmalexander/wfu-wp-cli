@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { BackupRecovery, BackupMetadata } from './backup-recovery';
+import { BackupRecovery } from './backup-recovery';
 
 interface MigrationContext {
   sourceEnv: string;
@@ -171,7 +171,7 @@ export class ErrorRecovery {
 
     // Interactive recovery options
     if (options.interactive && !options.skipConfirmation) {
-      return await this.promptRecoveryAction(context, error);
+      return await this.promptRecoveryAction(context);
     }
 
     // Default action: rollback
@@ -270,8 +270,7 @@ export class ErrorRecovery {
   }
 
   static async promptRecoveryAction(
-    context: MigrationContext,
-    error: Error
+    context: MigrationContext
   ): Promise<RecoveryResult> {
     const readline = require('readline').createInterface({
       input: process.stdin,
@@ -335,7 +334,6 @@ export class ErrorRecovery {
     try {
       // Import utilities
       const { DatabaseOperations } = await import('./database');
-      const { Config } = await import('./config');
 
       // Check database connection
       try {
