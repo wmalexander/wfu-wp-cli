@@ -273,7 +273,9 @@ export class DatabaseOperations {
 
       if (this.hasNativeMysqlClient()) {
         const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
-        exportCommand = [
+        
+        // Build base command without GTID option first
+        const baseCommand = [
           'mysqldump',
           '-h',
           envConfig.host,
@@ -283,13 +285,40 @@ export class DatabaseOperations {
           envConfig.database,
           '--skip-lock-tables',
           '--no-tablespaces',
-          '--set-gtid-purged=OFF',
           ...tables,
           '>',
           `"${outputPath}"`,
-        ]
-          .filter((arg) => arg && arg.length > 0)
-          .join(' ');
+        ].filter((arg) => arg && arg.length > 0);
+
+        // Check if MySQL version supports GTID options
+        let supportsGtid = false;
+        try {
+          const versionCheck = execSync(`mysqldump --help | grep "set-gtid-purged" || echo "no-gtid"`, {
+            encoding: 'utf8',
+            stdio: 'pipe',
+            env: {
+              ...process.env,
+              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+            },
+          });
+          supportsGtid = versionCheck.includes('set-gtid-purged') && !versionCheck.includes('no-gtid');
+          if (verbose) {
+            console.log(chalk.gray(`GTID support check: ${supportsGtid ? 'supported' : 'not supported'}`));
+          }
+        } catch {
+          supportsGtid = false;
+          if (verbose) {
+            console.log(chalk.gray('GTID support check: failed, assuming not supported'));
+          }
+        }
+
+        // Add GTID option only if supported
+        if (supportsGtid) {
+          const insertIndex = baseCommand.indexOf('--no-tablespaces') + 1;
+          baseCommand.splice(insertIndex, 0, '--set-gtid-purged=OFF');
+        }
+
+        exportCommand = baseCommand.join(' ');
 
         execSync(exportCommand, {
           encoding: 'utf8' as const,
