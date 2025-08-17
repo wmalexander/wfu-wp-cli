@@ -183,19 +183,30 @@ export const envMigrateCommand = new Command('env-migrate')
         console.log(
           chalk.yellow('\n\n🛑 Process interrupted - performing cleanup...')
         );
-        
+
         // Save migration state if available
         if (migrationStateRef) {
           try {
             console.log(chalk.yellow('Saving migration state...'));
-            MigrationStateManager.markMigrationComplete(migrationStateRef, 'cancelled');
-            console.log(chalk.cyan('✓ Migration state saved - you can resume with:'));
-            console.log(chalk.white(`  wfuwp env-migrate --resume ${migrationStateRef.migrationId}`));
+            MigrationStateManager.markMigrationComplete(
+              migrationStateRef,
+              'cancelled'
+            );
+            console.log(
+              chalk.cyan('✓ Migration state saved - you can resume with:')
+            );
+            console.log(
+              chalk.white(
+                `  wfuwp env-migrate --resume ${migrationStateRef.migrationId}`
+              )
+            );
           } catch (error) {
-            console.warn(chalk.red('Warning: Failed to save migration state on interrupt'));
+            console.warn(
+              chalk.red('Warning: Failed to save migration state on interrupt')
+            );
           }
         }
-        
+
         for (const handler of cleanupHandlers) {
           try {
             await handler();
@@ -366,11 +377,11 @@ async function runEnvironmentMigration(
       // For new migrations, create state immediately after confirmation
       // We'll discover sites first to know how many there are
       let sitesToMigrate: number[] = [];
-      
+
       if (!options.networkOnly) {
         console.log(chalk.blue('Discovering sites for migration planning...'));
         sitesToMigrate = await discoverSites(sourceEnv, options);
-        
+
         if (sitesToMigrate.length === 0 && !options.sitesOnly) {
           console.log(
             chalk.yellow('No sites found to migrate (network-only migration)')
@@ -388,7 +399,7 @@ async function runEnvironmentMigration(
         sitesToMigrate,
         options
       );
-      
+
       // Update reference for signal handler
       if (setMigrationStateRef) {
         setMigrationStateRef(migrationState);
@@ -397,9 +408,11 @@ async function runEnvironmentMigration(
       console.log(
         chalk.cyan('✓ Migration state created: ' + migrationState.migrationId)
       );
-      
+
       if (options.verbose && sitesToMigrate.length > 0) {
-        console.log(chalk.cyan('  Sites to migrate: ' + sitesToMigrate.join(', ')));
+        console.log(
+          chalk.cyan('  Sites to migrate: ' + sitesToMigrate.join(', '))
+        );
       }
     }
 
@@ -1770,35 +1783,51 @@ async function processWithConcurrencyLimit<T>(
 
 async function showStatePathInfo(): Promise<void> {
   console.log(chalk.blue.bold('📁 Migration State Storage Paths'));
-  
+
   const paths = MigrationStateManager.getStateDirectoryInfo();
-  
+
   console.log(chalk.cyan('\nCurrent Location:'));
   console.log(chalk.white(`  ${paths.current}`));
-  console.log(chalk.gray(`  Exists: ${existsSync(paths.current) ? 'Yes' : 'No'}`));
-  
+  console.log(
+    chalk.gray(`  Exists: ${existsSync(paths.current) ? 'Yes' : 'No'}`)
+  );
+
   console.log(chalk.cyan('\nLegacy Location (for backward compatibility):'));
   console.log(chalk.white(`  ${paths.legacy}`));
-  console.log(chalk.gray(`  Exists: ${existsSync(paths.legacy) ? 'Yes' : 'No'}`));
-  
+  console.log(
+    chalk.gray(`  Exists: ${existsSync(paths.legacy) ? 'Yes' : 'No'}`)
+  );
+
   if (existsSync(paths.legacy)) {
     const { readdirSync } = require('fs');
     try {
-      const legacyEntries = readdirSync(paths.legacy, { withFileTypes: true })
-        .filter((entry: any) => entry.isDirectory() && entry.name.startsWith('env-migrate-'));
-      
+      const legacyEntries = readdirSync(paths.legacy, {
+        withFileTypes: true,
+      }).filter(
+        (entry: any) =>
+          entry.isDirectory() && entry.name.startsWith('env-migrate-')
+      );
+
       if (legacyEntries.length > 0) {
-        console.log(chalk.yellow(`\n⚠ Found ${legacyEntries.length} migration(s) in legacy location:`));
+        console.log(
+          chalk.yellow(
+            `\n⚠ Found ${legacyEntries.length} migration(s) in legacy location:`
+          )
+        );
         legacyEntries.forEach((entry: any) => {
           console.log(chalk.gray(`  - ${entry.name}`));
         });
-        console.log(chalk.cyan('\nConsider moving these to the new location for consistency.'));
+        console.log(
+          chalk.cyan(
+            '\nConsider moving these to the new location for consistency.'
+          )
+        );
       }
     } catch (error) {
       console.log(chalk.red('\nError reading legacy directory'));
     }
   }
-  
+
   console.log(chalk.cyan('\nTo view incomplete migrations:'));
   console.log(chalk.white('  wfuwp env-migrate --list-migrations'));
 }
@@ -1900,7 +1929,13 @@ async function handleNewMigration(
   }
 
   // Proceed with new migration
-  await runEnvironmentMigration(sourceEnv, targetEnv, options, undefined, setMigrationStateRef);
+  await runEnvironmentMigration(
+    sourceEnv,
+    targetEnv,
+    options,
+    undefined,
+    setMigrationStateRef
+  );
 }
 
 async function resumeMigration(
@@ -1938,7 +1973,7 @@ async function resumeMigration(
   state.status = 'running';
   MigrationStateManager.saveState(state);
 
-  // Resume migration with existing state  
+  // Resume migration with existing state
   await runEnvironmentMigration(
     state.sourceEnv,
     state.targetEnv,

@@ -88,7 +88,7 @@ export class BackupRecovery {
       }
       return workDir;
     }
-    
+
     // Use consistent location in ~/.wfuwp/backups
     const wfuwpDir = join(homedir(), '.wfuwp');
     const baseDir = join(wfuwpDir, 'backups');

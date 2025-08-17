@@ -211,11 +211,11 @@ export class MigrationStateManager {
     const stateFile = join(logDir, this.STATE_FILE);
 
     let actualStateFile = stateFile;
-    
+
     if (!existsSync(stateFile)) {
       const legacyLogDir = join(this.getLegacyLogsDirectory(), migrationId);
       const legacyStateFile = join(legacyLogDir, this.STATE_FILE);
-      
+
       if (existsSync(legacyStateFile)) {
         actualStateFile = legacyStateFile;
         console.log(
@@ -315,7 +315,7 @@ export class MigrationStateManager {
 
   static checkForActiveMigration(): string | null {
     const { readdirSync } = require('fs');
-    
+
     const checkDirectory = (logsDir: string): string | null => {
       if (!existsSync(logsDir)) {
         return null;
@@ -343,15 +343,17 @@ export class MigrationStateManager {
       return null;
     };
 
-    return checkDirectory(this.getLogsDirectory()) || 
-           checkDirectory(this.getLegacyLogsDirectory());
+    return (
+      checkDirectory(this.getLogsDirectory()) ||
+      checkDirectory(this.getLegacyLogsDirectory())
+    );
   }
 
   static findIncompleteMigrations(): MigrationSummary[] {
     const { readdirSync } = require('fs');
     const incompleteMigrations: MigrationSummary[] = [];
-    
-    const checkDirectory = (logsDir: string, isLegacy: boolean = false) => {
+
+    const checkDirectory = (logsDir: string) => {
       if (!existsSync(logsDir)) {
         return;
       }
@@ -387,8 +389,8 @@ export class MigrationStateManager {
       }
     };
 
-    checkDirectory(this.getLogsDirectory(), false);
-    checkDirectory(this.getLegacyLogsDirectory(), true);
+    checkDirectory(this.getLogsDirectory());
+    checkDirectory(this.getLegacyLogsDirectory());
 
     return incompleteMigrations.sort(
       (a, b) => b.startTime.getTime() - a.startTime.getTime()

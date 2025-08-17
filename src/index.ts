@@ -18,6 +18,7 @@ import { restoreCommand } from './commands/restore';
 import { clickupCommand } from './commands/clickup';
 import { localCommand } from './commands/local';
 import { cleanupCommand } from './commands/cleanup';
+import { migrationCleanupCommand } from './commands/migration-cleanup';
 import { registerDoctorCommand } from './commands/doctor';
 import { registerDocsCommand } from './commands/docs';
 import { registerInstallDepsCommand } from './commands/install-deps';
@@ -71,6 +72,7 @@ program.addCommand(restoreCommand);
 program.addCommand(clickupCommand);
 program.addCommand(localCommand);
 program.addCommand(cleanupCommand);
+program.addCommand(migrationCleanupCommand);
 
 // Add new commands
 registerDoctorCommand(program);
@@ -100,6 +102,7 @@ program
     console.log(chalk.green('  md2wpblock') + '  - Convert Markdown files to WordPress block editor HTML');
     console.log(chalk.green('  local') + '       - Manage local development environment (DDEV, domains, setup)');
     console.log(chalk.green('  cleanup') + '     - Clean up orphaned migration temporary directories');
+    console.log(chalk.green('  migration-cleanup') + ' - Clean up migration state records and legacy files');
     console.log('\nUse "wfuwp <command> --help" for more information about a command.');
     console.log('\n' + chalk.bold('📚 Need help?'));
     console.log('  Documentation: ' + chalk.cyan('wfuwp docs'));
