@@ -153,7 +153,17 @@ export const envMigrateCommand = new Command('env-migrate')
       options: EnvMigrateOptions
     ) => {
       try {
-        await runEnvironmentMigration(sourceEnv, targetEnv, options);
+        if (options.listMigrations) {
+          await listIncompleteMigrations();
+          return;
+        }
+        
+        if (options.resume) {
+          await resumeMigration(options.resume, options);
+          return;
+        }
+        
+        await handleNewMigration(sourceEnv, targetEnv, options);
       } catch (error) {
         console.error(
           chalk.red(
@@ -1482,4 +1492,115 @@ async function processWithConcurrencyLimit<T>(
   }
 
   await Promise.all(executing);
+}
+
+async function listIncompleteMigrations(): Promise<void> {
+  console.log(chalk.blue.bold('📋 Incomplete Migrations'));
+  
+  const incompleteMigrations = MigrationStateManager.findIncompleteMigrations();
+  
+  if (incompleteMigrations.length === 0) {
+    console.log(chalk.gray('No incomplete migrations found.'));
+    return;
+  }
+  
+  console.log('');
+  incompleteMigrations.forEach((migration, index) => {
+    const duration = migration.duration ? formatDuration(migration.duration) : 'Unknown';
+    const canResumeIcon = migration.canResume ? '✅' : '🔒';
+    const statusColor = migration.status === 'failed' ? chalk.red : migration.status === 'paused' ? chalk.yellow : chalk.blue;
+    
+    console.log(`${index + 1}. ${canResumeIcon} ${chalk.bold(migration.migrationId)}`);
+    console.log(`   ${chalk.cyan('Source:')} ${migration.sourceEnv} → ${chalk.cyan('Target:')} ${migration.targetEnv}`);
+    console.log(`   ${chalk.cyan('Status:')} ${statusColor(migration.status)}`);
+    console.log(`   ${chalk.cyan('Progress:')} ${migration.completedSites}/${migration.totalSites} sites completed`);
+    if (migration.failedSites > 0) {
+      console.log(`   ${chalk.red('Failed:')} ${migration.failedSites} sites`);
+    }
+    if (migration.timeoutSites > 0) {
+      console.log(`   ${chalk.yellow('Timeouts:')} ${migration.timeoutSites} sites`);
+    }
+    console.log(`   ${chalk.cyan('Started:')} ${migration.startTime.toLocaleString()}`);
+    console.log(`   ${chalk.cyan('Duration:')} ${duration}`);
+    if (!migration.canResume) {
+      console.log(`   ${chalk.red('Note:')} Migration is currently running or locked`);
+    }
+    console.log('');
+  });
+  
+  console.log(chalk.cyan('To resume a migration, use: ') + chalk.white('wfuwp env-migrate --resume <migration-id>'));
+}
+
+async function handleNewMigration(sourceEnv: string, targetEnv: string, options: EnvMigrateOptions): Promise<void> {
+  // Check for active migrations
+  const activeMigration = MigrationStateManager.checkForActiveMigration();
+  if (activeMigration) {
+    console.log(chalk.yellow(`⚠ Another migration is currently running: ${activeMigration}`));
+    console.log(chalk.cyan('You can:'));
+    console.log(chalk.white('  1. Wait for it to complete'));
+    console.log(chalk.white('  2. List migrations: ') + chalk.gray('wfuwp env-migrate --list-migrations'));
+    throw new Error('Another migration is already in progress');
+  }
+  
+  // Check for incomplete migrations for same environments
+  const incompleteMigrations = MigrationStateManager.findIncompleteMigrations()
+    .filter(m => m.sourceEnv === sourceEnv && m.targetEnv === targetEnv && m.canResume);
+  
+  if (incompleteMigrations.length > 0 && !options.force) {
+    const shouldResume = await promptForResume(incompleteMigrations[0]);
+    if (shouldResume) {
+      return resumeMigration(incompleteMigrations[0].migrationId, options);
+    }
+  }
+  
+  // Proceed with new migration
+  await runEnvironmentMigration(sourceEnv, targetEnv, options);
+}
+
+async function resumeMigration(migrationId: string, options: EnvMigrateOptions): Promise<void> {
+  console.log(chalk.blue.bold(`🔄 Resuming migration: ${migrationId}`));
+  
+  const state = MigrationStateManager.loadState(migrationId);
+  if (!state) {
+    throw new Error(`Migration state not found: ${migrationId}`);
+  }
+  
+  if (state.status === 'completed') {
+    console.log(chalk.green('Migration is already completed.'));
+    return;
+  }
+  
+  console.log(chalk.cyan(`Resuming: ${state.sourceEnv} → ${state.targetEnv}`));
+  console.log(chalk.gray(`Progress: ${state.completedSites}/${state.totalSites} sites completed`));
+  
+  // For now, just run the standard migration - full integration will come in next commit
+  console.log(chalk.yellow('Note: Full resume functionality will be available in the next update.'));
+  console.log(chalk.cyan('Currently running standard migration workflow...'));
+  
+  await runEnvironmentMigration(state.sourceEnv, state.targetEnv, options);
+}
+
+async function promptForResume(migration: any): Promise<boolean> {
+  const readline = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  console.log(chalk.yellow.bold('\n🔄 Incomplete Migration Found'));
+  console.log(chalk.white(`Migration ID: ${migration.migrationId}`));
+  console.log(chalk.white(`Progress: ${migration.completedSites}/${migration.totalSites} sites completed`));
+  if (migration.failedSites > 0) {
+    console.log(chalk.red(`Failed sites: ${migration.failedSites}`));
+  }
+  if (migration.timeoutSites > 0) {
+    console.log(chalk.yellow(`Timeout sites: ${migration.timeoutSites}`));
+  }
+
+  return new Promise((resolve) => {
+    const question = chalk.yellow('Would you like to resume this migration? (y/N): ');
+    readline.question(question, (answer: string) => {
+      readline.close();
+      resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
+    });
+  });
 }
