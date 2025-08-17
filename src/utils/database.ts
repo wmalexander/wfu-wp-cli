@@ -44,15 +44,15 @@ export class DatabaseOperations {
     additionalArgs: string[] = []
   ): string {
     if (this.hasNativeMysqlClient()) {
-      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+      const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
       const baseArgs = [
         'mysql',
         '-h',
-        `"${envConfig.host}"`,
+        envConfig.host,
         portArg,
         '-u',
-        `"${envConfig.user}"`,
-        `"${envConfig.database}"`,
+        envConfig.user,
+        envConfig.database,
       ].filter((arg) => arg.length > 0);
       return [...baseArgs, ...additionalArgs].join(' ');
     } else {
@@ -81,16 +81,16 @@ export class DatabaseOperations {
   ): string {
     if (this.hasNativeMysqlClient()) {
       const portArg = migrationConfig.port
-        ? `-P "${migrationConfig.port}"`
+        ? `-P ${migrationConfig.port}`
         : '';
       const baseArgs = [
         'mysql',
         '-h',
-        `"${migrationConfig.host}"`,
+        migrationConfig.host,
         portArg,
         '-u',
-        `"${migrationConfig.user}"`,
-        `"${migrationConfig.database}"`,
+        migrationConfig.user,
+        migrationConfig.database,
       ].filter((arg) => arg.length > 0);
       return [...baseArgs, ...additionalArgs].join(' ');
     } else {
@@ -272,23 +272,23 @@ export class DatabaseOperations {
       let exportCommand: string;
 
       if (this.hasNativeMysqlClient()) {
-        const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+        const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
         exportCommand = [
           'mysqldump',
           '-h',
-          `"${envConfig.host}"`,
+          envConfig.host,
           portArg,
           '-u',
-          `"${envConfig.user}"`,
-          `"${envConfig.database}"`,
+          envConfig.user,
+          envConfig.database,
           '--skip-lock-tables',
           '--no-tablespaces',
           '--set-gtid-purged=OFF',
-          ...tables.map((table) => `"${table}"`),
+          ...tables,
           '>',
           `"${outputPath}"`,
         ]
-          .filter((arg) => arg.length > 0)
+          .filter((arg) => arg && arg.length > 0)
           .join(' ');
 
         execSync(exportCommand, {
@@ -389,10 +389,10 @@ export class DatabaseOperations {
         importCommand = [
           'mysql',
           '-h',
-          `"${targetConfig.host}"`,
+          targetConfig.host,
           '-u',
-          `"${targetConfig.user}"`,
-          `"${targetConfig.database}"`,
+          targetConfig.user,
+          targetConfig.database,
           '--max_allowed_packet=1G',
           '<',
           `"${sqlFile}"`,
@@ -778,8 +778,8 @@ export class DatabaseOperations {
       let execOptions: any;
 
       if (this.hasNativeMysqlClient()) {
-        const portArg = dbConfig.port ? `-P "${dbConfig.port}"` : '';
-        mysqlCommand = `mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" "${dbConfig.database}" -e "${query}" -s`;
+        const portArg = dbConfig.port ? `-P ${dbConfig.port}` : '';
+        mysqlCommand = `mysql -h ${dbConfig.host} ${portArg} -u ${dbConfig.user} ${dbConfig.database} -e "${query}" -s`;
         execOptions = {
           encoding: 'utf8' as const,
           env: {
@@ -945,7 +945,7 @@ export class DatabaseOperations {
           '-e',
           '"SELECT 1 as connection_test"',
         ]
-          .filter((arg) => arg.length > 0)
+          .filter((arg) => arg && arg.length > 0)
           .join(' ');
 
         execOptions = {
@@ -976,7 +976,7 @@ export class DatabaseOperations {
           '-e',
           '"SELECT 1 as connection_test"',
         ]
-          .filter((arg) => arg.length > 0)
+          .filter((arg) => arg && arg.length > 0)
           .join(' ');
 
         execOptions = {
@@ -1009,8 +1009,8 @@ export class DatabaseOperations {
       let execOptions: any;
 
       if (this.hasNativeMysqlClient()) {
-        const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
-        mysqlCommand = `mysql -h "${envConfig.host}" ${portArg} -u "${envConfig.user}" "${envConfig.database}" -e "${query}" -s`;
+        const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
+        mysqlCommand = `mysql -h ${envConfig.host} ${portArg} -u ${envConfig.user} ${envConfig.database} -e "${query}" -s`;
         execOptions = {
           encoding: 'utf8' as const,
           stdio: 'pipe' as const,

@@ -56,15 +56,15 @@ export class NetworkTableOperations {
     additionalArgs: string[] = []
   ): string {
     if (this.hasNativeMysqlClient()) {
-      const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+      const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
       const baseArgs = [
         'mysql',
         '-h',
-        `"${envConfig.host}"`,
+        envConfig.host,
         portArg,
         '-u',
-        `"${envConfig.user}"`,
-        `"${envConfig.database}"`,
+        envConfig.user,
+        envConfig.database,
       ].filter((arg) => arg.length > 0);
       return [...baseArgs, ...additionalArgs].join(' ');
     } else {
@@ -310,36 +310,36 @@ export class NetworkTableOperations {
       mkdirSync(outputDir, { recursive: true });
     }
 
+    let exportCommand: string = '';
+
     try {
       if (verbose) {
         console.log(chalk.gray('Running mysqldump for network tables...'));
       }
 
-      let exportCommand: string;
-
       if (this.hasNativeMysqlClient()) {
-        const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+        const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
         exportCommand = [
           'mysqldump',
           '-h',
-          `"${envConfig.host}"`,
+          envConfig.host,
           portArg,
           '-u',
-          `"${envConfig.user}"`,
-          `"${envConfig.database}"`,
+          envConfig.user,
+          envConfig.database,
           '--skip-lock-tables',
           '--no-tablespaces',
           '--set-gtid-purged=OFF',
-          ...tablesToExport.map((table) => `"${table}"`),
+          ...tablesToExport,
           '>',
           `"${outputPath}"`,
         ]
-          .filter((arg) => arg.length > 0)
+          .filter((arg) => arg && arg.length > 0)
           .join(' ');
 
         execSync(exportCommand, {
           encoding: 'utf8' as const,
-          stdio: verbose ? 'inherit' : 'ignore',
+          stdio: verbose ? 'inherit' : 'pipe',
           shell: '/bin/bash',
           timeout: timeoutMinutes * 60 * 1000,
           env: {
@@ -393,9 +393,27 @@ export class NetworkTableOperations {
         fileSize: stats.size,
       };
     } catch (error) {
-      throw new Error(
-        `Network tables export failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      let errorMessage = 'Unknown error';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        // If it's an execSync error, it might have stderr
+        if ('stderr' in error && error.stderr) {
+          errorMessage += `\nSTDERR: ${error.stderr}`;
+        }
+        if ('stdout' in error && error.stdout) {
+          errorMessage += `\nSTDOUT: ${error.stdout}`;
+        }
+      }
+      if (verbose) {
+        console.log(chalk.red(`Command that failed: ${exportCommand}`));
+        console.log(chalk.red(`Environment config: ${JSON.stringify({
+          host: envConfig.host,
+          port: envConfig.port,
+          user: envConfig.user,
+          database: envConfig.database
+        }, null, 2)}`));
+      }
+      throw new Error(`Network tables export failed: ${errorMessage}`);
     }
   }
 
@@ -424,20 +442,20 @@ export class NetworkTableOperations {
       let importCommand: string;
 
       if (this.hasNativeMysqlClient()) {
-        const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+        const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
         importCommand = [
           'mysql',
           '-h',
-          `"${envConfig.host}"`,
+          envConfig.host,
           portArg,
           '-u',
-          `"${envConfig.user}"`,
-          `"${envConfig.database}"`,
+          envConfig.user,
+          envConfig.database,
           '--max_allowed_packet=1G',
           '<',
           `"${sqlFile}"`,
         ]
-          .filter((arg) => arg.length > 0)
+          .filter((arg) => arg && arg.length > 0)
           .join(' ');
 
         execSync(importCommand, {
@@ -555,23 +573,23 @@ export class NetworkTableOperations {
       let backupCommand: string;
 
       if (this.hasNativeMysqlClient()) {
-        const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
+        const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
         backupCommand = [
           'mysqldump',
           '-h',
-          `"${envConfig.host}"`,
+          envConfig.host,
           portArg,
           '-u',
-          `"${envConfig.user}"`,
-          `"${envConfig.database}"`,
+          envConfig.user,
+          envConfig.database,
           '--skip-lock-tables',
           '--no-tablespaces',
           '--set-gtid-purged=OFF',
-          ...tablesToBackup.map((table) => `"${table}"`),
+          ...tablesToBackup,
           '>',
           `"${backupPath}"`,
         ]
-          .filter((arg) => arg.length > 0)
+          .filter((arg) => arg && arg.length > 0)
           .join(' ');
 
         execSync(backupCommand, {
