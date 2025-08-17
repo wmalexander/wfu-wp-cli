@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2025-08-17
+
+### Added
+- **EC2 Local Migration Export**: New `--export-local-db` option for `env-migrate` command
+- Exports complete local database to S3 after prod → local migration on EC2 instances
+- Supports both native MySQL client and Docker fallback with automatic detection
+- Includes GTID support detection and proper mysqldump parameter handling
+- Comprehensive error handling and file cleanup with S3 archival
+- Detailed usage instructions included in export completion message
+
+### Enhanced
+- Updated env-migrate command with new exportLocalDb validation and workflow integration
+- Added comprehensive help text and error messages for proper usage guidance
+
 ## [0.12.1] - 2025-08-16
 
 ### Fixed
