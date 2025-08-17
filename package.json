@@ -1,6 +1,6 @@
 {
   "name": "wfuwp",
-  "version": "0.12.5",
+  "version": "0.12.6",
   "description": "CLI tool for WFU WordPress management tasks",
   "main": "dist/index.js",
   "bin": {
