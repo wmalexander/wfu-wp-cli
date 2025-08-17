@@ -1,5 +1,8 @@
 import { execSync } from 'child_process';
 import { DatabaseOperations } from '../../src/utils/database';
+import { MigrationStateManager } from '../../src/utils/migration-state';
+import { homedir } from 'os';
+import { join } from 'path';
 
 // Mock dependencies
 jest.mock('child_process');
@@ -12,6 +15,7 @@ jest.mock('../../src/utils/migration-validator');
 jest.mock('../../src/utils/s3');
 jest.mock('../../src/utils/s3sync');
 jest.mock('../../src/utils/database');
+jest.mock('fs');
 
 const mockExecSync = execSync as jest.MockedFunction<typeof execSync>;
 const mockDatabaseOperations = DatabaseOperations as jest.Mocked<typeof DatabaseOperations>;
@@ -93,6 +97,44 @@ describe('Env-Migrate Command', () => {
         // Local should never be used as source
         expect(sourceEnv === 'local').toBe(true);
       });
+    });
+  });
+
+  describe('migration state management', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should use consistent storage location for migration state', () => {
+      const expectedPath = join(homedir(), '.wfuwp', 'migration-logs');
+      const actualPath = MigrationStateManager.getLogsDirectory();
+      
+      expect(actualPath).toBe(expectedPath);
+    });
+
+    it('should provide legacy logs directory for backward compatibility', () => {
+      const expectedLegacyPath = join(process.cwd(), 'logs');
+      const actualLegacyPath = MigrationStateManager.getLegacyLogsDirectory();
+      
+      expect(actualLegacyPath).toBe(expectedLegacyPath);
+    });
+
+    it('should return state directory info with both current and legacy paths', () => {
+      const info = MigrationStateManager.getStateDirectoryInfo();
+      
+      expect(info).toHaveProperty('current');
+      expect(info).toHaveProperty('legacy');
+      expect(info.current).toBe(join(homedir(), '.wfuwp', 'migration-logs'));
+      expect(info.legacy).toBe(join(process.cwd(), 'logs'));
+    });
+
+    it('should generate unique migration IDs', () => {
+      const id1 = MigrationStateManager.generateMigrationId();
+      const id2 = MigrationStateManager.generateMigrationId();
+      
+      expect(id1).toMatch(/^env-migrate-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-[a-z0-9]{6}$/);
+      expect(id2).toMatch(/^env-migrate-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-[a-z0-9]{6}$/);
+      expect(id1).not.toBe(id2);
     });
   });
 

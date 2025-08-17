@@ -6,6 +6,7 @@ import {
   unlinkSync,
 } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import chalk from 'chalk';
 
 export type SiteStatus =
@@ -113,11 +114,23 @@ export class MigrationStateManager {
   }
 
   static getLogsDirectory(): string {
-    const logsDir = join(process.cwd(), 'logs');
+    const wfuwpDir = join(homedir(), '.wfuwp');
+    const logsDir = join(wfuwpDir, 'migration-logs');
     if (!existsSync(logsDir)) {
       mkdirSync(logsDir, { recursive: true });
     }
     return logsDir;
+  }
+
+  static getLegacyLogsDirectory(): string {
+    return join(process.cwd(), 'logs');
+  }
+
+  static getStateDirectoryInfo(): { current: string; legacy: string } {
+    return {
+      current: this.getLogsDirectory(),
+      legacy: this.getLegacyLogsDirectory(),
+    };
   }
 
   static getMigrationDirectory(migrationId: string): string {
@@ -197,12 +210,31 @@ export class MigrationStateManager {
     const logDir = this.getMigrationDirectory(migrationId);
     const stateFile = join(logDir, this.STATE_FILE);
 
+    let actualStateFile = stateFile;
+    
     if (!existsSync(stateFile)) {
-      return null;
+      const legacyLogDir = join(this.getLegacyLogsDirectory(), migrationId);
+      const legacyStateFile = join(legacyLogDir, this.STATE_FILE);
+      
+      if (existsSync(legacyStateFile)) {
+        actualStateFile = legacyStateFile;
+        console.log(
+          chalk.yellow(
+            `⚠ Found migration state in legacy location: ${legacyStateFile}`
+          )
+        );
+        console.log(
+          chalk.cyan(
+            'Consider running migration state cleanup to move to new location'
+          )
+        );
+      } else {
+        return null;
+      }
     }
 
     try {
-      const data = JSON.parse(readFileSync(stateFile, 'utf8'));
+      const data = JSON.parse(readFileSync(actualStateFile, 'utf8'));
 
       const state: MigrationState = {
         ...data,
@@ -282,72 +314,81 @@ export class MigrationStateManager {
   }
 
   static checkForActiveMigration(): string | null {
-    const logsDir = this.getLogsDirectory();
-    if (!existsSync(logsDir)) {
-      return null;
-    }
-
     const { readdirSync } = require('fs');
-    const entries = readdirSync(logsDir, { withFileTypes: true });
+    
+    const checkDirectory = (logsDir: string): string | null => {
+      if (!existsSync(logsDir)) {
+        return null;
+      }
 
-    for (const entry of entries) {
-      if (entry.isDirectory() && entry.name.startsWith('env-migrate-')) {
-        const lockFile = join(logsDir, entry.name, this.LOCK_FILE);
-        if (existsSync(lockFile)) {
-          try {
-            const lockData = JSON.parse(readFileSync(lockFile, 'utf8'));
-            if (this.isProcessRunning(lockData.processId)) {
-              return entry.name;
-            } else {
+      const entries = readdirSync(logsDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (entry.isDirectory() && entry.name.startsWith('env-migrate-')) {
+          const lockFile = join(logsDir, entry.name, this.LOCK_FILE);
+          if (existsSync(lockFile)) {
+            try {
+              const lockData = JSON.parse(readFileSync(lockFile, 'utf8'));
+              if (this.isProcessRunning(lockData.processId)) {
+                return entry.name;
+              } else {
+                unlinkSync(lockFile);
+              }
+            } catch (error) {
               unlinkSync(lockFile);
             }
-          } catch (error) {
-            unlinkSync(lockFile);
           }
         }
       }
-    }
+      return null;
+    };
 
-    return null;
+    return checkDirectory(this.getLogsDirectory()) || 
+           checkDirectory(this.getLegacyLogsDirectory());
   }
 
   static findIncompleteMigrations(): MigrationSummary[] {
-    const logsDir = this.getLogsDirectory();
-    if (!existsSync(logsDir)) {
-      return [];
-    }
-
     const { readdirSync } = require('fs');
-    const entries = readdirSync(logsDir, { withFileTypes: true });
     const incompleteMigrations: MigrationSummary[] = [];
+    
+    const checkDirectory = (logsDir: string, isLegacy: boolean = false) => {
+      if (!existsSync(logsDir)) {
+        return;
+      }
 
-    for (const entry of entries) {
-      if (entry.isDirectory() && entry.name.startsWith('env-migrate-')) {
-        const state = this.loadState(entry.name);
-        if (state && !this.isMigrationComplete(state)) {
-          const lockFile = join(state.logDir, this.LOCK_FILE);
-          const hasActiveLock =
-            existsSync(lockFile) && this.isProcessRunning(state.processId);
+      const entries = readdirSync(logsDir, { withFileTypes: true });
 
-          incompleteMigrations.push({
-            migrationId: state.migrationId,
-            sourceEnv: state.sourceEnv,
-            targetEnv: state.targetEnv,
-            status: state.status,
-            startTime: state.startTime,
-            endTime: state.endTime,
-            totalSites: state.totalSites,
-            completedSites: state.completedSites,
-            failedSites: state.failedSites,
-            timeoutSites: state.timeoutSites,
-            duration: state.endTime
-              ? state.endTime.getTime() - state.startTime.getTime()
-              : Date.now() - state.startTime.getTime(),
-            canResume: !hasActiveLock,
-          });
+      for (const entry of entries) {
+        if (entry.isDirectory() && entry.name.startsWith('env-migrate-')) {
+          const state = this.loadState(entry.name);
+          if (state && !this.isMigrationComplete(state)) {
+            const lockFile = join(state.logDir, this.LOCK_FILE);
+            const hasActiveLock =
+              existsSync(lockFile) && this.isProcessRunning(state.processId);
+
+            incompleteMigrations.push({
+              migrationId: state.migrationId,
+              sourceEnv: state.sourceEnv,
+              targetEnv: state.targetEnv,
+              status: state.status,
+              startTime: state.startTime,
+              endTime: state.endTime,
+              totalSites: state.totalSites,
+              completedSites: state.completedSites,
+              failedSites: state.failedSites,
+              timeoutSites: state.timeoutSites,
+              duration: state.endTime
+                ? state.endTime.getTime() - state.startTime.getTime()
+                : Date.now() - state.startTime.getTime(),
+              canResume: !hasActiveLock,
+            });
+          }
         }
       }
-    }
+    };
+
+    checkDirectory(this.getLogsDirectory(), false);
+    checkDirectory(this.getLegacyLogsDirectory(), true);
 
     return incompleteMigrations.sort(
       (a, b) => b.startTime.getTime() - a.startTime.getTime()
