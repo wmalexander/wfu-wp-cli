@@ -33,7 +33,9 @@ export class SystemicFailureDetector {
     };
   }
 
-  async checkAndHandle(failed: boolean): Promise<'continue' | 'pause' | 'abort'> {
+  async checkAndHandle(
+    failed: boolean
+  ): Promise<'continue' | 'pause' | 'abort'> {
     this.sitesProcessed++;
 
     if (failed) {

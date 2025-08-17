@@ -8,7 +8,6 @@ import { MigrationValidator } from '../utils/migration-validator';
 import { S3Operations } from '../utils/s3';
 import { S3Sync } from '../utils/s3sync';
 import { MigrationStateManager } from '../utils/migration-state-manager';
-import { SystemicFailureDetector } from '../utils/systemic-failure-detector';
 import { LargeSiteHandler } from '../utils/large-site-handler';
 
 interface EnvMigrateOptions {
@@ -246,7 +245,9 @@ async function runEnvironmentMigration(
 
   // For all other operations, we need sourceEnv and targetEnv
   if (!sourceEnv || !targetEnv) {
-    throw new Error('Source and target environments are required for migration operations');
+    throw new Error(
+      'Source and target environments are required for migration operations'
+    );
   }
 
   // Create migration context for error recovery
@@ -351,7 +352,11 @@ function validateInputs(
       );
     }
     // For EC2 export, we'll create a temporary local database
-    console.log(chalk.yellow('Note: Running on EC2 - will create temporary local database for export'));
+    console.log(
+      chalk.yellow(
+        'Note: Running on EC2 - will create temporary local database for export'
+      )
+    );
   }
 
   if (sourceEnv === 'local') {
@@ -1170,7 +1175,11 @@ async function confirmEnvironmentMigration(
   }
 
   if (options.exportLocalDb) {
-    console.log(chalk.white('  Local DB Export: Complete database will be exported to S3 after migration'));
+    console.log(
+      chalk.white(
+        '  Local DB Export: Complete database will be exported to S3 after migration'
+      )
+    );
   }
 
   console.log(chalk.cyan('\nMigration Settings:'));
@@ -1617,16 +1626,6 @@ async function runNewEnvironmentMigration(
     separateProcessing: true,
   });
 
-  const systemicFailureDetector = new SystemicFailureDetector({
-    maxConsecutiveFailures: parseInt(options.maxConsecutiveFailures || '5', 10),
-    pauseOnFailure: options.pauseOnFailure,
-    healthCheckInterval: parseInt(options.healthCheckInterval || '10', 10),
-    connectionTestInterval: parseInt(
-      options.connectionTestInterval || '20',
-      10
-    ),
-  });
-
   // Create or load migration state
   let migrationState = existingMigration;
   if (!migrationState) {
@@ -1804,7 +1803,12 @@ async function runNewEnvironmentMigration(
     // Step 3: Migrate individual sites (unless network-only)
     if (!options.networkOnly && sitesToMigrate.length > 0) {
       console.log(chalk.blue('Step 3: Migrating individual sites...'));
-      await migrateWithNewUtilities(sitesToMigrate, sourceEnv, targetEnv, options);
+      await migrateWithNewUtilities(
+        sitesToMigrate,
+        sourceEnv,
+        targetEnv,
+        options
+      );
       console.log(chalk.green('✓ Site migrations completed'));
     } else if (options.networkOnly) {
       console.log(
@@ -1844,7 +1848,11 @@ async function runNewEnvironmentMigration(
     );
 
     // Export local database to S3 if requested
-    if (options.exportLocalDb && sourceEnv === 'prod' && targetEnv === 'local') {
+    if (
+      options.exportLocalDb &&
+      sourceEnv === 'prod' &&
+      targetEnv === 'local'
+    ) {
       console.log(chalk.blue('\nExporting completed local database to S3...'));
       await exportLocalDatabaseToS3(options);
       console.log(chalk.green('✓ Local database exported to S3'));
@@ -1873,7 +1881,9 @@ async function migrateWithNewUtilities(
   await migrateSites(sitesToMigrate, sourceEnv, targetEnv, options);
 }
 
-async function exportLocalDatabaseToS3(options: EnvMigrateOptions): Promise<void> {
+async function exportLocalDatabaseToS3(
+  options: EnvMigrateOptions
+): Promise<void> {
   const { execSync } = require('child_process');
   const fs = require('fs');
   const path = require('path');
@@ -1890,9 +1900,14 @@ async function exportLocalDatabaseToS3(options: EnvMigrateOptions): Promise<void
     if (!fs.existsSync(workDir)) {
       fs.mkdirSync(workDir, { recursive: true });
     }
-    const exportPath = path.join(workDir, `complete-local-database-${timestamp}.sql`);
+    const exportPath = path.join(
+      workDir,
+      `complete-local-database-${timestamp}.sql`
+    );
     if (options.verbose) {
-      console.log(chalk.gray(`  Exporting complete local database to: ${exportPath}`));
+      console.log(
+        chalk.gray(`  Exporting complete local database to: ${exportPath}`)
+      );
     }
     let exportCommand: string;
     const timeoutMinutes = parseInt(options.timeout || '30', 10);
@@ -1920,21 +1935,30 @@ async function exportLocalDatabaseToS3(options: EnvMigrateOptions): Promise<void
         '--skip-lock-tables',
         '--no-tablespaces',
         '>',
-        `"${exportPath}"`
-      ].filter(arg => arg && arg.length > 0);
+        `"${exportPath}"`,
+      ].filter((arg) => arg && arg.length > 0);
       let supportsGtid = false;
       try {
-        const versionCheck = execSync(`mysqldump --help | grep "set-gtid-purged" || echo "no-gtid"`, {
-          encoding: 'utf8',
-          stdio: 'pipe',
-          env: {
-            ...process.env,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        });
-        supportsGtid = versionCheck.includes('set-gtid-purged') && !versionCheck.includes('no-gtid');
+        const versionCheck = execSync(
+          `mysqldump --help | grep "set-gtid-purged" || echo "no-gtid"`,
+          {
+            encoding: 'utf8',
+            stdio: 'pipe',
+            env: {
+              ...process.env,
+              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+            },
+          }
+        );
+        supportsGtid =
+          versionCheck.includes('set-gtid-purged') &&
+          !versionCheck.includes('no-gtid');
         if (options.verbose) {
-          console.log(chalk.gray(`  GTID support check: ${supportsGtid ? 'supported' : 'not supported'}`));
+          console.log(
+            chalk.gray(
+              `  GTID support check: ${supportsGtid ? 'supported' : 'not supported'}`
+            )
+          );
         }
       } catch {
         supportsGtid = false;
@@ -1957,28 +1981,31 @@ async function exportLocalDatabaseToS3(options: EnvMigrateOptions): Promise<void
       });
     } else {
       const portArg = localConfig.port ? `--port=${localConfig.port}` : '';
-      exportCommand = [
-        'docker run --rm',
-        '-v',
-        `"${path.dirname(exportPath)}:${path.dirname(exportPath)}"`,
-        '-e',
-        `MYSQL_PWD="${localConfig.password}"`,
-        'mysql:8.0',
-        'mysqldump',
-        '-h',
-        `"${localConfig.host}"`,
-        portArg,
-        '-u',
-        `"${localConfig.user}"`,
-        `"${localConfig.database}"`,
-        '--single-transaction',
-        '--routines',
-        '--triggers',
-        '--complete-insert',
-        '--skip-lock-tables',
-        '--no-tablespaces',
-        '--set-gtid-purged=OFF'
-      ].filter(arg => arg.length > 0).join(' ') + ` > "${exportPath}"`;
+      exportCommand =
+        [
+          'docker run --rm',
+          '-v',
+          `"${path.dirname(exportPath)}:${path.dirname(exportPath)}"`,
+          '-e',
+          `MYSQL_PWD="${localConfig.password}"`,
+          'mysql:8.0',
+          'mysqldump',
+          '-h',
+          `"${localConfig.host}"`,
+          portArg,
+          '-u',
+          `"${localConfig.user}"`,
+          `"${localConfig.database}"`,
+          '--single-transaction',
+          '--routines',
+          '--triggers',
+          '--complete-insert',
+          '--skip-lock-tables',
+          '--no-tablespaces',
+          '--set-gtid-purged=OFF',
+        ]
+          .filter((arg) => arg.length > 0)
+          .join(' ') + ` > "${exportPath}"`;
       execSync(exportCommand, {
         encoding: 'utf8',
         stdio: options.verbose ? 'inherit' : 'pipe',
@@ -1992,7 +2019,9 @@ async function exportLocalDatabaseToS3(options: EnvMigrateOptions): Promise<void
     const stats = fs.statSync(exportPath);
     const fileSizeMB = (stats.size / 1024 / 1024).toFixed(2);
     if (options.verbose) {
-      console.log(chalk.green(`  ✓ Database exported successfully (${fileSizeMB} MB)`));
+      console.log(
+        chalk.green(`  ✓ Database exported successfully (${fileSizeMB} MB)`)
+      );
     }
     const metadata = {
       siteId: 'complete-local-db',
@@ -2001,7 +2030,7 @@ async function exportLocalDatabaseToS3(options: EnvMigrateOptions): Promise<void
       timestamp,
       siteName: 'complete-local-database',
       sourceExport: exportPath,
-      migratedExport: exportPath
+      migratedExport: exportPath,
     };
     const s3Result = await S3Operations.archiveToS3(
       [exportPath],
@@ -2009,7 +2038,8 @@ async function exportLocalDatabaseToS3(options: EnvMigrateOptions): Promise<void
       options.verbose,
       options.s3StorageClass || 'STANDARD'
     );
-    console.log(chalk.cyan(`
+    console.log(
+      chalk.cyan(`
 📦 Local Database Export Complete!
 
 S3 Location: s3://${s3Result.bucket}/${s3Result.path}
@@ -2022,7 +2052,8 @@ To use this database locally:
 3. Clear caches: ddev wp cache flush
 
 The database contains the complete prod dataset with URLs transformed for local development.
-    `));
+    `)
+    );
     if (!options.keepFiles) {
       fs.unlinkSync(exportPath);
       if (fs.existsSync(workDir) && fs.readdirSync(workDir).length === 0) {
