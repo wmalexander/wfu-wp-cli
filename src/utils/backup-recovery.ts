@@ -8,6 +8,7 @@ import {
   readdirSync,
 } from 'fs';
 import { join, dirname, basename } from 'path';
+import { homedir } from 'os';
 import chalk from 'chalk';
 import { Config } from './config';
 import { SiteEnumerator, SiteInfo } from './site-enumerator';
@@ -80,7 +81,17 @@ export class BackupRecovery {
   }
 
   static getBackupDirectory(workDir?: string): string {
-    const baseDir = workDir || join(process.cwd(), '.wfuwp-backups');
+    if (workDir) {
+      // If explicit workDir provided, use it
+      if (!existsSync(workDir)) {
+        mkdirSync(workDir, { recursive: true });
+      }
+      return workDir;
+    }
+    
+    // Use consistent location in ~/.wfuwp/backups
+    const wfuwpDir = join(homedir(), '.wfuwp');
+    const baseDir = join(wfuwpDir, 'backups');
     if (!existsSync(baseDir)) {
       mkdirSync(baseDir, { recursive: true });
     }
