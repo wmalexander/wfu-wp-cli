@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.2] - 2025-08-17
+
+### Fixed
+- **Docker Daemon Readiness**: Improved Docker startup detection with extended wait time and retry mechanism
+- Fixed "Docker started but not yet ready" errors during environment migrations on EC2 instances
+- Extended Docker initialization wait from 2 seconds to up to 30 seconds with polling
+- Added better user feedback during Docker startup process
+
 ## [0.14.0] - 2025-08-17
 
 ### Added
