@@ -9,6 +9,7 @@ import { MigrationValidator } from '../utils/migration-validator';
 import { S3Operations } from '../utils/s3';
 import { S3Sync } from '../utils/s3sync';
 import { DatabaseOperations } from '../utils/database';
+import { MigrationStateManager, MigrationState, ResumeOptions } from '../utils/migration-state';
 
 interface EnvMigrateOptions {
   dryRun?: boolean;
@@ -33,6 +34,11 @@ interface EnvMigrateOptions {
   healthCheck?: boolean;
   s3StorageClass?: string;
   archiveBackups?: boolean;
+  resume?: string;
+  skipFailed?: boolean;
+  skipTimeouts?: boolean;
+  retryFailed?: boolean;
+  listMigrations?: boolean;
 }
 
 interface MigrationProgress {
@@ -114,6 +120,30 @@ export const envMigrateCommand = new Command('env-migrate')
   .option(
     '--health-check',
     'Perform health checks before and after migration',
+    false
+  )
+  .option(
+    '--resume <migration-id>',
+    'Resume a specific incomplete migration by ID'
+  )
+  .option(
+    '--skip-failed',
+    'Skip sites that failed in previous migration attempts',
+    false
+  )
+  .option(
+    '--skip-timeouts',
+    'Skip sites that timed out in previous migration attempts',
+    false
+  )
+  .option(
+    '--retry-failed',
+    'Retry only sites that failed in previous migration attempts',
+    false
+  )
+  .option(
+    '--list-migrations',
+    'List incomplete migrations that can be resumed',
     false
   )
   .action(
