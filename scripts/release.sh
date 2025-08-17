@@ -36,9 +36,13 @@ else
     npm test
 fi
 
-# Run linting
-echo -e "${YELLOW}Running linter...${NC}"
-npm run lint
+# Run linting (skip if SKIP_LINT=1)
+if [ "$SKIP_LINT" = "1" ]; then
+    echo -e "${YELLOW}Skipping linting (SKIP_LINT=1)...${NC}"
+else
+    echo -e "${YELLOW}Running linter...${NC}"
+    npm run lint
+fi
 
 # Build project
 echo -e "${YELLOW}Building project...${NC}"
