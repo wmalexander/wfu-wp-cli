@@ -80,9 +80,7 @@ export class DatabaseOperations {
     additionalArgs: string[] = []
   ): string {
     if (this.hasNativeMysqlClient()) {
-      const portArg = migrationConfig.port
-        ? `-P ${migrationConfig.port}`
-        : '';
+      const portArg = migrationConfig.port ? `-P ${migrationConfig.port}` : '';
       const baseArgs = [
         'mysql',
         '-h',
@@ -273,7 +271,7 @@ export class DatabaseOperations {
 
       if (this.hasNativeMysqlClient()) {
         const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
-        
+
         // Build base command without GTID option first
         const baseCommand = [
           'mysqldump',
@@ -293,22 +291,33 @@ export class DatabaseOperations {
         // Check if MySQL version supports GTID options
         let supportsGtid = false;
         try {
-          const versionCheck = execSync(`mysqldump --help | grep "set-gtid-purged" || echo "no-gtid"`, {
-            encoding: 'utf8',
-            stdio: 'pipe',
-            env: {
-              ...process.env,
-              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-            },
-          });
-          supportsGtid = versionCheck.includes('set-gtid-purged') && !versionCheck.includes('no-gtid');
+          const versionCheck = execSync(
+            `mysqldump --help | grep "set-gtid-purged" || echo "no-gtid"`,
+            {
+              encoding: 'utf8',
+              stdio: 'pipe',
+              env: {
+                ...process.env,
+                PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+              },
+            }
+          );
+          supportsGtid =
+            versionCheck.includes('set-gtid-purged') &&
+            !versionCheck.includes('no-gtid');
           if (verbose) {
-            console.log(chalk.gray(`GTID support check: ${supportsGtid ? 'supported' : 'not supported'}`));
+            console.log(
+              chalk.gray(
+                `GTID support check: ${supportsGtid ? 'supported' : 'not supported'}`
+              )
+            );
           }
         } catch {
           supportsGtid = false;
           if (verbose) {
-            console.log(chalk.gray('GTID support check: failed, assuming not supported'));
+            console.log(
+              chalk.gray('GTID support check: failed, assuming not supported')
+            );
           }
         }
 
