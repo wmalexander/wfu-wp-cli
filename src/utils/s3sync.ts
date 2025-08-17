@@ -90,37 +90,43 @@ export class S3Sync {
 
       if (typeof result === 'string' && result.trim()) {
         // Look for AWS CLI completion format: "Completed X file(s) with Y error(s)"
-        const completedMatch = result.match(/Completed (\d+(?:,\d+)*) file\(s\) with (\d+) error\(s\)/);
-        
+        const completedMatch = result.match(
+          /Completed (\d+(?:,\d+)*) file\(s\) with (\d+) error\(s\)/
+        );
+
         if (completedMatch) {
           filesTransferred = parseInt(completedMatch[1].replace(/,/g, ''), 10);
           const errorCount = parseInt(completedMatch[2], 10);
           hasErrors = errorCount > 0;
-          
+
           if (hasErrors) {
             message = `Transfer completed with ${errorCount} error(s): ${filesTransferred} files processed`;
           } else if (options.dryRun) {
-            message = filesTransferred > 0 
-              ? `Would sync ${filesTransferred} files` 
-              : 'No files need syncing';
+            message =
+              filesTransferred > 0
+                ? `Would sync ${filesTransferred} files`
+                : 'No files need syncing';
           } else {
-            message = filesTransferred > 0 
-              ? `Successfully synchronized ${filesTransferred} files` 
-              : 'No files to sync (already up to date)';
+            message =
+              filesTransferred > 0
+                ? `Successfully synchronized ${filesTransferred} files`
+                : 'No files to sync (already up to date)';
           }
         } else {
           // Fallback: count operation lines for dry run or other formats
           const lines = result.split('\n').filter((line) => line.trim());
           filesTransferred = lines.length;
-          
+
           if (options.dryRun) {
-            message = filesTransferred > 0 
-              ? `Would sync ${filesTransferred} files` 
-              : 'No files need syncing';
+            message =
+              filesTransferred > 0
+                ? `Would sync ${filesTransferred} files`
+                : 'No files need syncing';
           } else {
-            message = filesTransferred > 0 
-              ? `Successfully synchronized ${filesTransferred} files` 
-              : 'No files to sync (already up to date)';
+            message =
+              filesTransferred > 0
+                ? `Successfully synchronized ${filesTransferred} files`
+                : 'No files to sync (already up to date)';
           }
         }
       } else {
@@ -173,13 +179,22 @@ export class S3Sync {
 
     for (let i = 0; i < siteIds.length; i++) {
       const siteId = siteIds[i];
-      
+
       if (options.verbose) {
-        console.log(chalk.cyan(`Syncing site ${i + 1} of ${totalSites} (Site ID: ${siteId})`));
+        console.log(
+          chalk.cyan(
+            `Syncing site ${i + 1} of ${totalSites} (Site ID: ${siteId})`
+          )
+        );
       }
 
       try {
-        const result = await this.syncWordPressFiles(siteId, fromEnv, toEnv, options);
+        const result = await this.syncWordPressFiles(
+          siteId,
+          fromEnv,
+          toEnv,
+          options
+        );
         if (result.success) {
           successfulSites++;
           totalFilesTransferred += result.filesTransferred;
@@ -203,7 +218,8 @@ export class S3Sync {
   static async estimateSyncSize(
     siteId: string,
     fromEnv: string,
-    toEnv: string
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+    _toEnv: string
   ): Promise<{
     totalFiles: number;
     totalSizeBytes: number;
@@ -212,8 +228,7 @@ export class S3Sync {
   }> {
     try {
       const sourceBucket = `wfu-cer-wordpress-${fromEnv}-us-east-1`;
-      const prefix = `sites/${siteId}/`;
-      
+
       const sizeCommand = `aws s3api head-bucket --bucket ${sourceBucket}`;
       execSync(sizeCommand, { stdio: 'pipe' });
 
@@ -234,9 +249,7 @@ export class S3Sync {
     }
   }
 
-  static async validateS3Buckets(
-    environments: string[]
-  ): Promise<{
+  static async validateS3Buckets(environments: string[]): Promise<{
     isValid: boolean;
     accessibleBuckets: string[];
     inaccessibleBuckets: string[];
@@ -247,7 +260,9 @@ export class S3Sync {
     for (const env of environments) {
       try {
         const bucketName = `wfu-cer-wordpress-${env}-us-east-1`;
-        execSync(`aws s3api head-bucket --bucket ${bucketName}`, { stdio: 'pipe' });
+        execSync(`aws s3api head-bucket --bucket ${bucketName}`, {
+          stdio: 'pipe',
+        });
         accessibleBuckets.push(env);
       } catch (error) {
         inaccessibleBuckets.push(env);
