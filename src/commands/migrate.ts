@@ -427,10 +427,11 @@ async function runCompleteMigration(
       console.log(chalk.gray('  Would import to target environment'));
     }
 
-    // Step 7: Sync WordPress files (if requested)
-    if (options.syncS3) {
-      console.log(chalk.blue('Step 7: Syncing WordPress files...'));
+    // Step 7: Sync WordPress files (automatic for single-site migrations)
+    console.log(chalk.blue('Step 7: Syncing WordPress files...'));
 
+    const shouldSyncS3 = true; // Always sync S3 files for single-site migrations
+    if (shouldSyncS3) {
       if (!options.dryRun) {
         const { S3Sync } = await import('../utils/s3sync');
 
@@ -873,15 +874,15 @@ async function runPreflightChecks(
     }
   }
 
-  // Test AWS CLI for S3 sync if requested
-  if (options.syncS3) {
-    const { S3Sync } = await import('../utils/s3sync');
-    console.log(chalk.gray('  Testing AWS CLI for file sync...'));
-    if (!S3Sync.checkAwsCli()) {
-      throw new Error(
-        'AWS CLI is not available but required for --sync-s3. Please install and configure AWS CLI.'
-      );
-    }
+  // Test AWS CLI for S3 sync (automatic for single-site migrations)
+  const { S3Sync } = await import('../utils/s3sync');
+  console.log(chalk.gray('  Testing AWS CLI for file sync...'));
+  if (!S3Sync.checkAwsCli()) {
+    console.log(
+      chalk.yellow(
+        '  Warning: AWS CLI not available - S3 file sync will be skipped'
+      )
+    );
   }
 
   console.log(chalk.green('✓ Pre-flight checks passed'));
