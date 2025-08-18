@@ -1317,4 +1317,61 @@ export class DatabaseOperations {
       );
     }
   }
+
+  static async updateNetworkOption(
+    environment: string,
+    optionKey: string,
+    optionValue: string,
+    verbose = false
+  ): Promise<void> {
+    const envConfig = Config.getEnvironmentConfig(environment);
+
+    if (verbose) {
+      console.log(chalk.gray(`Updating network option: ${optionKey} = ${optionValue}`));
+    }
+
+    const sql = `INSERT INTO wp_sitemeta (site_id, meta_key, meta_value) VALUES (1, '${optionKey}', '${optionValue}') ON DUPLICATE KEY UPDATE meta_value = '${optionValue}'`;
+
+    try {
+      if (this.hasNativeMysqlClient()) {
+        const command = `MYSQL_PWD="${envConfig.password}" mysql -h ${envConfig.host} ${envConfig.port ? `-P ${envConfig.port}` : ''} -u ${envConfig.user} ${envConfig.database} -e "${sql}"`;
+        
+        if (verbose) {
+          console.log(chalk.gray('  Using native MySQL client'));
+        }
+
+        execSync(command, {
+          stdio: verbose ? 'inherit' : 'ignore',
+        });
+      } else {
+        const dockerCommand = [
+          'docker run --rm',
+          `-e MYSQL_PWD="${envConfig.password}"`,
+          'mysql:8.0',
+          'mysql',
+          '-h', `"${envConfig.host}"`,
+          envConfig.port ? `--port=${envConfig.port}` : '',
+          '-u', `"${envConfig.user}"`,
+          `"${envConfig.database}"`,
+          '-e', `"${sql}"`
+        ].filter(arg => arg.length > 0).join(' ');
+
+        if (verbose) {
+          console.log(chalk.gray('  Using Docker MySQL client'));
+        }
+
+        execSync(dockerCommand, {
+          stdio: verbose ? 'inherit' : 'ignore',
+        });
+      }
+
+      if (verbose) {
+        console.log(chalk.green(`✓ Network option ${optionKey} updated successfully`));
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to update network option: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
 }

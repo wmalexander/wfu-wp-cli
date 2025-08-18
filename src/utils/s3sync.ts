@@ -129,4 +129,100 @@ export class S3Sync {
   static validateSiteId(siteId: string): boolean {
     return /^\d+$/.test(siteId) && parseInt(siteId) > 0;
   }
+
+  static async syncEntireBucket(
+    fromEnv: string,
+    toEnv: string,
+    options: S3SyncOptions = {}
+  ): Promise<S3SyncResult> {
+    // Special case: for prod→local migrations, sync S3 from prod to dev
+    let actualToEnv = toEnv;
+    if (toEnv === 'local' && fromEnv === 'prod') {
+      actualToEnv = 'dev';
+      if (options.verbose) {
+        console.log(
+          chalk.cyan('  Local migration detected: syncing entire S3 bucket from prod to dev')
+        );
+      }
+    }
+
+    const sourceBucket = `s3://wfu-cer-wordpress-${fromEnv}-us-east-1/`;
+    const destBucket = `s3://wfu-cer-wordpress-${actualToEnv}-us-east-1/`;
+
+    if (options.verbose) {
+      console.log(chalk.blue('Full S3 Bucket Sync'));
+      console.log(
+        `  Direction: ${chalk.green(fromEnv)} → ${chalk.green(toEnv)}${actualToEnv !== toEnv ? ` (S3: ${actualToEnv})` : ''}`
+      );
+      console.log(`  Source: ${chalk.gray(sourceBucket)}`);
+      console.log(`  Destination: ${chalk.gray(destBucket)}`);
+    }
+
+    try {
+      let syncCommand: string;
+      let stdio: 'inherit' | 'pipe';
+
+      if (options.dryRun) {
+        syncCommand = `aws s3 sync ${sourceBucket} ${destBucket} --dryrun`;
+        stdio = options.verbose ? 'inherit' : 'pipe';
+
+        if (options.verbose) {
+          console.log(chalk.yellow('  Running in DRY RUN mode...'));
+          console.log(chalk.gray(`  Command: ${syncCommand}`));
+        }
+      } else {
+        syncCommand = `aws s3 sync ${sourceBucket} ${destBucket}`;
+        stdio = options.verbose ? 'inherit' : 'pipe';
+
+        if (options.verbose) {
+          console.log(chalk.blue('  Syncing entire S3 bucket...'));
+          console.log(chalk.gray(`  Command: ${syncCommand}`));
+        }
+      }
+
+      const result = execSync(syncCommand, {
+        stdio,
+        encoding: 'utf8',
+      });
+
+      // Parse result to count files
+      let filesTransferred = 0;
+      let message = '';
+
+      if (typeof result === 'string' && result.trim()) {
+        const lines = result.split('\n').filter((line) => line.trim());
+        filesTransferred = lines.length;
+
+        if (options.dryRun) {
+          message =
+            filesTransferred > 0
+              ? `Would sync ${filesTransferred} files across entire bucket`
+              : 'No files need syncing in bucket';
+        } else {
+          message =
+            filesTransferred > 0
+              ? `Synced ${filesTransferred} files across entire bucket`
+              : 'No files to sync in bucket (already up to date)';
+        }
+      } else {
+        message = options.dryRun
+          ? 'No files need syncing in bucket'
+          : 'No files to sync in bucket (already up to date)';
+      }
+
+      return {
+        success: true,
+        filesTransferred,
+        message,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      return {
+        success: false,
+        filesTransferred: 0,
+        message: `Full S3 bucket sync failed: ${errorMessage}`,
+      };
+    }
+  }
 }

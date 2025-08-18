@@ -482,6 +482,77 @@ async function runEnvironmentMigration(
       );
     }
 
+    // Step 4: Full S3 bucket sync (if requested)
+    if (options.syncS3) {
+      console.log(chalk.blue('Step 4: Syncing complete S3 bucket...'));
+      
+      if (options.dryRun) {
+        console.log(chalk.gray('  Would sync entire S3 bucket between environments'));
+      } else {
+        const { S3Sync } = await import('../utils/s3sync');
+        
+        // Check AWS CLI availability
+        if (!S3Sync.checkAwsCli()) {
+          console.warn(
+            chalk.yellow('Warning: AWS CLI not available, skipping S3 bucket sync')
+          );
+        } else {
+          try {
+            const syncResult = await S3Sync.syncEntireBucket(
+              sourceEnv,
+              targetEnv,
+              {
+                dryRun: options.dryRun,
+                verbose: options.verbose,
+              }
+            );
+
+            if (syncResult.success) {
+              console.log(chalk.green(`✓ ${syncResult.message}`));
+            } else {
+              console.warn(chalk.yellow(`Warning: ${syncResult.message}`));
+            }
+          } catch (error) {
+            console.warn(
+              chalk.yellow(
+                'Warning: S3 bucket sync failed: ' +
+                  (error instanceof Error ? error.message : 'Unknown error')
+              )
+            );
+          }
+        }
+      }
+    }
+
+    // Step 5: Flush cache for migrated environment
+    console.log(chalk.blue('Step 5: Flushing cache...'));
+    
+    if (options.dryRun) {
+      console.log(chalk.gray('  Would flush cache for target environment'));
+    } else {
+      const { CacheFlush } = await import('../utils/cache-flush');
+      
+      try {
+        const flushResult = await CacheFlush.flushCache(targetEnv, {
+          verbose: options.verbose,
+          dryRun: options.dryRun,
+        });
+
+        if (flushResult.success) {
+          console.log(chalk.green(`✓ ${flushResult.message}`));
+        } else {
+          console.warn(chalk.yellow(`Warning: ${flushResult.message}`));
+        }
+      } catch (error) {
+        console.warn(
+          chalk.yellow(
+            'Warning: Cache flush failed: ' +
+              (error instanceof Error ? error.message : 'Unknown error')
+          )
+        );
+      }
+    }
+
     // Perform final health check if requested
     if (options.healthCheck) {
       migrationContext = ErrorRecovery.updateMigrationContext(
@@ -1395,41 +1466,8 @@ async function migrateSingleSite(
     migrateArgs.push('--sync-s3');
   }
 
-  // Handle S3 integration for WordPress files sync
-  if (options.syncS3) {
-    try {
-      if (options.verbose) {
-        console.log(
-          chalk.blue('    Syncing WordPress files for site ' + siteId + '...')
-        );
-      }
-
-      const syncResult = await S3Sync.syncWordPressFiles(
-        siteId.toString(),
-        sourceEnv,
-        targetEnv,
-        {
-          dryRun: options.dryRun,
-          verbose: options.verbose,
-        }
-      );
-
-      if (options.verbose) {
-        console.log(chalk.green('    ✓ ' + syncResult.message));
-      }
-    } catch (error) {
-      if (options.verbose) {
-        console.log(
-          chalk.yellow(
-            '    Warning: S3 sync failed for site ' +
-              siteId +
-              ': ' +
-              (error instanceof Error ? error.message : 'Unknown error')
-          )
-        );
-      }
-    }
-  }
+  // S3 file sync is now handled at the environment level, not per-site
+  // This reduces redundancy and ensures complete bucket synchronization
 
   // Use site-specific subdirectory within shared workDir
   const siteWorkDir = options.workDir

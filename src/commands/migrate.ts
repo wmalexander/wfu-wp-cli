@@ -465,9 +465,38 @@ async function runCompleteMigration(
       }
     }
 
-    // Step 8: Archive to S3 (if not skipped)
+    // Step 8: Flush cache
+    console.log(chalk.blue('Step 8: Flushing cache...'));
+    
+    if (!options.dryRun) {
+      const { CacheFlush } = await import('../utils/cache-flush');
+      
+      try {
+        const flushResult = await CacheFlush.flushCache(options.to, {
+          verbose: options.verbose,
+          dryRun: false,
+        });
+
+        if (flushResult.success) {
+          console.log(chalk.green(`✓ ${flushResult.message}`));
+        } else {
+          console.warn(chalk.yellow(`Warning: ${flushResult.message}`));
+        }
+      } catch (error) {
+        console.warn(
+          chalk.yellow(
+            'Warning: Cache flush failed: ' +
+              (error instanceof Error ? error.message : 'Unknown error')
+          )
+        );
+      }
+    } else {
+      console.log(chalk.gray('  Would flush cache for target environment'));
+    }
+
+    // Step 9: Archive to S3 (if not skipped)
     if (!options.skipS3 && sqlFiles.length > 0) {
-      console.log(chalk.blue('Step 8: Archiving to S3...'));
+      console.log(chalk.blue('Step 9: Archiving to S3...'));
 
       if (!options.dryRun) {
         const metadata = {
