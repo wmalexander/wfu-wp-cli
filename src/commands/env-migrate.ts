@@ -21,6 +21,7 @@ import {
   MigrationState,
   ResumeOptions,
 } from '../utils/migration-state';
+import { EnvironmentMappingService } from '../utils/environment-mapping';
 
 interface EnvMigrateOptions {
   dryRun?: boolean;
@@ -938,6 +939,39 @@ async function migrateNetworkTables(
             importResult.tableCount +
             ' network tables to ' +
             targetEnv
+        )
+      );
+    }
+
+    // Transform network tables for target environment (fix domain mappings)
+    try {
+      if (options.verbose) {
+        console.log(chalk.gray('  Transforming network table domains...'));
+      }
+      
+      const environmentMapping = EnvironmentMappingService.getEnvironmentMapping(
+        sourceEnv,
+        targetEnv
+      );
+      
+      await NetworkTableOperations.transformNetworkTablesForEnvironment(
+        targetEnv,
+        environmentMapping.urlReplacements,
+        options.verbose
+      );
+      
+      if (options.verbose) {
+        console.log(
+          chalk.green(
+            `  ✓ Transformed network table domains: ${sourceEnv} → ${targetEnv}`
+          )
+        );
+      }
+    } catch (error) {
+      console.warn(
+        chalk.yellow(
+          'Warning: Network table domain transformation failed: ' +
+            (error instanceof Error ? error.message : 'Unknown error')
         )
       );
     }
