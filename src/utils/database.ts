@@ -1403,4 +1403,68 @@ export class DatabaseOperations {
       );
     }
   }
+
+  static async getNetworkOption(
+    environment: string,
+    optionKey: string,
+    verbose = false
+  ): Promise<string | null> {
+    const envConfig = Config.getEnvironmentConfig(environment);
+
+    if (verbose) {
+      console.log(chalk.gray(`Reading network option: ${optionKey}`));
+    }
+
+    const sql = `SELECT meta_value FROM wp_sitemeta WHERE site_id = 1 AND meta_key = '${optionKey}'`;
+
+    try {
+      if (this.hasNativeMysqlClient()) {
+        const command = `MYSQL_PWD="${envConfig.password}" mysql -h ${envConfig.host} ${envConfig.port ? `-P ${envConfig.port}` : ''} -u ${envConfig.user} ${envConfig.database} -se "${sql}"`;
+
+        if (verbose) {
+          console.log(chalk.gray('  Using native MySQL client'));
+        }
+
+        const result = execSync(command, {
+          encoding: 'utf8',
+          stdio: 'pipe',
+        }).trim();
+
+        return result || null;
+      } else {
+        const dockerCommand = [
+          'docker run --rm',
+          `-e MYSQL_PWD="${envConfig.password}"`,
+          'mysql:8.0',
+          'mysql',
+          '-h',
+          `"${envConfig.host}"`,
+          envConfig.port ? `--port=${envConfig.port}` : '',
+          '-u',
+          `"${envConfig.user}"`,
+          `"${envConfig.database}"`,
+          '-se',
+          `"${sql}"`,
+        ]
+          .filter((arg) => arg.length > 0)
+          .join(' ');
+
+        if (verbose) {
+          console.log(chalk.gray('  Using Docker MySQL client'));
+        }
+
+        const result = execSync(dockerCommand, {
+          encoding: 'utf8',
+          stdio: 'pipe',
+        }).trim();
+
+        return result || null;
+      }
+    } catch (error) {
+      if (verbose) {
+        console.log(chalk.yellow(`  Warning: Could not read network option ${optionKey}`));
+      }
+      return null;
+    }
+  }
 }

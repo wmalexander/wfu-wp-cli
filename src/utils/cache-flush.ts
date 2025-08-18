@@ -54,6 +54,27 @@ export class CacheFlush {
         options.verbose
       );
 
+      // Verify the setting was actually stored
+      if (options.verbose) {
+        console.log(chalk.gray('  Verifying network option was stored...'));
+      }
+
+      const storedFlushId = await DatabaseOperations.getNetworkOption(
+        targetEnvironment,
+        'wfu_redis_cache_flush_id',
+        options.verbose
+      );
+
+      if (storedFlushId !== flushId) {
+        throw new Error(
+          `Failed to verify flush ID storage. Expected: ${flushId}, Got: ${storedFlushId}`
+        );
+      }
+
+      if (options.verbose) {
+        console.log(chalk.green('  ✓ Flush ID verified in database'));
+      }
+
       // Step 2: Make HTTP request to trigger cache flush
       if (options.verbose) {
         console.log(chalk.gray('  Triggering cache flush via HTTP request...'));
