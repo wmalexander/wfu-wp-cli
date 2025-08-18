@@ -35,6 +35,10 @@ export class EnvironmentMappingService {
       s3Replacements: [
         { from: 'wordpress-uat-us', to: 'wordpress-dev-us' },
         { from: 'uat.wp.cdn.aws.wfu.edu', to: 'dev.wp.cdn.aws.wfu.edu' },
+        {
+          from: 'wfu-cer-wordpress-uat-us-east-1.s3.amazonaws.com',
+          to: 'wfu-cer-wordpress-dev-us-east-1.s3.amazonaws.com',
+        },
       ],
     },
     'dev->uat': {
@@ -45,6 +49,10 @@ export class EnvironmentMappingService {
       s3Replacements: [
         { from: 'wordpress-dev-us', to: 'wordpress-uat-us' },
         { from: 'dev.wp.cdn.aws.wfu.edu', to: 'uat.wp.cdn.aws.wfu.edu' },
+        {
+          from: 'wfu-cer-wordpress-dev-us-east-1.s3.amazonaws.com',
+          to: 'wfu-cer-wordpress-uat-us-east-1.s3.amazonaws.com',
+        },
       ],
     },
     'prod->local': {

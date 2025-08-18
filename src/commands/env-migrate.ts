@@ -35,6 +35,7 @@ interface EnvMigrateOptions {
   excludeSites?: string;
   includeSites?: string;
   activeOnly?: boolean;
+  excludeMainSite?: boolean;
   skipBackup?: boolean;
   skipS3?: boolean;
   syncS3?: boolean;
@@ -105,6 +106,11 @@ export const envMigrateCommand = new Command('env-migrate')
     'Comma-separated list of site IDs to include'
   )
   .option('--active-only', 'Only migrate active sites', false)
+  .option(
+    '--exclude-main-site',
+    'Exclude the main site (site ID 1) from migration',
+    false
+  )
   .option('--skip-backup', 'Skip environment backup (dangerous)', false)
   .option('--skip-s3', 'Skip S3 archival', false)
   .option('--sync-s3', 'Sync WordPress files between S3 environments', false)
@@ -809,6 +815,7 @@ async function discoverSites(
   // Build filter options
   const filterOptions: any = {
     activeOnly: options.activeOnly || false,
+    includeMainSite: !options.excludeMainSite, // Include main site by default unless explicitly excluded
   };
 
   if (options.includeSites) {
@@ -948,18 +955,22 @@ async function migrateNetworkTables(
       if (options.verbose) {
         console.log(chalk.gray('  Transforming network table domains...'));
       }
-      
-      const environmentMapping = EnvironmentMappingService.getEnvironmentMapping(
-        sourceEnv,
-        targetEnv
-      );
-      
+
+      const environmentMapping =
+        EnvironmentMappingService.getEnvironmentMapping(sourceEnv, targetEnv);
+
+      // Combine both URL and S3 replacements for comprehensive transformation
+      const allReplacements = [
+        ...environmentMapping.urlReplacements,
+        ...environmentMapping.s3Replacements,
+      ];
+
       await NetworkTableOperations.transformNetworkTablesForEnvironment(
         targetEnv,
-        environmentMapping.urlReplacements,
+        allReplacements,
         options.verbose
       );
-      
+
       if (options.verbose) {
         console.log(
           chalk.green(

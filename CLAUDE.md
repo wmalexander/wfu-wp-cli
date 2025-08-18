@@ -113,6 +113,9 @@ wfuwp env-migrate prod uat
 # Environment migration with specific options
 wfuwp env-migrate prod pprd --include-sites "1,43,78" --parallel --sync-s3
 
+# Exclude main site from migration (backward compatibility option)
+wfuwp env-migrate prod uat --exclude-main-site
+
 # Network tables only
 wfuwp env-migrate prod uat --network-only --force
 
@@ -125,9 +128,9 @@ wfuwp env-migrate prod local --sync-s3 --verbose
 
 **Automated Workflow:**
 1. Pre-flight validation (system requirements, database connections, S3 access)
-2. Site enumeration and filtering (discover all sites, apply include/exclude filters)
+2. Site enumeration and filtering (discover all sites including main site by default, apply include/exclude filters)
 3. Environment backup (complete backup of target environment with validation)
-4. Network table migration (export, transform, import network tables)
+4. Network table migration (export, transform with comprehensive URL/S3 replacements, import network tables)
 5. Batch site processing (process sites in configurable batches with parallel execution)
 6. File synchronization (optional S3 sync between environments)
 7. Post-migration validation and archival (health checks, S3 archival, cleanup)
