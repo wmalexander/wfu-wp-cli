@@ -3,6 +3,7 @@ import { existsSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
 import chalk from 'chalk';
 import { Config } from './config';
+import { SqlFileAnalyzer } from './sql-file-analyzer';
 
 interface NetworkExportResult {
   filePath: string;
@@ -547,9 +548,7 @@ export class NetworkTableOperations {
         });
       }
 
-      const fileContent = require('fs').readFileSync(sqlFile, 'utf8');
-      const createTableMatches = fileContent.match(/CREATE TABLE/gi);
-      const tableCount = createTableMatches ? createTableMatches.length : 0;
+      const tableCount = await SqlFileAnalyzer.countTablesInSqlFile(sqlFile);
 
       return {
         success: true,
