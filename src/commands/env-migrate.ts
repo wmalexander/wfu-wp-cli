@@ -485,16 +485,20 @@ async function runEnvironmentMigration(
     // Step 4: Full S3 bucket sync (if requested)
     if (options.syncS3) {
       console.log(chalk.blue('Step 4: Syncing complete S3 bucket...'));
-      
+
       if (options.dryRun) {
-        console.log(chalk.gray('  Would sync entire S3 bucket between environments'));
+        console.log(
+          chalk.gray('  Would sync entire S3 bucket between environments')
+        );
       } else {
         const { S3Sync } = await import('../utils/s3sync');
-        
+
         // Check AWS CLI availability
         if (!S3Sync.checkAwsCli()) {
           console.warn(
-            chalk.yellow('Warning: AWS CLI not available, skipping S3 bucket sync')
+            chalk.yellow(
+              'Warning: AWS CLI not available, skipping S3 bucket sync'
+            )
           );
         } else {
           try {
@@ -526,12 +530,12 @@ async function runEnvironmentMigration(
 
     // Step 5: Flush cache for migrated environment
     console.log(chalk.blue('Step 5: Flushing cache...'));
-    
+
     if (options.dryRun) {
       console.log(chalk.gray('  Would flush cache for target environment'));
     } else {
       const { CacheFlush } = await import('../utils/cache-flush');
-      
+
       try {
         const flushResult = await CacheFlush.flushCache(targetEnv, {
           verbose: options.verbose,

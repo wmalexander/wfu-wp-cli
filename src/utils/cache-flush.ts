@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 import { DatabaseOperations } from './database';
-import { Config } from './config';
 
 export interface CacheFlushResult {
   success: boolean;
@@ -17,7 +16,7 @@ export class CacheFlush {
       dev: 'https://dev.wfu.edu',
       local: 'https://localhost:8080',
     };
-    
+
     return urlMapping[environment] || urlMapping.prod;
   }
 
@@ -26,9 +25,11 @@ export class CacheFlush {
     options: { verbose?: boolean; dryRun?: boolean } = {}
   ): Promise<CacheFlushResult> {
     const flushId = Date.now().toString();
-    
+
     if (options.verbose) {
-      console.log(chalk.blue('Flushing cache for environment: ' + targetEnvironment));
+      console.log(
+        chalk.blue('Flushing cache for environment: ' + targetEnvironment)
+      );
       console.log(chalk.gray('  Generated flush ID: ' + flushId));
     }
 
@@ -60,14 +61,14 @@ export class CacheFlush {
 
       const mainUrl = this.getEnvironmentMainUrl(targetEnvironment);
       const flushUrl = `${mainUrl}/?flushid=${flushId}`;
-      
+
       if (options.verbose) {
         console.log(chalk.gray('  Flush URL: ' + flushUrl));
       }
 
       // Make HTTP request to trigger flush
       const response = await this.makeFlushRequest(flushUrl, options.verbose);
-      
+
       if (response.success) {
         return {
           success: true,
@@ -82,7 +83,8 @@ export class CacheFlush {
         };
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       return {
         success: false,
         message: `Cache flush failed: ${errorMessage}`,
@@ -101,19 +103,21 @@ export class CacheFlush {
         // Create AbortController for timeout
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000);
-        
+
         try {
           const response = await fetch(url, {
             method: 'GET',
             signal: controller.signal,
           });
-          
+
           clearTimeout(timeoutId);
-          
+
           if (verbose) {
-            console.log(chalk.gray(`  HTTP response status: ${response.status}`));
+            console.log(
+              chalk.gray(`  HTTP response status: ${response.status}`)
+            );
           }
-          
+
           return {
             success: response.ok,
             error: response.ok ? undefined : `HTTP ${response.status}`,
@@ -133,7 +137,8 @@ export class CacheFlush {
         return await this.makeFlushRequestWithHttps(url, verbose);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       return {
         success: false,
         error: errorMessage,
@@ -148,7 +153,7 @@ export class CacheFlush {
     return new Promise((resolve) => {
       const https = require('https');
       const urlObj = new URL(url);
-      
+
       const options = {
         hostname: urlObj.hostname,
         port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
@@ -163,7 +168,7 @@ export class CacheFlush {
         if (verbose) {
           console.log(chalk.gray(`  HTTP response status: ${res.statusCode}`));
         }
-        
+
         resolve({
           success: res.statusCode >= 200 && res.statusCode < 400,
           error: res.statusCode >= 400 ? `HTTP ${res.statusCode}` : undefined,

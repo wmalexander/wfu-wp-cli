@@ -141,7 +141,9 @@ export class S3Sync {
       actualToEnv = 'dev';
       if (options.verbose) {
         console.log(
-          chalk.cyan('  Local migration detected: syncing entire S3 bucket from prod to dev')
+          chalk.cyan(
+            '  Local migration detected: syncing entire S3 bucket from prod to dev'
+          )
         );
       }
     }

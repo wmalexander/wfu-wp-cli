@@ -615,11 +615,21 @@ export class DatabaseOperations {
       // Get all tables using cached approach (single query instead of per-site)
       const allTables = this.getAllTables(environment);
 
+      // Get network table names to exclude from site migrations
+      const { NetworkTableOperations } = require('./network-tables');
+      const networkTableNames = NetworkTableOperations.getNetworkTables().map(
+        (table: any) => table.name
+      );
+
       // Filter tables for this specific site from the complete list
       const siteTables = allTables.filter((table) => {
         if (siteId === '1') {
-          // For main site, include wp_ tables but exclude numbered subsites (wp_43_*)
-          return table.startsWith('wp_') && !table.match(/wp_\d+_/);
+          // For main site, include wp_ tables but exclude numbered subsites (wp_43_*) AND network tables
+          return (
+            table.startsWith('wp_') &&
+            !table.match(/wp_\d+_/) &&
+            !networkTableNames.includes(table)
+          );
         } else {
           // For subsites, match exact prefix (avoid wp_430_ when looking for wp_43_)
           const exactPrefix = `wp_${siteId}_`;
@@ -689,10 +699,20 @@ export class DatabaseOperations {
 
       // If siteId is provided, only drop tables for that specific site
       if (siteId) {
+        // Get network table names to exclude from site migrations
+        const { NetworkTableOperations } = require('./network-tables');
+        const networkTableNames = NetworkTableOperations.getNetworkTables().map(
+          (table: any) => table.name
+        );
+
         tablesToDrop = allTables.filter((table) => {
           if (siteId === '1') {
-            // For main site, include wp_ tables but exclude numbered subsites (wp_43_*)
-            return table.startsWith('wp_') && !table.match(/wp_\d+_/);
+            // For main site, include wp_ tables but exclude numbered subsites (wp_43_*) AND network tables
+            return (
+              table.startsWith('wp_') &&
+              !table.match(/wp_\d+_/) &&
+              !networkTableNames.includes(table)
+            );
           } else {
             // For subsites, match exact prefix
             const exactPrefix = `wp_${siteId}_`;
@@ -1327,7 +1347,9 @@ export class DatabaseOperations {
     const envConfig = Config.getEnvironmentConfig(environment);
 
     if (verbose) {
-      console.log(chalk.gray(`Updating network option: ${optionKey} = ${optionValue}`));
+      console.log(
+        chalk.gray(`Updating network option: ${optionKey} = ${optionValue}`)
+      );
     }
 
     const sql = `INSERT INTO wp_sitemeta (site_id, meta_key, meta_value) VALUES (1, '${optionKey}', '${optionValue}') ON DUPLICATE KEY UPDATE meta_value = '${optionValue}'`;
@@ -1335,7 +1357,7 @@ export class DatabaseOperations {
     try {
       if (this.hasNativeMysqlClient()) {
         const command = `MYSQL_PWD="${envConfig.password}" mysql -h ${envConfig.host} ${envConfig.port ? `-P ${envConfig.port}` : ''} -u ${envConfig.user} ${envConfig.database} -e "${sql}"`;
-        
+
         if (verbose) {
           console.log(chalk.gray('  Using native MySQL client'));
         }
@@ -1349,12 +1371,17 @@ export class DatabaseOperations {
           `-e MYSQL_PWD="${envConfig.password}"`,
           'mysql:8.0',
           'mysql',
-          '-h', `"${envConfig.host}"`,
+          '-h',
+          `"${envConfig.host}"`,
           envConfig.port ? `--port=${envConfig.port}` : '',
-          '-u', `"${envConfig.user}"`,
+          '-u',
+          `"${envConfig.user}"`,
           `"${envConfig.database}"`,
-          '-e', `"${sql}"`
-        ].filter(arg => arg.length > 0).join(' ');
+          '-e',
+          `"${sql}"`,
+        ]
+          .filter((arg) => arg.length > 0)
+          .join(' ');
 
         if (verbose) {
           console.log(chalk.gray('  Using Docker MySQL client'));
@@ -1366,7 +1393,9 @@ export class DatabaseOperations {
       }
 
       if (verbose) {
-        console.log(chalk.green(`✓ Network option ${optionKey} updated successfully`));
+        console.log(
+          chalk.green(`✓ Network option ${optionKey} updated successfully`)
+        );
       }
     } catch (error) {
       throw new Error(

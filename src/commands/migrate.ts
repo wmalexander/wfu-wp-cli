@@ -467,10 +467,10 @@ async function runCompleteMigration(
 
     // Step 8: Flush cache
     console.log(chalk.blue('Step 8: Flushing cache...'));
-    
+
     if (!options.dryRun) {
       const { CacheFlush } = await import('../utils/cache-flush');
-      
+
       try {
         const flushResult = await CacheFlush.flushCache(options.to, {
           verbose: options.verbose,
