@@ -796,6 +796,14 @@ export class NetworkTableOperations {
           // Get table columns using cached approach (avoids repeated DESCRIBE queries)
           const columns = this.getTableColumns(table, envConfig);
 
+          if (verbose) {
+            console.log(
+              chalk.gray(
+                `  Processing table ${table} (columns: ${columns.join(', ')})`
+              )
+            );
+          }
+
           if (columns.length === 0) {
             if (verbose) {
               console.log(
@@ -810,6 +818,10 @@ export class NetworkTableOperations {
           for (const field of fieldsToTransform) {
             if (columns.includes(field)) {
               const updateQuery = `UPDATE ${table} SET ${field} = REPLACE(${field}, '${replacement.from}', '${replacement.to}') WHERE ${field} LIKE '%${replacement.from}%'`;
+
+              if (verbose) {
+                console.log(chalk.gray(`  Executing: ${updateQuery}`));
+              }
 
               const mysqlCommand = this.buildMysqlCommand(envConfig, [
                 '-e',
@@ -835,6 +847,10 @@ export class NetworkTableOperations {
               if (verbose) {
                 console.log(chalk.gray(`  Updated ${table}.${field}`));
               }
+            } else if (verbose) {
+              console.log(
+                chalk.gray(`  Skipped ${table}.${field} (column not found)`)
+              );
             }
           }
         } catch (error) {
