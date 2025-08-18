@@ -10,6 +10,7 @@ import {
   displayDiskSpaceStatus,
   shouldBlockMigration,
 } from '../utils/disk-space';
+import { EnvironmentMappingService } from '../utils/environment-mapping';
 
 interface MigrateOptions {
   from: string;
@@ -28,11 +29,6 @@ interface MigrateOptions {
   workDir?: string;
   keepFiles?: boolean;
   timeout?: string;
-}
-
-interface EnvironmentMapping {
-  urlReplacements: Array<{ from: string; to: string }>;
-  s3Replacements: Array<{ from: string; to: string }>;
 }
 
 export const migrateCommand = new Command('migrate')
@@ -123,7 +119,10 @@ async function runSimpleMigration(
   DatabaseOperations.checkDockerAvailability();
 
   const migrationConfig = Config.getMigrationDbConfig();
-  const environmentMapping = getEnvironmentMapping(options.from, options.to);
+  const environmentMapping = EnvironmentMappingService.getEnvironmentMapping(
+    options.from,
+    options.to
+  );
   const skipTables = getSkipTables(options.homepage || false);
   const logFile = setupLogging(options.logDir || './logs');
 
@@ -892,7 +891,10 @@ async function runSqlSearchReplace(
   siteId: string,
   options: MigrateOptions
 ): Promise<void> {
-  const environmentMapping = getEnvironmentMapping(options.from, options.to);
+  const environmentMapping = EnvironmentMappingService.getEnvironmentMapping(
+    options.from,
+    options.to
+  );
 
   // Combine URL and S3 replacements
   const allReplacements = [
@@ -917,71 +919,6 @@ async function runSqlSearchReplace(
     siteId,
     options.verbose
   );
-}
-
-function getEnvironmentMapping(from: string, to: string): EnvironmentMapping {
-  const mappings: Record<string, EnvironmentMapping> = {
-    'prod->pprd': {
-      urlReplacements: [
-        { from: '.wfu.edu', to: '.pprd.wfu.edu' },
-        { from: '.pprd.pprd.wfu.edu', to: '.pprd.wfu.edu' },
-        { from: 'www.pprd.wfu.edu', to: 'pprd.wfu.edu' },
-        { from: 'aws.pprd.wfu.edu', to: 'aws.wfu.edu' },
-      ],
-      s3Replacements: [
-        { from: 'wordpress-prod-us', to: 'wordpress-pprd-us' },
-        { from: 'prod.wp.cdn.aws.wfu.edu', to: 'pprd.wp.cdn.aws.wfu.edu' },
-      ],
-    },
-    'pprd->prod': {
-      urlReplacements: [
-        { from: '.pprd.wfu.edu', to: '.wfu.edu' },
-        { from: 'pprd.wfu.edu', to: 'www.wfu.edu' },
-      ],
-      s3Replacements: [
-        { from: 'wordpress-pprd-us', to: 'wordpress-prod-us' },
-        { from: 'pprd.wp.cdn.aws.wfu.edu', to: 'prod.wp.cdn.aws.wfu.edu' },
-      ],
-    },
-    'uat->dev': {
-      urlReplacements: [
-        { from: '.uat.wfu.edu', to: '.dev.wfu.edu' },
-        { from: 'uat.wfu.edu', to: 'dev.wfu.edu' },
-      ],
-      s3Replacements: [
-        { from: 'wordpress-uat-us', to: 'wordpress-dev-us' },
-        { from: 'uat.wp.cdn.aws.wfu.edu', to: 'dev.wp.cdn.aws.wfu.edu' },
-      ],
-    },
-    'dev->uat': {
-      urlReplacements: [
-        { from: '.dev.wfu.edu', to: '.uat.wfu.edu' },
-        { from: 'dev.wfu.edu', to: 'uat.wfu.edu' },
-      ],
-      s3Replacements: [
-        { from: 'wordpress-dev-us', to: 'wordpress-uat-us' },
-        { from: 'dev.wp.cdn.aws.wfu.edu', to: 'uat.wp.cdn.aws.wfu.edu' },
-      ],
-    },
-    'prod->local': {
-      urlReplacements: [
-        { from: '.wfu.edu', to: '.wfu.local' },
-        { from: 'www.wfu.local', to: 'wfu.local' },
-      ],
-      s3Replacements: [
-        // Note: S3 sync for prod->local goes to dev environment (handled in S3Sync)
-        { from: 'wordpress-prod-us', to: 'wordpress-dev-us' },
-        { from: 'prod.wp.cdn.aws.wfu.edu', to: 'dev.wp.cdn.aws.wfu.edu' },
-      ],
-    },
-  };
-
-  const key = `${from}->${to}`;
-  if (!mappings[key]) {
-    throw new Error(`Migration path ${from} -> ${to} is not supported`);
-  }
-
-  return mappings[key];
 }
 
 function getSkipTables(includeHomepage: boolean): string {
