@@ -81,6 +81,62 @@ wfuwp migrate 43 --from prod --to pprd --dry-run
 
 ---
 
+### env-migrate - Complete Environment Migration
+
+Comprehensive WordPress multisite environment migration with complete automation, safety features, and S3 integration (Phase 2).
+
+```bash
+wfuwp env-migrate <source-env> <target-env> [options]
+```
+
+#### Arguments
+- `source-env` - Source environment (dev/uat/pprd/prod)
+- `target-env` - Target environment (dev/uat/pprd/prod/local)
+
+#### Core Options
+- `--dry-run` - Preview migration without executing changes
+- `-f, --force` - Skip confirmation prompts
+- `-v, --verbose` - Show detailed output and progress
+- `--network-only` - Migrate network tables only (no individual sites)
+- `--sites-only` - Migrate sites only (skip network tables)
+
+#### Site Selection
+- `--include-sites <list>` - Comma-separated list of site IDs to include
+- `--exclude-sites <list>` - Comma-separated list of site IDs to exclude
+- `--exclude-main-site` - Exclude the main site (site ID 1) from migration
+- `--active-only` - Only migrate active sites (not archived/deleted)
+
+#### Batch Processing
+- `--batch-size <size>` - Number of sites to process at once (default: 5)
+- `--parallel` - Process sites in parallel within batches
+- `--concurrency <limit>` - Maximum concurrent migrations (default: 3)
+
+#### Safety & Recovery
+- `--skip-backup` - Skip environment backup (dangerous, not recommended)
+- `--auto-rollback` - Automatically rollback on failure
+- `--max-retries <count>` - Maximum retry attempts for transient errors (default: 3)
+- `--health-check` - Perform comprehensive health checks
+
+#### Examples
+
+```bash
+# Complete environment migration
+wfuwp env-migrate prod uat
+
+# Specific sites with parallel processing
+wfuwp env-migrate prod pprd --include-sites "1,43,78" --parallel
+
+# Network tables only migration
+wfuwp env-migrate prod uat --network-only --force
+
+# Local development setup
+wfuwp env-migrate prod local --sync-s3 --verbose
+```
+
+See [wp-docs/env-migrate.md](../wp-docs/env-migrate.md) for comprehensive documentation.
+
+---
+
 ### install-deps - Install System Dependencies
 
 Install required system dependencies (Docker and MySQL client) for the WFU WordPress CLI tool.
@@ -413,6 +469,327 @@ wfuwp removehostkey prod-web-01.wfu.edu --all-variants
 
 # Custom known_hosts
 wfuwp removehostkey 10.0.1.50 --known-hosts ~/.ssh/custom_known_hosts
+```
+
+---
+
+### db - Database Connection Utilities
+
+Test and verify database connections for all configured environments.
+
+```bash
+wfuwp db <subcommand>
+```
+
+#### Subcommands
+- `test <env>` - Test database connection for an environment
+- `list` - List all configured database environments
+
+#### Examples
+```bash
+# Test production database connection
+wfuwp db test prod
+
+# List all configured environments
+wfuwp db list
+```
+
+---
+
+### restore - Restore Database from Backup
+
+Restore WordPress database from SQL backup files.
+
+```bash
+wfuwp restore <sql-file> --to <env> [options]
+```
+
+#### Arguments
+- `sql-file` - Path to SQL backup file
+
+#### Required Options
+- `--to <env>` - Target environment to restore to
+
+#### Optional Options
+- `--dry-run` - Preview restore without making changes
+- `--timeout <minutes>` - Custom timeout for large files (default: 20)
+
+#### Examples
+```bash
+# Restore backup to UAT environment
+wfuwp restore ./backup.sql --to uat
+
+# Preview restore without making changes
+wfuwp restore ./backup.sql --to dev --dry-run
+```
+
+---
+
+### clickup - ClickUp Task Management Integration
+
+Comprehensive ClickUp integration for managing tasks directly from the command line.
+
+```bash
+wfuwp clickup <subcommand> [options]
+```
+
+#### Key Features
+- Create and manage ClickUp tasks with full metadata support
+- List and filter tasks with advanced filtering options
+- Export tasks in CSV, JSON, and Markdown formats
+- Batch create tasks from text or JSON files
+
+#### Quick Start
+```bash
+# Configure API token
+wfuwp clickup config set token pk_your_api_token
+
+# Create a task
+wfuwp clickup create "Fix login bug" --priority high
+
+# List your tasks
+wfuwp clickup tasks --my-tasks
+```
+
+---
+
+### local - Local Development Environment Management
+
+Complete local development environment management for WFU WordPress sites with DDEV integration, domain management, and automated setup workflows.
+
+```bash
+wfuwp local <subcommand> [options]
+```
+
+#### Subcommands
+- `domain` - Manage local development domains (/etc/hosts)
+- `status` - Show environment status and health checks
+- `install` - Install and setup development dependencies
+- `start` - Start local development environment
+- `stop` - Stop local development environment
+- `restart` - Restart local development environment
+- `refresh` - Refresh database from production
+- `reset` - Reset entire local environment
+- `config` - Configure local development settings
+
+#### Examples
+```bash
+# First-time setup workflow
+wfuwp local install              # Install Docker, DDEV, dependencies
+wfuwp local config wizard        # Configure settings
+sudo wfuwp local domain add 43   # Add domain for site 43
+wfuwp local start 43             # Start development environment
+```
+
+---
+
+### doctor - System Prerequisites and Health Check
+
+Check system prerequisites and tool health for the WFU WordPress CLI.
+
+```bash
+wfuwp doctor [options]
+```
+
+#### Options
+- `--category <type>` - Check specific category (prerequisites, configuration, connectivity)
+- `--fix` - Show detailed fix instructions
+
+#### Examples
+```bash
+# Full system check
+wfuwp doctor
+
+# Check only prerequisites
+wfuwp doctor --category prerequisites
+
+# Show fix instructions for issues
+wfuwp doctor --fix
+```
+
+---
+
+### docs - Browse and Search Documentation
+
+Browse and search documentation topics directly from the command line.
+
+```bash
+wfuwp docs [options] [topic]
+```
+
+#### Options
+- `-l, --list` - List all available topics
+- `-s, --search <query>` - Search documentation for a term
+- `-b, --browser` - Open in browser (GitHub)
+- `-p, --print` - Print to terminal (default for local files)
+
+#### Examples
+```bash
+# List all documentation topics
+wfuwp docs --list
+
+# View getting started guide
+wfuwp docs getting-started
+
+# Search documentation
+wfuwp docs --search "migrate"
+```
+
+---
+
+### download-local - Download Local Database Exports
+
+Download local database exports from S3 for development use.
+
+```bash
+wfuwp download-local [options]
+```
+
+#### Options
+- `--environment <env>` - Source environment for database export
+- `--site-id <id>` - Specific site ID to download
+- `--output-dir <path>` - Custom output directory
+
+#### Examples
+```bash
+# Download latest production export
+wfuwp download-local --environment prod
+
+# Download specific site export
+wfuwp download-local --environment prod --site-id 43
+```
+
+---
+
+### delete-site - Delete WordPress Site
+
+Delete a WordPress site and all its tables from a specific environment.
+
+```bash
+wfuwp delete-site <site-id> <environment> [options]
+```
+
+#### Arguments
+- `site-id` - Numeric site identifier
+- `environment` - Target environment (dev/uat/pprd/prod)
+
+#### Options
+- `--dry-run` - Preview what would be deleted
+- `--force` - Skip confirmation prompts
+- `--backup` - Create backup before deletion
+
+#### Examples
+```bash
+# Delete site with confirmation
+wfuwp delete-site 43 uat
+
+# Preview deletion
+wfuwp delete-site 43 uat --dry-run
+
+# Force delete with backup
+wfuwp delete-site 43 dev --force --backup
+```
+
+---
+
+### clean-lower-envs - Clean Up Orphaned Sites
+
+Clean up orphaned sites and tables in lower environments by comparing with production.
+
+```bash
+wfuwp clean-lower-envs [options]
+```
+
+#### Options
+- `--environment <env>` - Target environment to clean (dev/uat/pprd)
+- `--dry-run` - Preview what would be cleaned
+- `--force` - Skip confirmation prompts
+
+#### Examples
+```bash
+# Clean UAT environment
+wfuwp clean-lower-envs --environment uat
+
+# Preview cleanup
+wfuwp clean-lower-envs --environment dev --dry-run
+```
+
+---
+
+### md2wpblock - Convert Markdown to WordPress Blocks
+
+Convert Markdown files to WordPress block editor HTML format.
+
+```bash
+wfuwp md2wpblock <path> [options]
+```
+
+#### Arguments
+- `path` - Path to Markdown file or directory
+
+#### Options
+- `--output <path>` - Output file or directory
+- `--overwrite` - Overwrite existing HTML files
+- `--recursive` - Process directories recursively
+
+#### Examples
+```bash
+# Convert single file
+wfuwp md2wpblock document.md
+
+# Convert entire directory
+wfuwp md2wpblock ./docs --output ./html --recursive
+```
+
+---
+
+### cleanup - Clean Up Migration Directories
+
+Clean up orphaned migration temporary directories and files.
+
+```bash
+wfuwp cleanup [options]
+```
+
+#### Options
+- `--dry-run` - Preview what would be cleaned
+- `--force` - Skip confirmation prompts
+- `--older-than <days>` - Only clean files older than specified days
+
+#### Examples
+```bash
+# Clean up old migration files
+wfuwp cleanup
+
+# Preview cleanup
+wfuwp cleanup --dry-run
+
+# Clean files older than 7 days
+wfuwp cleanup --older-than 7
+```
+
+---
+
+### migration-cleanup - Clean Migration State Records
+
+Clean up migration state records and legacy files from previous migration attempts.
+
+```bash
+wfuwp migration-cleanup [options]
+```
+
+#### Options
+- `--dry-run` - Preview what would be cleaned
+- `--force` - Skip confirmation prompts
+- `--migration-id <id>` - Clean specific migration ID
+
+#### Examples
+```bash
+# Clean up old migration state records
+wfuwp migration-cleanup
+
+# Clean specific migration
+wfuwp migration-cleanup --migration-id mig_20241201_143022
 ```
 
 ---

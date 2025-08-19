@@ -4,7 +4,14 @@
 
 The migration system provides automated workflows for moving WordPress multisite databases between environments. Phase 2 implementation includes complete export/import/transform pipelines with safety features.
 
-## Migration Types
+## Migration Systems
+
+The WFU WordPress CLI provides two migration systems:
+
+- **Phase 1 (`migrate`)**: Single site migration with manual steps
+- **Phase 2 (`env-migrate`)**: Complete environment migration with full automation
+
+## Phase 1: Single Site Migration (`migrate`)
 
 ### 1. Complete Migration (Default)
 
@@ -543,3 +550,188 @@ wfuwp migrate 52 --from prod --to pprd &
 wfuwp migrate 67 --from prod --to pprd &
 wait
 ```
+
+## Phase 2: Complete Environment Migration (`env-migrate`)
+
+The `env-migrate` command provides comprehensive WordPress multisite environment migration with complete automation, safety features, and enterprise-grade capabilities.
+
+### Key Advantages
+
+- **Complete Automation**: Handles export/import/transform automatically
+- **Network Table Migration**: Migrates network infrastructure between environments
+- **Batch Processing**: Process multiple sites with parallel execution
+- **Safety Features**: Environment backup, rollback, health checks
+- **S3 Integration**: File sync and backup archival
+- **Error Recovery**: Retry logic and resume capability
+
+### Basic Environment Migration
+
+```bash
+# Complete production to UAT migration
+wfuwp env-migrate prod uat
+
+# Preview what will be migrated
+wfuwp env-migrate prod uat --dry-run --verbose
+```
+
+### Site Selection Options
+
+```bash
+# Migrate specific sites
+wfuwp env-migrate prod pprd --include-sites "1,43,78"
+
+# Exclude main site
+wfuwp env-migrate prod uat --exclude-main-site
+
+# Active sites only
+wfuwp env-migrate prod pprd --active-only
+```
+
+### Batch Processing
+
+```bash
+# Process sites in batches with parallel execution
+wfuwp env-migrate prod uat --batch-size 10 --parallel --concurrency 5
+```
+
+### Network-Only Migration
+
+```bash
+# Migrate just network tables (wp_blogs, wp_site, etc.)
+wfuwp env-migrate prod uat --network-only --force
+```
+
+### Local Development Setup
+
+```bash
+# Set up local development with production data
+wfuwp env-migrate prod local --sync-s3 --verbose
+```
+
+### Migration Workflow (Phase 2)
+
+1. **Pre-flight Validation**
+   - System requirements check (Docker, AWS CLI, MySQL)
+   - Database connection validation for all environments
+   - S3 access verification (if enabled)
+   - Site existence and consistency checks
+
+2. **Environment Backup**
+   - Complete backup of target environment
+   - Backup integrity validation
+   - S3 archival of backup files (if configured)
+
+3. **Site Enumeration & Selection**
+   - Discover all sites in source environment (including main site)
+   - Apply include/exclude filters and active-only restrictions
+   - Site validation and consistency checks
+
+4. **Network Table Migration**
+   - Export network tables (wp_blogs, wp_site, wp_sitemeta, wp_blogmeta)
+   - Transform domains, URLs, and S3 paths for target environment
+   - Import to target environment with validation
+
+5. **Site Migration (Batch Processing)**
+   - Process sites in configurable batches with progress tracking
+   - Optional parallel processing within batches
+   - Real-time progress updates with completion estimates
+   - Error recovery and retry logic for transient failures
+
+6. **WordPress File Synchronization (Optional)**
+   - Sync uploads, themes, and plugin files between S3 environments
+   - Progress tracking and error handling
+   - File transfer integrity validation
+
+7. **Post-Migration Validation & Archival**
+   - Comprehensive health checks on migrated environment
+   - Archive all migration artifacts and logs to S3
+   - Cleanup of temporary files (unless --keep-files)
+   - Migration summary report with statistics
+
+### Advanced Features
+
+#### Migration State Management
+
+```bash
+# List incomplete migrations
+wfuwp env-migrate --list-migrations
+
+# Resume specific migration
+wfuwp env-migrate --resume mig_20241201_143022
+
+# Retry only failed sites
+wfuwp env-migrate prod uat --retry-failed --verbose
+```
+
+#### Error Recovery
+
+```bash
+# Skip sites that failed in previous attempts
+wfuwp env-migrate prod uat --skip-failed
+
+# Skip sites that timed out
+wfuwp env-migrate prod uat --skip-timeouts
+
+# Automatic rollback on failure
+wfuwp env-migrate prod uat --auto-rollback
+```
+
+#### Health Monitoring
+
+```bash
+# Comprehensive health checks before and after
+wfuwp env-migrate prod uat --health-check --verbose
+```
+
+### Phase 1 vs Phase 2 Comparison
+
+| Feature | Phase 1 (`migrate`) | Phase 2 (`env-migrate`) |
+|---------|-------------------|------------------------|
+| Automation | Manual export/import | Fully automated |
+| Site Count | Single site only | Multiple sites, entire environments |
+| Network Tables | Not supported | Full network table migration |
+| Batch Processing | Not available | Configurable batches with parallel processing |
+| Error Recovery | Basic | Advanced retry logic and resume capability |
+| Progress Tracking | Basic | Real-time with completion estimates |
+| Health Checks | Basic validation | Comprehensive pre/post checks |
+| Backup Strategy | Single site backup | Complete environment backup |
+| S3 Integration | Basic archival | File sync + backup archival |
+| Local Environment | Basic support | Specialized local development setup |
+
+### When to Use Each
+
+**Use `migrate` (Phase 1) when:**
+- Migrating a single site with manual control
+- Learning WordPress database operations
+- Simple URL replacements without full automation
+- Working with legacy workflows
+
+**Use `env-migrate` (Phase 2) when:**
+- Migrating production environments (recommended)
+- Processing multiple sites
+- Need complete environment synchronization
+- Require enterprise safety features
+- Regular migration operations requiring consistency
+- Setting up local development environments
+
+### Environment-Specific Considerations
+
+#### Local Environment Support
+- Only `prod → local` migrations supported
+- Automatic domain transformation (`*.wfu.edu` → `*.wfu.local`)
+- S3 file sync from prod to dev bucket (not local filesystem)
+- Specialized for development environment setup
+
+#### Network Table Transformations
+- Domain replacements for all network sites
+- URL transformations in sitemeta and blogmeta
+- S3 path updates for different environments
+- Maintains site relationships and hierarchy
+
+#### Performance Optimization
+- Configurable batch sizes for different database capacities
+- Parallel processing with adjustable concurrency
+- Progress preservation for large migrations
+- Bandwidth limiting for S3 operations
+
+See [wp-docs/env-migrate.md](../wp-docs/env-migrate.md) for comprehensive `env-migrate` documentation.

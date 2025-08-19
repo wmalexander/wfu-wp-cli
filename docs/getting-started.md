@@ -6,15 +6,17 @@ Welcome to the WFU WordPress CLI tool! This guide will walk you through setting 
 
 The `wfuwp` CLI tool helps you manage WordPress multisite installations across different environments (development, testing, staging, and production). It automates complex tasks like database migrations, file synchronization, and environment management.
 
-## Prerequisites Checklist
+## Prerequisites Overview
 
-Before you begin, make sure you have:
+You'll need Node.js and some additional system dependencies, but don't worry about installing everything manually - the CLI tool can help!
 
-- [ ] **Node.js 18+** installed ([Download](https://nodejs.org/) or use [nvm](https://github.com/nvm-sh/nvm))
-- [ ] **Docker** installed and running ([Download](https://www.docker.com/products/docker-desktop))
-- [ ] **AWS CLI** configured with your credentials ([Setup Guide](https://aws.amazon.com/cli/))
-- [ ] **Access permissions** to WFU WordPress databases and S3 buckets
-- [ ] **SSH keys** configured for EC2 access (if using EC2 features)
+**Minimum requirement:**
+- [ ] **Node.js 16+** installed ([Download](https://nodejs.org/) or use [nvm](https://github.com/nvm-sh/nvm))
+
+**Additional dependencies** (can be installed automatically):
+- Docker (for database operations)
+- MySQL client (for database connectivity) 
+- AWS CLI (for S3 and EC2 operations)
 
 ## Step 1: Installation
 
@@ -30,7 +32,29 @@ Verify the installation:
 wfuwp --version
 ```
 
-## Step 2: Initial Configuration
+## Step 2: System Health Check
+
+Check your system and install missing dependencies:
+
+```bash
+# Check what's installed and what's needed
+wfuwp doctor
+
+# Install missing dependencies automatically
+wfuwp install-deps
+
+# Verify everything is working
+wfuwp doctor
+```
+
+The `doctor` command will check:
+- Node.js version compatibility
+- Docker installation and daemon status
+- AWS CLI configuration
+- Database connectivity requirements
+- Network access to required services
+
+## Step 3: Initial Configuration
 
 Run the configuration wizard to set up your environment connections:
 
@@ -52,7 +76,7 @@ The wizard will guide you through configuring:
 - **prod** - Production environment (live site)
 - **local** - Your local development environment (optional)
 
-## Step 3: Verify Your Setup
+## Step 4: Verify Your Setup
 
 Test all your connections to ensure everything is configured correctly:
 
@@ -65,30 +89,59 @@ wfuwp db test prod
 
 # List all configured environments
 wfuwp db list
+
+# Final health check
+wfuwp doctor
 ```
 
-## Step 4: Your First Migration (Example)
+## Step 5: Your First Migration
 
-Let's walk through migrating a WordPress site from production to pre-production:
+The tool provides two migration approaches. For most users, **Phase 2 (env-migrate)** is recommended for its automation and safety features.
 
-### 1. Check what site you want to migrate
+### Option A: Complete Environment Migration (Phase 2) - Recommended
 
-First, identify the site ID you want to migrate. Site IDs are numbers that correspond to WordPress multisite installations.
+For migrating entire environments or multiple sites with full automation:
 
-### 2. Preview the migration (dry run)
+#### 1. Preview the migration (dry run)
 
-Always start with a dry run to see what will happen:
+```bash
+wfuwp env-migrate prod uat --dry-run --verbose
+```
+
+#### 2. Perform complete environment migration
+
+```bash
+# Migrate entire environment
+wfuwp env-migrate prod uat
+
+# Or migrate specific sites with file sync
+wfuwp env-migrate prod uat --include-sites "1,43,52" --sync-s3
+```
+
+The tool will automatically:
+1. Validate system requirements and database connections
+2. Create complete backup of target environment
+3. Discover and enumerate all sites (or use your include list)
+4. Migrate network tables (wp_blogs, wp_site, etc.)
+5. Process sites in batches with progress tracking
+6. Sync WordPress files between S3 environments (if --sync-s3)
+7. Archive all migration artifacts
+8. Provide comprehensive migration report
+
+### Option B: Single Site Migration (Phase 1)
+
+For migrating individual sites with more manual control:
+
+#### 1. Preview the migration (dry run)
 
 ```bash
 wfuwp migrate 43 --from prod --to pprd --dry-run
 ```
 
-### 3. Perform the actual migration
-
-If the dry run looks good, proceed with the migration:
+#### 2. Perform the migration
 
 ```bash
-wfuwp migrate 43 --from prod --to pprd
+wfuwp migrate 43 --from prod --to pprd --sync-s3
 ```
 
 The tool will:
@@ -96,7 +149,8 @@ The tool will:
 2. Transform URLs and paths for the target environment
 3. Back up the existing pre-production data
 4. Import the migrated data to pre-production
-5. Archive all backup files
+5. Sync WordPress files (if --sync-s3)
+6. Archive all backup files
 
 ### 4. Verify the migration
 

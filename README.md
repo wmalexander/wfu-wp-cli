@@ -4,11 +4,9 @@ A comprehensive command-line interface for managing WordPress multisite installa
 
 ## 📚 Documentation
 
-- **[Getting Started Guide](docs/getting-started.md)** - New to wfuwp? Start here!
-- **[Quick Reference](docs/quick-reference.md)** - Command cheat sheet for quick lookups
-- **[Visual Workflows](docs/workflows.md)** - Diagrams showing how migrations work
-- **[Commands Reference](docs/commands.md)** - Detailed documentation for all commands
-- **[Troubleshooting Guide](docs/troubleshooting.md)** - Solutions to common problems
+- **[Tool Introduction](wp-docs/wfuwp-introduction.md)** - What is wfuwp and how to get started
+- **Built-in Help System** - Use `wfuwp --help` and `wfuwp docs --list` for complete, current documentation
+- **[Developer Documentation](docs/)** - Technical architecture and development guides
 
 ## Installation
 
@@ -344,13 +342,7 @@ wfuwp clickup tasks --export csv
 
 Migrates WordPress multisite database content between environments by performing URL and path replacements. Integrates with WP-CLI for reliable database operations.
 
-**⚠️ Current Limitations (Phase 1):**
-- Requires tables to be manually imported into migration database before running
-- Does not handle export/import operations automatically
-- Single database configuration only
-- No S3 archival of SQL dumps
-
-**📋 Phase 2 Available:** See `env-migrate` command below for complete automated environment migration.
+**📋 Complete Migration Available:** For automated environment migration with all safety features, see `env-migrate` command below.
 
 #### `env-migrate` - Complete Environment Migration (Phase 2)
 
@@ -565,13 +557,13 @@ wfuwp migrate 43 --from prod --to local --verbose
 - Appropriate database access permissions for the configured user
 - **Phase 1**: Tables must be manually imported into migration database before running
 
-**Current Workflow (Phase 1):**
-1. Manually export site tables from source environment
-2. Manually import tables into wp_migration database
-3. Run `wfuwp migrate` command for URL replacements
-4. Manually export transformed tables from wp_migration
-5. Manually backup target environment tables
-6. Manually import transformed tables to target environment
+**Migrate Command Workflow (Phase 1):**
+1. Requires manual export/import of site tables
+2. Performs automated URL and path replacements
+3. Handles search-replace operations via WP-CLI
+4. Integrates with single migration database
+
+**Note:** For fully automated workflows including export/import, use `env-migrate` command.
 
 #### `local` - Local Development Environment Management
 
@@ -642,22 +634,30 @@ wfuwp local install --force      # Reinstall dependencies
 
 ## Quick Start
 
-New to wfuwp? Follow our **[Getting Started Guide](docs/getting-started.md)** for step-by-step setup instructions.
+New to wfuwp? Start with the **[Tool Introduction](wp-docs/wfuwp-introduction.md)** and use the built-in documentation system for complete guidance.
 
 ```bash
 # 1. Install the tool
 npm install -g wfuwp
 
-# 2. Run configuration wizard
+# 2. Check system prerequisites
+wfuwp doctor
+
+# 3. Run configuration wizard
 wfuwp config wizard
 
-# 3. Verify your setup
+# 4. Verify your setup
 wfuwp config verify
 wfuwp db list
 
-# 4. Your first migration
-wfuwp migrate 43 --from prod --to pprd --dry-run  # Preview first
-wfuwp migrate 43 --from prod --to pprd            # Then execute
+# 5. Explore built-in documentation
+wfuwp --help                    # See all commands
+wfuwp docs --list               # Browse documentation topics
+wfuwp docs getting-started      # Detailed setup guide
+
+# 6. Your first migration (Phase 2)
+wfuwp env-migrate prod pprd --dry-run  # Preview first
+wfuwp env-migrate prod pprd            # Then execute
 ```
 
 ## Safety Features
