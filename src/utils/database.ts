@@ -1462,9 +1462,201 @@ export class DatabaseOperations {
       }
     } catch (error) {
       if (verbose) {
-        console.log(chalk.yellow(`  Warning: Could not read network option ${optionKey}`));
+        console.log(
+          chalk.yellow(`  Warning: Could not read network option ${optionKey}`)
+        );
       }
       return null;
     }
+  }
+
+  static async deleteSiteFromBlogsTable(
+    siteId: number,
+    environment: string,
+    verbose = false
+  ): Promise<void> {
+    if (environment === 'prod') {
+      throw new Error('Cannot delete sites from production environment');
+    }
+
+    const envConfig = Config.getEnvironmentConfig(environment);
+    if (!Config.hasRequiredEnvironmentConfig(environment)) {
+      throw new Error(`Environment '${environment}' is not configured`);
+    }
+
+    if (verbose) {
+      console.log(
+        chalk.gray(
+          `Deleting site ${siteId} from wp_blogs table in ${environment}...`
+        )
+      );
+    }
+
+    const deleteQuery = `DELETE FROM wp_blogs WHERE blog_id = ${siteId}`;
+
+    try {
+      const mysqlCommand = this.buildMysqlCommand(envConfig, [
+        '-e',
+        `"${deleteQuery}"`,
+      ]);
+      const execOptions = this.hasNativeMysqlClient()
+        ? {
+            encoding: 'utf8' as const,
+            stdio: (verbose ? 'inherit' : 'ignore') as 'inherit' | 'ignore',
+            env: {
+              ...process.env,
+              MYSQL_PWD: envConfig.password,
+              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+            },
+          }
+        : {
+            encoding: 'utf8' as const,
+            stdio: (verbose ? 'inherit' : 'ignore') as 'inherit' | 'ignore',
+          };
+
+      execSync(mysqlCommand, execOptions);
+
+      if (verbose) {
+        console.log(
+          chalk.green(`✓ Site ${siteId} deleted from wp_blogs table`)
+        );
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to delete site ${siteId} from wp_blogs: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  static async dropSiteTables(
+    siteId: string,
+    environment: string,
+    verbose = false
+  ): Promise<string[]> {
+    if (environment === 'prod') {
+      throw new Error('Cannot drop tables in production environment');
+    }
+
+    const tables = this.getSiteTables(siteId, environment);
+
+    if (tables.length === 0) {
+      if (verbose) {
+        console.log(
+          chalk.yellow(`No tables found for site ${siteId} in ${environment}`)
+        );
+      }
+      return [];
+    }
+
+    if (verbose) {
+      console.log(
+        chalk.gray(`Dropping ${tables.length} tables for site ${siteId}...`)
+      );
+    }
+
+    await this.dropTables(tables, environment, verbose);
+
+    if (verbose) {
+      console.log(
+        chalk.green(`✓ Dropped ${tables.length} tables for site ${siteId}`)
+      );
+    }
+
+    return tables;
+  }
+
+  static async dropTables(
+    tables: string[],
+    environment: string,
+    verbose = false
+  ): Promise<void> {
+    if (environment === 'prod') {
+      throw new Error('Cannot drop tables in production environment');
+    }
+
+    if (tables.length === 0) return;
+
+    const envConfig = Config.getEnvironmentConfig(environment);
+    if (!Config.hasRequiredEnvironmentConfig(environment)) {
+      throw new Error(`Environment '${environment}' is not configured`);
+    }
+
+    const batchSize = 10;
+    for (let i = 0; i < tables.length; i += batchSize) {
+      const batch = tables.slice(i, i + batchSize);
+
+      for (const table of batch) {
+        try {
+          const dropQuery = `DROP TABLE IF EXISTS \`${table}\``;
+          const mysqlCommand = this.buildMysqlCommand(envConfig, [
+            '-e',
+            `"${dropQuery}"`,
+          ]);
+          const execOptions = this.hasNativeMysqlClient()
+            ? {
+                encoding: 'utf8' as const,
+                stdio: 'ignore' as const,
+                env: {
+                  ...process.env,
+                  MYSQL_PWD: envConfig.password,
+                  PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+                },
+              }
+            : {
+                encoding: 'utf8' as const,
+                stdio: 'ignore' as const,
+              };
+
+          execSync(mysqlCommand, execOptions);
+
+          if (verbose) {
+            console.log(chalk.gray(`  Dropped table: ${table}`));
+          }
+        } catch (error) {
+          if (verbose) {
+            console.log(
+              chalk.yellow(
+                `  Warning: Could not drop table ${table}: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+          }
+        }
+      }
+    }
+  }
+
+  static async getOrphanedTables(
+    siteId: string,
+    sourceEnv: string,
+    targetEnv: string
+  ): Promise<string[]> {
+    const sourceTables = new Set(this.getSiteTables(siteId, sourceEnv));
+    const targetTables = this.getSiteTables(siteId, targetEnv);
+
+    return targetTables.filter((table) => !sourceTables.has(table));
+  }
+
+  static async validateSiteTablePattern(
+    siteId: number,
+    tableName: string
+  ): Promise<boolean> {
+    if (siteId === 1) {
+      return tableName.startsWith('wp_') && !tableName.match(/wp_\d+_/);
+    } else {
+      const exactPrefix = `wp_${siteId}_`;
+      return (
+        tableName.startsWith(exactPrefix) &&
+        !tableName.startsWith(`${exactPrefix}\\d`) &&
+        tableName.split('_')[1] === siteId.toString()
+      );
+    }
+  }
+
+  static async countSiteTables(
+    siteId: string,
+    environment: string
+  ): Promise<number> {
+    const tables = this.getSiteTables(siteId, environment);
+    return tables.length;
   }
 }
