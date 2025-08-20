@@ -332,6 +332,7 @@ export class NetworkTableOperations {
           envConfig.database,
           '--skip-lock-tables',
           '--no-tablespaces',
+          '--add-drop-table',
           ...tablesToExport,
           '>',
           `"${outputPath}"`,
@@ -409,6 +410,7 @@ export class NetworkTableOperations {
             '--skip-lock-tables',
             '--no-tablespaces',
             '--set-gtid-purged=OFF',
+            '--add-drop-table',
             ...tablesToExport.map((table) => `"${table}"`),
           ]
             .filter((arg) => arg.length > 0)
@@ -633,6 +635,7 @@ export class NetworkTableOperations {
           envConfig.database,
           '--skip-lock-tables',
           '--no-tablespaces',
+          '--add-drop-table',
           ...tablesToBackup,
           '>',
           `"${backupPath}"`,
@@ -710,6 +713,7 @@ export class NetworkTableOperations {
             '--skip-lock-tables',
             '--no-tablespaces',
             '--set-gtid-purged=OFF',
+            '--add-drop-table',
             ...tablesToBackup.map((table) => `"${table}"`),
           ]
             .filter((arg) => arg.length > 0)
@@ -863,6 +867,51 @@ export class NetworkTableOperations {
           }
         }
       }
+    }
+  }
+
+  static async transformSqlFile(
+    sqlFilePath: string,
+    replacements: Array<{ from: string; to: string }>,
+    verbose = false
+  ): Promise<void> {
+    if (!require('fs').existsSync(sqlFilePath)) {
+      throw new Error(`SQL file not found: ${sqlFilePath}`);
+    }
+
+    try {
+      if (verbose) {
+        console.log(chalk.gray(`Transforming SQL file: ${sqlFilePath}`));
+      }
+
+      let sqlContent = require('fs').readFileSync(sqlFilePath, 'utf8');
+
+      for (const replacement of replacements) {
+        if (verbose) {
+          console.log(
+            chalk.gray(
+              `  Replacing "${replacement.from}" → "${replacement.to}"`
+            )
+          );
+        }
+
+        // Use global regex replacement for all occurrences
+        const regex = new RegExp(
+          replacement.from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+          'g'
+        );
+        sqlContent = sqlContent.replace(regex, replacement.to);
+      }
+
+      require('fs').writeFileSync(sqlFilePath, sqlContent, 'utf8');
+
+      if (verbose) {
+        console.log(chalk.green(`  ✓ SQL file transformed successfully`));
+      }
+    } catch (error) {
+      throw new Error(
+        `Failed to transform SQL file: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 }

@@ -1006,7 +1006,44 @@ async function migrateNetworkTables(
       }
     }
 
-    // Import network tables to target
+    // Transform network tables SQL file before import (fix domain mappings)
+    try {
+      if (options.verbose) {
+        console.log(chalk.gray('  Transforming exported SQL file domains...'));
+      }
+
+      const environmentMapping =
+        EnvironmentMappingService.getEnvironmentMapping(sourceEnv, targetEnv);
+
+      // Combine both URL and S3 replacements for comprehensive transformation
+      const allReplacements = [
+        ...environmentMapping.urlReplacements,
+        ...environmentMapping.s3Replacements,
+      ];
+
+      await NetworkTableOperations.transformSqlFile(
+        exportPath,
+        allReplacements,
+        options.verbose
+      );
+
+      if (options.verbose) {
+        console.log(
+          chalk.green(
+            `  ✓ Transformed SQL file domains: ${sourceEnv} → ${targetEnv}`
+          )
+        );
+      }
+    } catch (error) {
+      console.warn(
+        chalk.yellow(
+          'Warning: SQL file domain transformation failed: ' +
+            (error instanceof Error ? error.message : 'Unknown error')
+        )
+      );
+    }
+
+    // Import transformed network tables to target
     const importResult = await NetworkTableOperations.importNetworkTables(
       exportPath,
       targetEnv,
@@ -1021,43 +1058,6 @@ async function migrateNetworkTables(
             importResult.tableCount +
             ' network tables to ' +
             targetEnv
-        )
-      );
-    }
-
-    // Transform network tables for target environment (fix domain mappings)
-    try {
-      if (options.verbose) {
-        console.log(chalk.gray('  Transforming network table domains...'));
-      }
-
-      const environmentMapping =
-        EnvironmentMappingService.getEnvironmentMapping(sourceEnv, targetEnv);
-
-      // Combine both URL and S3 replacements for comprehensive transformation
-      const allReplacements = [
-        ...environmentMapping.urlReplacements,
-        ...environmentMapping.s3Replacements,
-      ];
-
-      await NetworkTableOperations.transformNetworkTablesForEnvironment(
-        targetEnv,
-        allReplacements,
-        options.verbose
-      );
-
-      if (options.verbose) {
-        console.log(
-          chalk.green(
-            `  ✓ Transformed network table domains: ${sourceEnv} → ${targetEnv}`
-          )
-        );
-      }
-    } catch (error) {
-      console.warn(
-        chalk.yellow(
-          'Warning: Network table domain transformation failed: ' +
-            (error instanceof Error ? error.message : 'Unknown error')
         )
       );
     }
