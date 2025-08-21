@@ -1016,9 +1016,10 @@ async function migrateNetworkTables(
         EnvironmentMappingService.getEnvironmentMapping(sourceEnv, targetEnv);
 
       // Combine both URL and S3 replacements for comprehensive transformation
+      // Apply S3 replacements first (more specific) then URL replacements (more general)
       const allReplacements = [
-        ...environmentMapping.urlReplacements,
         ...environmentMapping.s3Replacements,
+        ...environmentMapping.urlReplacements,
       ];
 
       await NetworkTableOperations.transformSqlFile(
