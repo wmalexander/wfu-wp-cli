@@ -29,10 +29,14 @@ export class EnvironmentMappingService {
     },
     'pprd->prod': {
       urlReplacements: [
-        { from: 'pprd.wfu.edu', to: 'www.wfu.edu' },
-        { from: '.pprd.wfu.edu', to: '.wfu.edu' },
+        // Process full URLs first (most specific)
         { from: 'https://pprd.wfu.edu', to: 'https://www.wfu.edu' },
         { from: 'http://pprd.wfu.edu', to: 'http://www.wfu.edu' },
+        // Then handle subdomains explicitly before bare domain to avoid
+        // introducing `www.` into nested subdomains (e.g., a.b.pprd.wfu.edu)
+        { from: '.pprd.wfu.edu', to: '.wfu.edu' },
+        // Finally, map bare pprd host to prod www host
+        { from: 'pprd.wfu.edu', to: 'www.wfu.edu' },
       ],
       s3Replacements: [
         { from: 'wordpress-pprd-us', to: 'wordpress-prod-us' },
@@ -93,10 +97,13 @@ export class EnvironmentMappingService {
     },
     'dev->prod': {
       urlReplacements: [
-        { from: 'dev.wfu.edu', to: 'www.wfu.edu' },
-        { from: '.dev.wfu.edu', to: '.wfu.edu' },
+        // Process full URLs first (most specific)
         { from: 'https://dev.wfu.edu', to: 'https://www.wfu.edu' },
         { from: 'http://dev.wfu.edu', to: 'http://www.wfu.edu' },
+        // Handle subdomains before bare domain
+        { from: '.dev.wfu.edu', to: '.wfu.edu' },
+        // Finally bare dev host to prod www host
+        { from: 'dev.wfu.edu', to: 'www.wfu.edu' },
       ],
       s3Replacements: [
         { from: 'wordpress-dev-us', to: 'wordpress-prod-us' },
@@ -129,10 +136,13 @@ export class EnvironmentMappingService {
     },
     'uat->prod': {
       urlReplacements: [
-        { from: 'uat.wfu.edu', to: 'www.wfu.edu' },
-        { from: '.uat.wfu.edu', to: '.wfu.edu' },
+        // Process full URLs first (most specific)
         { from: 'https://uat.wfu.edu', to: 'https://www.wfu.edu' },
         { from: 'http://uat.wfu.edu', to: 'http://www.wfu.edu' },
+        // Handle subdomains before bare domain
+        { from: '.uat.wfu.edu', to: '.wfu.edu' },
+        // Finally bare uat host to prod www host
+        { from: 'uat.wfu.edu', to: 'www.wfu.edu' },
       ],
       s3Replacements: [
         { from: 'wordpress-uat-us', to: 'wordpress-prod-us' },
