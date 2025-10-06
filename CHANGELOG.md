@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2025-10-06
+
+### Added
+- AWS credentials validation during pre-flight checks for migrate and env-migrate commands
+- New `checkAwsCredentials()` method that verifies AWS credentials are valid before migration starts
+- Clear warning messages when AWS credentials are invalid or expired, instructing users to refresh credentials
+- Prevents wasted time on migrations that will fail during S3 operations due to expired credentials
+
 ## [0.19.7] - 2025-10-06
 
 ### Fixed
