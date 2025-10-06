@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.6] - 2025-10-06
+
+### Fixed
+- Extended Docker fallback support to all utility files that make direct MySQL calls
+- Added automatic MySQL client detection to: file-naming.ts, site-enumerator.ts, backup-recovery.ts, environment-cleanup.ts, migration-validator.ts, and error-recovery.ts
+- Fixes "mysql: command not found" warnings when MySQL client is not installed locally
+- Ensures consistent behavior across all database operations by using Docker when native client unavailable
+
 ## [0.12.1] - 2025-08-16
 
 ### Fixed
