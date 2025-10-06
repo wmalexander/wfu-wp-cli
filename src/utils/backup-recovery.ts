@@ -622,7 +622,10 @@ export class BackupRecovery {
             },
           }
         : { timeout: timeoutMinutes * 60 * 1000 };
-      execSync(`${this.buildMysqlCommand(envConfig)} < "${backupFilePath}"`, execOptions);
+      execSync(
+        `${this.buildMysqlCommand(envConfig)} < "${backupFilePath}"`,
+        execOptions
+      );
     } catch (error) {
       throw new Error(
         `Site ${siteId} restore failed: ${error instanceof Error ? error.message : 'Unknown error'}`
