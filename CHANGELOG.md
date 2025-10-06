@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2025-10-06
+
+### Added
+- Desktop notifications for migration completion and failure
+- Native OS integration: macOS (osascript), Linux (notify-send), Windows (PowerShell)
+- Sound alerts accompany notifications (configurable)
+- Allows users to run long migrations in background and get notified when complete
+- Applied to both `migrate` and `env-migrate` commands
+
 ## [0.20.0] - 2025-10-06
 
 ### Added
