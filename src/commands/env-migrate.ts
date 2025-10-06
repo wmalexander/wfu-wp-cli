@@ -862,6 +862,27 @@ async function runPreflightChecks(
           'AWS CLI is not available but required for --sync-s3. Please install and configure AWS CLI.'
         );
       }
+      console.log(chalk.green('  ✓ AWS CLI check passed'));
+      console.log(chalk.gray('  Testing AWS credentials...'));
+      if (!S3Sync.checkAwsCredentials()) {
+        console.log(
+          chalk.yellow(
+            '  Warning: AWS credentials are invalid or expired'
+          )
+        );
+        console.log(
+          chalk.yellow(
+            '  → Please refresh your AWS credentials before continuing'
+          )
+        );
+        console.log(
+          chalk.yellow(
+            '  → Migration will proceed but S3 operations (file sync and archival) will fail'
+          )
+        );
+      } else {
+        console.log(chalk.green('  ✓ AWS credentials are valid'));
+      }
     }
 
     if (!options.skipS3 && Config.hasRequiredS3Config()) {
@@ -873,10 +894,6 @@ async function runPreflightChecks(
       } else {
         console.log(chalk.green('  ✓ S3 access test passed'));
       }
-    }
-
-    if (options.syncS3) {
-      console.log(chalk.green('  ✓ AWS CLI check passed'));
     }
   }
 

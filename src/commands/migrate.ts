@@ -883,6 +883,27 @@ async function runPreflightChecks(
         '  Warning: AWS CLI not available - S3 file sync will be skipped'
       )
     );
+  } else {
+    console.log(chalk.gray('  Testing AWS credentials...'));
+    if (!S3Sync.checkAwsCredentials()) {
+      console.log(
+        chalk.yellow(
+          '  Warning: AWS credentials are invalid or expired'
+        )
+      );
+      console.log(
+        chalk.yellow(
+          '  → Please refresh your AWS credentials before continuing'
+        )
+      );
+      console.log(
+        chalk.yellow(
+          '  → Migration will proceed but S3 operations (file sync and archival) will fail'
+        )
+      );
+    } else {
+      console.log(chalk.green('  ✓ AWS credentials are valid'));
+    }
   }
 
   console.log(chalk.green('✓ Pre-flight checks passed'));

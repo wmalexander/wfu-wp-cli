@@ -22,6 +22,17 @@ export class S3Sync {
       return false;
     }
   }
+  static checkAwsCredentials(): boolean {
+    try {
+      execSync('aws sts get-caller-identity', {
+        stdio: 'ignore',
+        timeout: 10000,
+      });
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
 
   static async syncWordPressFiles(
     siteId: string,
