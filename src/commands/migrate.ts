@@ -11,6 +11,7 @@ import {
   shouldBlockMigration,
 } from '../utils/disk-space';
 import { EnvironmentMappingService } from '../utils/environment-mapping';
+import { Notifications } from '../utils/notifications';
 
 interface MigrateOptions {
   from: string;
@@ -648,6 +649,11 @@ async function runCompleteMigration(
         chalk.green('\n🎉 Complete migration finished successfully!')
       );
       process.stdout.write('\x07');
+      Notifications.send({
+        title: 'Migration Complete',
+        message: `Site ${siteId} migrated successfully from ${options.from} to ${options.to}`,
+        sound: true,
+      });
     }
   } catch (error) {
     console.error(
@@ -658,6 +664,11 @@ async function runCompleteMigration(
 
     // Ring bell on failure
     process.stdout.write('\x07');
+    Notifications.send({
+      title: 'Migration Failed',
+      message: `Site ${siteId} migration from ${options.from} to ${options.to} failed`,
+      sound: true,
+    });
     throw error;
   } finally {
     // Remove signal handlers

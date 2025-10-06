@@ -9,6 +9,7 @@ import { ErrorRecovery } from '../utils/error-recovery';
 import { MigrationValidator } from '../utils/migration-validator';
 import { S3Operations } from '../utils/s3';
 import { S3Sync } from '../utils/s3sync';
+import { Notifications } from '../utils/notifications';
 import {
   checkDiskSpace,
   displayDiskSpaceStatus,
@@ -281,6 +282,11 @@ export const envMigrateCommand = new Command('env-migrate')
           )
         );
         process.stdout.write('\x07');
+        Notifications.send({
+          title: 'Environment Migration Failed',
+          message: `Migration from ${sourceEnv} to ${targetEnv} failed`,
+          sound: true,
+        });
         process.exit(1);
       } finally {
         // Clean up signal handlers
@@ -599,6 +605,11 @@ async function runEnvironmentMigration(
 
     // Ring terminal bell on success
     process.stdout.write('\x07');
+    Notifications.send({
+      title: 'Environment Migration Complete',
+      message: `Successfully migrated from ${sourceEnv} to ${targetEnv}`,
+      sound: true,
+    });
 
     // Cleanup successful backup if not keeping files
     if (backupId && !options.keepFiles) {
