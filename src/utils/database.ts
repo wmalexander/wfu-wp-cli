@@ -449,24 +449,22 @@ export class DatabaseOperations {
           },
         });
       } else {
-        importCommand =
-          [
-            'docker run --rm',
-            '-v',
-            `"${dirname(sqlFile)}:${dirname(sqlFile)}"`,
-            '-e',
-            `MYSQL_PWD="${targetConfig.password}"`,
-            'mysql:8.0',
-            'mysql',
-            '-h',
-            `"${targetConfig.host}"`,
-            '-u',
-            `"${targetConfig.user}"`,
-            `"${targetConfig.database}"`,
-            '--max_allowed_packet=1G',
-          ]
-            .filter((arg) => arg.length > 0)
-            .join(' ') + ` < "${sqlFile}"`;
+        const dockerCommand = [
+          'docker run --rm -i',
+          '-e',
+          `MYSQL_PWD="${targetConfig.password}"`,
+          'mysql:8.0',
+          'mysql',
+          '-h',
+          `"${targetConfig.host}"`,
+          '-u',
+          `"${targetConfig.user}"`,
+          `"${targetConfig.database}"`,
+          '--max_allowed_packet=1G',
+        ]
+          .filter((arg) => arg.length > 0)
+          .join(' ');
+        importCommand = `cat "${sqlFile}" | ${dockerCommand}`;
 
         execSync(importCommand, {
           encoding: 'utf8' as const,
