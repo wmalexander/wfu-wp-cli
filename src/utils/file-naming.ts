@@ -3,6 +3,7 @@
  * Format: {siteName}-{siteId}-{environment}-{purpose}-{date}.sql
  * Example: magazine-43-pprd-rename-export-08-05-2025.sql
  */
+import { execSync } from 'child_process';
 
 export interface SqlFileOptions {
   siteId: string;
@@ -17,23 +18,54 @@ export interface SqlFileOptions {
 }
 
 export class FileNaming {
-  // Helper method to build MySQL command with proper port handling
+  private static mysqlClientAvailable: boolean | null = null;
+  private static hasNativeMysqlClient(): boolean {
+    if (this.mysqlClientAvailable !== null) {
+      return this.mysqlClientAvailable;
+    }
+    try {
+      execSync('which mysqldump', { stdio: 'ignore' });
+      execSync('which mysql', { stdio: 'ignore' });
+      this.mysqlClientAvailable = true;
+      return true;
+    } catch {
+      this.mysqlClientAvailable = false;
+      return false;
+    }
+  }
   private static buildMysqlCommand(
     envConfig: any,
     additionalArgs: string[] = []
   ): string {
-    const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
-    const baseArgs = [
-      'mysql',
-      '-h',
-      `"${envConfig.host}"`,
-      portArg,
-      '-u',
-      `"${envConfig.user}"`,
-      `"${envConfig.database}"`,
-    ].filter((arg) => arg.length > 0);
-
-    return [...baseArgs, ...additionalArgs].join(' ');
+    if (this.hasNativeMysqlClient()) {
+      const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
+      const baseArgs = [
+        'mysql',
+        '-h',
+        envConfig.host,
+        portArg,
+        '-u',
+        envConfig.user,
+        envConfig.database,
+      ].filter((arg) => arg.length > 0);
+      return [...baseArgs, ...additionalArgs].join(' ');
+    } else {
+      const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
+      const baseArgs = [
+        'docker run --rm',
+        '-e',
+        `MYSQL_PWD="${envConfig.password}"`,
+        'mysql:8.0',
+        'mysql',
+        '-h',
+        `"${envConfig.host}"`,
+        portArg,
+        '-u',
+        `"${envConfig.user}"`,
+        `"${envConfig.database}"`,
+      ].filter((arg) => arg.length > 0);
+      return [...baseArgs, ...additionalArgs].join(' ');
+    }
   }
   /**
    * Generate standardized SQL filename
@@ -145,14 +177,17 @@ export class FileNaming {
       ]);
 
       try {
-        const result = execSync(mysqlCmd, {
-          encoding: 'utf8',
-          stdio: 'pipe',
-          env: {
-            ...process.env,
-            MYSQL_PWD: envConfig.password,
-          },
-        });
+        const execOptions = this.hasNativeMysqlClient()
+          ? {
+              encoding: 'utf8' as const,
+              stdio: 'pipe' as const,
+              env: {
+                ...process.env,
+                MYSQL_PWD: envConfig.password,
+              },
+            }
+          : { encoding: 'utf8' as const, stdio: 'pipe' as const };
+        const result = execSync(mysqlCmd, execOptions);
         const lines = result.trim().split('\n');
 
         if (lines.length > 0 && lines[0]) {

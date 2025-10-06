@@ -53,23 +53,54 @@ interface RestoreResult {
 }
 
 export class BackupRecovery {
-  // Helper method to build MySQL command with proper port handling
+  private static mysqlClientAvailable: boolean | null = null;
+  private static hasNativeMysqlClient(): boolean {
+    if (this.mysqlClientAvailable !== null) {
+      return this.mysqlClientAvailable;
+    }
+    try {
+      execSync('which mysqldump', { stdio: 'ignore' });
+      execSync('which mysql', { stdio: 'ignore' });
+      this.mysqlClientAvailable = true;
+      return true;
+    } catch {
+      this.mysqlClientAvailable = false;
+      return false;
+    }
+  }
   private static buildMysqlCommand(
     envConfig: any,
     additionalArgs: string[] = []
   ): string {
-    const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
-    const baseArgs = [
-      'mysql',
-      '-h',
-      `"${envConfig.host}"`,
-      portArg,
-      '-u',
-      `"${envConfig.user}"`,
-      `"${envConfig.database}"`,
-    ].filter((arg) => arg.length > 0);
-
-    return [...baseArgs, ...additionalArgs].join(' ');
+    if (this.hasNativeMysqlClient()) {
+      const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
+      const baseArgs = [
+        'mysql',
+        '-h',
+        envConfig.host,
+        portArg,
+        '-u',
+        envConfig.user,
+        envConfig.database,
+      ].filter((arg) => arg.length > 0);
+      return [...baseArgs, ...additionalArgs].join(' ');
+    } else {
+      const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
+      const baseArgs = [
+        'docker run --rm',
+        '-e',
+        `MYSQL_PWD="${envConfig.password}"`,
+        'mysql:8.0',
+        'mysql',
+        '-h',
+        `"${envConfig.host}"`,
+        portArg,
+        '-u',
+        `"${envConfig.user}"`,
+        `"${envConfig.database}"`,
+      ].filter((arg) => arg.length > 0);
+      return [...baseArgs, ...additionalArgs].join(' ');
+    }
   }
   static generateBackupId(): string {
     const timestamp = new Date()
@@ -581,14 +612,17 @@ export class BackupRecovery {
     }
 
     try {
-      execSync(`${this.buildMysqlCommand(envConfig)} < "${backupFilePath}"`, {
-        timeout: timeoutMinutes * 60 * 1000,
-        env: {
-          ...process.env,
-          MYSQL_PWD: envConfig.password,
-          PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-        },
-      });
+      const execOptions = this.hasNativeMysqlClient()
+        ? {
+            timeout: timeoutMinutes * 60 * 1000,
+            env: {
+              ...process.env,
+              MYSQL_PWD: envConfig.password,
+              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+            },
+          }
+        : { timeout: timeoutMinutes * 60 * 1000 };
+      execSync(`${this.buildMysqlCommand(envConfig)} < "${backupFilePath}"`, execOptions);
     } catch (error) {
       throw new Error(
         `Site ${siteId} restore failed: ${error instanceof Error ? error.message : 'Unknown error'}`

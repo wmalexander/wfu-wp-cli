@@ -31,23 +31,54 @@ export interface SiteEnumerationResult {
 }
 
 export class SiteEnumerator {
-  // Helper method to build MySQL command with proper port handling
+  private static mysqlClientAvailable: boolean | null = null;
+  private static hasNativeMysqlClient(): boolean {
+    if (this.mysqlClientAvailable !== null) {
+      return this.mysqlClientAvailable;
+    }
+    try {
+      execSync('which mysqldump', { stdio: 'ignore' });
+      execSync('which mysql', { stdio: 'ignore' });
+      this.mysqlClientAvailable = true;
+      return true;
+    } catch {
+      this.mysqlClientAvailable = false;
+      return false;
+    }
+  }
   private static buildMysqlCommand(
     envConfig: any,
     additionalArgs: string[] = []
   ): string {
-    const portArg = envConfig.port ? `-P "${envConfig.port}"` : '';
-    const baseArgs = [
-      'mysql',
-      '-h',
-      `"${envConfig.host}"`,
-      portArg,
-      '-u',
-      `"${envConfig.user}"`,
-      `"${envConfig.database}"`,
-    ].filter((arg) => arg.length > 0);
-
-    return [...baseArgs, ...additionalArgs].join(' ');
+    if (this.hasNativeMysqlClient()) {
+      const portArg = envConfig.port ? `-P ${envConfig.port}` : '';
+      const baseArgs = [
+        'mysql',
+        '-h',
+        envConfig.host,
+        portArg,
+        '-u',
+        envConfig.user,
+        envConfig.database,
+      ].filter((arg) => arg.length > 0);
+      return [...baseArgs, ...additionalArgs].join(' ');
+    } else {
+      const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
+      const baseArgs = [
+        'docker run --rm',
+        '-e',
+        `MYSQL_PWD="${envConfig.password}"`,
+        'mysql:8.0',
+        'mysql',
+        '-h',
+        `"${envConfig.host}"`,
+        portArg,
+        '-u',
+        `"${envConfig.user}"`,
+        `"${envConfig.database}"`,
+      ].filter((arg) => arg.length > 0);
+      return [...baseArgs, ...additionalArgs].join(' ');
+    }
   }
   static async enumerateSites(
     environment: string,
@@ -91,6 +122,16 @@ export class SiteEnumerator {
         ORDER BY blog_id ASC
       `;
 
+      const execOptions = this.hasNativeMysqlClient()
+        ? {
+            encoding: 'utf8' as const,
+            env: {
+              ...process.env,
+              MYSQL_PWD: envConfig.password,
+              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
+            },
+          }
+        : { encoding: 'utf8' as const };
       const output = execSync(
         this.buildMysqlCommand(envConfig, [
           '-e',
@@ -98,14 +139,7 @@ export class SiteEnumerator {
           '--batch',
           '--skip-column-names',
         ]),
-        {
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            MYSQL_PWD: envConfig.password,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        }
+        execOptions
       );
 
       const sites: SiteInfo[] = [];
