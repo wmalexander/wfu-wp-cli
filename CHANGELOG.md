@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.7] - 2025-10-06
+
+### Fixed
+- Critical fix for Docker-based SQL imports that were silently failing
+- Changed Docker import to pipe SQL content into container instead of using file redirect
+- Resolves "No tables found in migration environment" error for users without native mysql client
+
 ## [0.19.6] - 2025-10-06
 
 ### Fixed
