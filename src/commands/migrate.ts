@@ -1,7 +1,13 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync } from 'fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  unlinkSync,
+  writeFileSync,
+} from 'fs';
 import { join, dirname, basename, resolve } from 'path';
 import { Config } from '../utils/config';
 import { FileNaming } from '../utils/file-naming';
@@ -12,6 +18,7 @@ import {
 } from '../utils/disk-space';
 import { EnvironmentMappingService } from '../utils/environment-mapping';
 import { Notifications } from '../utils/notifications';
+import { ensureWpCliCache } from '../utils/wp-cli-cache';
 
 interface MigrateOptions {
   from: string;
@@ -110,9 +117,14 @@ async function runSimpleMigration(
 
   if (!Config.hasRequiredMigrationConfig()) {
     console.error(
-      chalk.red('Migration database configuration incomplete. Please run:')
+      chalk.red(
+        'Migration database is not available. Ensure Docker is running and retry.'
+      )
     );
-    console.log(chalk.yellow('  wfuwp config wizard'));
+    const error = Config.getLastMigrationConfigError();
+    if (error) {
+      console.log(chalk.yellow(`  Details: ${error.message}`));
+    }
     process.exit(1);
   }
 
@@ -790,9 +802,28 @@ async function runPreflightChecks(
 
   // Check migration database configuration
   if (!Config.hasRequiredMigrationConfig()) {
+    const error = Config.getLastMigrationConfigError();
+    const details = error ? ` Details: ${error.message}` : '';
     throw new Error(
-      'Migration database is not configured. Run "wfuwp config wizard".'
+      'Migration database is not available. Ensure Docker is installed and running.' +
+        details
     );
+  }
+
+  // Ensure local migration database is ready (no-op if remote configuration provided)
+  if (!Config.hasRemoteMigrationConfig()) {
+    try {
+      const { ensureLocalMigrationDb } = await import(
+        '../utils/migration-db-manager'
+      );
+      ensureLocalMigrationDb(!!options.verbose);
+    } catch (error) {
+      throw new Error(
+        `Failed to initialize migration database: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
   }
 
   // Check S3 configuration and backup path
@@ -931,8 +962,8 @@ async function runSqlSearchReplace(
 
   // Combine URL and S3 replacements
   const allReplacements = [
-    ...environmentMapping.urlReplacements,
     ...environmentMapping.s3Replacements,
+    ...environmentMapping.urlReplacements,
   ];
 
   // Add custom domain replacement if specified
@@ -944,14 +975,104 @@ async function runSqlSearchReplace(
     allReplacements.push({ from: sourceDomain, to: targetDomain });
   }
 
-  // Run SQL-based search-replace on migration database
+  // Perform serialized-safe replacements via WP-CLI against migration database tables
   const { DatabaseOperations } = await import('../utils/database');
-  await DatabaseOperations.sqlSearchReplace(
-    'migration',
-    allReplacements,
-    siteId,
-    options.verbose
-  );
+
+  // Ensure migration DB has just this site's tables
+  const siteTables = DatabaseOperations.getSiteTables(siteId, 'migration');
+  if (siteTables.length === 0) {
+    throw new Error('No site tables found in migration database for replacements');
+  }
+
+  const migrationConfig = Config.getMigrationDbConfig();
+  const dbHost = migrationConfig.port
+    ? `${migrationConfig.host}:${migrationConfig.port}`
+    : migrationConfig.host;
+
+  const cacheVersion = process.env.WF_WP_CLI_CORE_VERSION || 'latest';
+  const cacheDir = await ensureWpCliCache(cacheVersion, !!options.verbose);
+
+  if (!siteTables.length || !allReplacements.length) {
+    return;
+  }
+
+  const scriptName = `.wfu-search-replace-${Date.now()}-${process.pid}-${Math.random()
+    .toString(36)
+    .slice(2)}.sh`;
+  const scriptPath = join(cacheDir, scriptName);
+
+  const scriptLines = [
+    '#!/bin/bash',
+    'set -e',
+    'cd /var/www/html',
+    'rm -f wp-config.php',
+    'php -d memory_limit=2048M /usr/local/bin/wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST" --skip-check',
+  ];
+
+  for (const replacement of allReplacements) {
+    for (const table of siteTables) {
+      if (options.verbose) {
+        console.log(
+          chalk.gray(
+            `  Running WP-CLI serialized-safe replacement on ${table}...`
+          )
+        );
+      }
+
+      const from = replacement.from.replace(/'/g, "'\\''");
+      const to = replacement.to.replace(/'/g, "'\\''");
+      const safeTable = table.replace(/'/g, "'\\''");
+      scriptLines.push(`echo "    • ${safeTable}: '${from}' → '${to}'"`);
+      const wpCmd = `php -d memory_limit=2048M /usr/local/bin/wp search-replace '${from}' '${to}' ${safeTable} --all-tables --precise --allow-root --skip-plugins --skip-themes`;
+      scriptLines.push(wpCmd);
+    }
+  }
+
+  const scriptContent = `${scriptLines.join('\n')}\n`;
+  writeFileSync(scriptPath, scriptContent, { mode: 0o700 });
+  chmodSync(scriptPath, 0o700);
+
+  const dockerCmd = `docker run --rm \
+    --memory=4g \
+    -v "${cacheDir}:/var/www/html" \
+    -e WORDPRESS_DB_HOST="${dbHost}" \
+    -e WORDPRESS_DB_USER="${migrationConfig.user}" \
+    -e WORDPRESS_DB_PASSWORD="${migrationConfig.password}" \
+    -e WORDPRESS_DB_NAME="${migrationConfig.database}" \
+    -e WP_CLI_PHP_ARGS="-d memory_limit=2048M -d max_execution_time=600" \
+    -e PHP_MEMORY_LIMIT=2048M \
+    wordpress:cli \
+    bash /var/www/html/${scriptName}`;
+
+  try {
+    execSync(dockerCmd, {
+      stdio: options.verbose ? 'inherit' : 'ignore',
+      encoding: 'utf8',
+      shell: '/bin/bash',
+    });
+  } catch (err) {
+    throw new Error(
+      `WP-CLI site replacement batch failed: ${
+        err instanceof Error ? err.message : 'Unknown error'
+      }`
+    );
+  } finally {
+    try {
+      unlinkSync(scriptPath);
+    } catch (cleanupError) {
+      if (options.verbose) {
+        console.log(
+          chalk.gray(
+            `  Warning: could not remove temporary script ${scriptPath}: ${
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : String(cleanupError)
+            }`
+          )
+        );
+      }
+    }
+  }
 }
 
 function getSkipTables(includeHomepage: boolean): string {

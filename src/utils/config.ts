@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import * as crypto from 'crypto';
+import { ensureLocalMigrationDb } from './migration-db-manager';
 
 interface EnvironmentConfig {
   host?: string;
@@ -29,6 +30,7 @@ interface ConfigData {
   };
   migration?: {
     host?: string;
+    port?: string;
     user?: string;
     password?: string; // encrypted
     database?: string;
@@ -53,6 +55,7 @@ export class Config {
   private static readonly CONFIG_DIR = join(homedir(), '.wfuwp');
   private static readonly CONFIG_FILE = join(Config.CONFIG_DIR, 'config.json');
   private static readonly ENCRYPTION_KEY = 'wfuwp-config-key-v1';
+  private static lastMigrationConfigError: Error | null = null;
 
   private static ensureConfigDir(): void {
     if (!existsSync(this.CONFIG_DIR)) {
@@ -614,11 +617,19 @@ export class Config {
   static getMigrationDbConfig(): EnvironmentConfig {
     const config = this.loadConfig();
     if (!config.migration) {
-      return {};
+      const localConfig = ensureLocalMigrationDb(false);
+      return {
+        host: localConfig.host,
+        port: localConfig.port.toString(),
+        user: localConfig.user,
+        password: localConfig.password,
+        database: localConfig.database,
+      };
     }
 
     return {
       host: config.migration.host,
+      port: config.migration.port,
       user: config.migration.user,
       password: config.migration.password
         ? this.decrypt(config.migration.password)
@@ -643,12 +654,38 @@ export class Config {
   }
 
   static hasRequiredMigrationConfig(): boolean {
-    const migrationConfig = this.getMigrationDbConfig();
+    try {
+      const migrationConfig = this.getMigrationDbConfig();
+      this.lastMigrationConfigError = null;
+      return !!(
+        migrationConfig.host &&
+        migrationConfig.user &&
+        migrationConfig.password &&
+        migrationConfig.database
+      );
+    } catch (error) {
+      this.lastMigrationConfigError =
+        error instanceof Error ? error : new Error('Unknown migration DB error');
+      return false;
+    }
+  }
+
+  static getLastMigrationConfigError(): Error | null {
+    return this.lastMigrationConfigError;
+  }
+
+  static hasRemoteMigrationConfig(): boolean {
+    const config = this.loadConfig();
+    const migration = config.migration;
+    if (!migration) {
+      return false;
+    }
+
     return !!(
-      migrationConfig.host &&
-      migrationConfig.user &&
-      migrationConfig.password &&
-      migrationConfig.database
+      migration.host &&
+      migration.user &&
+      migration.password &&
+      migration.database
     );
   }
 

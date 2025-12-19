@@ -58,6 +58,10 @@ export class DatabaseOperations {
       return [...baseArgs, ...additionalArgs].join(' ');
     } else {
       const portArg = envConfig.port ? `--port=${envConfig.port}` : '';
+      const hostArg =
+        envConfig.host === '127.0.0.1' || envConfig.host === 'localhost'
+          ? 'host.docker.internal'
+          : envConfig.host;
       const baseArgs = [
         'docker run --rm',
         '-e',
@@ -65,7 +69,7 @@ export class DatabaseOperations {
         'mysql:8.0',
         'mysql',
         '-h',
-        `"${envConfig.host}"`,
+        `"${hostArg}"`,
         portArg,
         '-u',
         `"${envConfig.user}"`,
@@ -96,6 +100,11 @@ export class DatabaseOperations {
       const portArg = migrationConfig.port
         ? `--port=${migrationConfig.port}`
         : '';
+      const hostArg =
+        migrationConfig.host === '127.0.0.1' ||
+        migrationConfig.host === 'localhost'
+          ? 'host.docker.internal'
+          : migrationConfig.host;
       const baseArgs = [
         'docker run --rm',
         '-e',
@@ -103,7 +112,7 @@ export class DatabaseOperations {
         'mysql:8.0',
         'mysql',
         '-h',
-        `"${migrationConfig.host}"`,
+        `"${hostArg}"`,
         portArg,
         '-u',
         `"${migrationConfig.user}"`,

@@ -187,6 +187,7 @@ export class ClickUpClient {
       tags?: string[];
       priority?: number;
       dueDate?: number;
+      parent?: string;
     }
   ): Promise<any> {
     const response = await this.retryWithExponentialBackoff(() =>
@@ -197,6 +198,7 @@ export class ClickUpClient {
         tags: taskData.tags,
         priority: taskData.priority,
         due_date: taskData.dueDate,
+        parent: taskData.parent,
       })
     );
     return response.data;

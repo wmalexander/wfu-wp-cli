@@ -23,6 +23,7 @@ import {
   ResumeOptions,
 } from '../utils/migration-state';
 import { EnvironmentMappingService } from '../utils/environment-mapping';
+import { ensureWpCliCache } from '../utils/wp-cli-cache';
 
 interface EnvMigrateOptions {
   dryRun?: boolean;
@@ -448,8 +449,12 @@ async function runEnvironmentMigration(
         );
       }
 
-      if (options.verbose && sitesToMigrate.length > 0) {
-        console.log(chalk.cyan('  Sites: ' + sitesToMigrate.join(', ')));
+      if (sitesToMigrate.length > 0) {
+        console.log(chalk.white('  Sites to migrate: ' + chalk.bold(sitesToMigrate.join(', '))));
+        if (options.verbose) {
+          // Keep verbose-friendly duplicate with slightly different label for context
+          console.log(chalk.cyan('  Sites: ' + sitesToMigrate.join(', ')));
+        }
       }
     }
 
@@ -760,6 +765,17 @@ async function runPreflightChecks(
 ): Promise<void> {
   console.log(chalk.blue('Running comprehensive pre-flight checks...'));
 
+  // Ensure Docker is available for WP-CLI search-replace steps
+  try {
+    console.log(chalk.gray('  Checking Docker availability...'));
+    DatabaseOperations.checkDockerAvailability();
+    console.log(chalk.green('  ✓ Docker is available'));
+  } catch (error) {
+    throw new Error(
+      'Docker is required for serialized-safe replacements (WP-CLI). Please install/start Docker.'
+    );
+  }
+
   // Validate system requirements
   console.log(chalk.gray('  Checking system requirements...'));
   const systemValidation =
@@ -1034,44 +1050,6 @@ async function migrateNetworkTables(
       }
     }
 
-    // Transform network tables SQL file before import (fix domain mappings)
-    try {
-      if (options.verbose) {
-        console.log(chalk.gray('  Transforming exported SQL file domains...'));
-      }
-
-      const environmentMapping =
-        EnvironmentMappingService.getEnvironmentMapping(sourceEnv, targetEnv);
-
-      // Combine both URL and S3 replacements for comprehensive transformation
-      // Apply S3 replacements first (more specific) then URL replacements (more general)
-      const allReplacements = [
-        ...environmentMapping.s3Replacements,
-        ...environmentMapping.urlReplacements,
-      ];
-
-      await NetworkTableOperations.transformSqlFile(
-        exportPath,
-        allReplacements,
-        options.verbose
-      );
-
-      if (options.verbose) {
-        console.log(
-          chalk.green(
-            `  ✓ Transformed SQL file domains: ${sourceEnv} → ${targetEnv}`
-          )
-        );
-      }
-    } catch (error) {
-      console.warn(
-        chalk.yellow(
-          'Warning: SQL file domain transformation failed: ' +
-            (error instanceof Error ? error.message : 'Unknown error')
-        )
-      );
-    }
-
     // Import transformed network tables to target
     const importResult = await NetworkTableOperations.importNetworkTables(
       exportPath,
@@ -1087,6 +1065,54 @@ async function migrateNetworkTables(
             importResult.tableCount +
             ' network tables to ' +
             targetEnv
+        )
+      );
+    }
+
+    // After import, perform serialized-safe search/replace on only network tables
+    try {
+      const environmentMapping =
+        EnvironmentMappingService.getEnvironmentMapping(sourceEnv, targetEnv);
+
+      const tablesToUpdate = NetworkTableOperations.getMigrateableNetworkTables()
+        .filter((t) =>
+          NetworkTableOperations.getExistingNetworkTables(targetEnv).includes(t)
+        );
+
+      if (tablesToUpdate.length > 0) {
+        if (options.verbose) {
+          console.log(
+            chalk.gray(
+              '  Running WP-CLI serialized-safe replacements on tables: ' +
+                tablesToUpdate.join(', ')
+            )
+          );
+        }
+
+        // Apply S3 replacements first (specific), then URL replacements (general)
+        const allReplacements = [
+          ...environmentMapping.s3Replacements,
+          ...environmentMapping.urlReplacements,
+        ];
+
+        await runNetworkSearchReplace(
+          targetEnv,
+          tablesToUpdate,
+          allReplacements,
+          !!options.verbose
+        );
+
+        if (options.verbose) {
+          console.log(chalk.green('  ✓ Network table replacements completed'));
+        }
+      } else if (options.verbose) {
+        console.log(chalk.gray('  No network tables found to update'));
+      }
+    } catch (error) {
+      console.warn(
+        chalk.yellow(
+          'Warning: Serialized-safe network replacements failed: ' +
+            (error instanceof Error ? error.message : 'Unknown error')
         )
       );
     }
@@ -1166,6 +1192,81 @@ async function migrateNetworkTables(
     throw new Error(
       'Network table migration failed: ' +
         (error instanceof Error ? error.message : 'Unknown error')
+    );
+  }
+}
+
+// Run WP-CLI search-replace against specific tables using Dockerized wordpress:cli
+async function runNetworkSearchReplace(
+  targetEnv: string,
+  tables: string[],
+  replacements: Array<{ from: string; to: string }>,
+  verbose: boolean
+): Promise<void> {
+  const envConfig = Config.getEnvironmentConfig(targetEnv);
+  const cacheVersion = process.env.WF_WP_CLI_CORE_VERSION || 'latest';
+  const cacheDir = await ensureWpCliCache(cacheVersion, verbose);
+
+  // Build DB host including port if present
+  const dbHost = envConfig.port
+    ? `${envConfig.host}:${envConfig.port}`
+    : envConfig.host;
+
+  if (!tables.length || !replacements.length) {
+    return;
+  }
+
+  const scriptLines = [
+    'set -e',
+    'cd /var/www/html',
+    'rm -f wp-config.php',
+    'php -d memory_limit=2048M /usr/local/bin/wp config create --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST" --skip-check',
+  ];
+
+  for (const repl of replacements) {
+    for (const table of tables) {
+      if (verbose) {
+        console.log(
+          chalk.gray(`  Executing WP-CLI replacement on ${table} via Docker...`)
+        );
+      }
+
+      const safeFrom = repl.from.replace(/'/g, "'\\''");
+      const safeTo = repl.to.replace(/'/g, "'\\''");
+      const safeTable = table.replace(/'/g, "'\\''");
+      scriptLines.push(
+        `echo "    • ${safeTable}: '${safeFrom}' → '${safeTo}'"`
+      );
+      const wpCmd = `php -d memory_limit=2048M /usr/local/bin/wp search-replace '${safeFrom}' '${safeTo}' ${safeTable} --all-tables --precise --allow-root --skip-plugins --skip-themes`;
+      scriptLines.push(wpCmd);
+    }
+  }
+
+  const bashScript = scriptLines.join(' && ');
+
+  const dockerCmd = `docker run --rm \
+    --memory=4g \
+    -v "${cacheDir}:/var/www/html" \
+    -e WORDPRESS_DB_HOST="${dbHost}" \
+    -e WORDPRESS_DB_USER="${envConfig.user}" \
+    -e WORDPRESS_DB_PASSWORD="${envConfig.password}" \
+    -e WORDPRESS_DB_NAME="${envConfig.database}" \
+    -e WP_CLI_PHP_ARGS="-d memory_limit=2048M -d max_execution_time=600" \
+    -e PHP_MEMORY_LIMIT=2048M \
+    wordpress:cli \
+    bash -c '${bashScript}'`;
+
+  try {
+    require('child_process').execSync(dockerCmd, {
+      stdio: verbose ? 'inherit' : 'ignore',
+      encoding: 'utf8',
+      shell: '/bin/bash',
+    });
+  } catch (err) {
+    throw new Error(
+      `WP-CLI network replacement batch failed: ${
+        err instanceof Error ? err.message : 'Unknown error'
+      }`
     );
   }
 }
@@ -1521,9 +1622,11 @@ async function migrateSingleSite(
   }
 
   try {
+    const stdioOption = options.verbose ? 'inherit' : 'pipe';
+
     // Execute the migrate command as a subprocess
     execSync('wfuwp ' + migrateArgs.join(' '), {
-      stdio: 'pipe', // Always pipe to prevent output conflicts
+      stdio: stdioOption,
       cwd: process.cwd(),
       encoding: 'utf8',
     });
@@ -1589,9 +1692,40 @@ async function confirmEnvironmentMigration(
   } else if (options.sitesOnly) {
     console.log(chalk.white('  Scope: Sites only (no network tables)'));
   } else {
-    console.log(
-      chalk.white('  Scope: Complete environment (network tables + all sites)')
-    );
+    // Clarify which sites will be migrated when filters are provided
+    const hasInclude = !!options.includeSites;
+    const hasExclude = !!options.excludeSites;
+    const hasFilters =
+      hasInclude || hasExclude || options.activeOnly || options.excludeMainSite;
+
+    if (hasInclude) {
+      console.log(
+        chalk.white(
+          '  Scope: Network tables + selected sites (' +
+            chalk.bold(options.includeSites!) +
+            ')'
+        )
+      );
+    } else if (hasFilters) {
+      console.log(
+        chalk.white('  Scope: Network tables + filtered sites')
+      );
+      if (options.activeOnly) {
+        console.log(chalk.gray('    • Filter: Active sites only'));
+      }
+      if (options.excludeMainSite) {
+        console.log(chalk.gray('    • Filter: Exclude main site (ID 1)'));
+      }
+      if (hasExclude) {
+        console.log(
+          chalk.gray('    • Excluding sites: ' + chalk.bold(options.excludeSites!))
+        );
+      }
+    } else {
+      console.log(
+        chalk.white('  Scope: Complete environment (network tables + all sites)')
+      );
+    }
   }
 
   if (options.syncS3) {

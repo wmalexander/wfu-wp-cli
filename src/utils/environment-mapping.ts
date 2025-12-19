@@ -20,7 +20,8 @@ export class EnvironmentMappingService {
         { from: 'pprd.pprd.wfu.edu', to: 'pprd.wfu.edu' },
         { from: '.pprd.pprd.wfu.edu', to: '.pprd.wfu.edu' },
         { from: 'www.pprd.wfu.edu', to: 'pprd.wfu.edu' },
-        { from: 'aws.pprd.wfu.edu', to: 'aws.wfu.edu' },
+        // Map prod AWS root to pprd AWS root
+        { from: 'aws.wfu.edu', to: 'aws.pprd.wfu.edu' },
       ],
       s3Replacements: [
         { from: 'wordpress-prod-us', to: 'wordpress-pprd-us' },
@@ -237,7 +238,14 @@ export class EnvironmentMappingService {
     if (!this.mappings[key]) {
       throw new Error(`Migration path ${from} -> ${to} is not supported`);
     }
-    return this.mappings[key];
+    const mapping = this.mappings[key];
+    return {
+      urlReplacements: [
+        ...mapping.urlReplacements,
+        ...this.getCdnCleanupReplacements(to),
+      ],
+      s3Replacements: [...mapping.s3Replacements],
+    };
   }
 
   static getSupportedMigrationPaths(): string[] {
@@ -247,5 +255,25 @@ export class EnvironmentMappingService {
   static isMigrationPathSupported(from: string, to: string): boolean {
     const key = `${from}->${to}`;
     return key in this.mappings;
+  }
+
+  private static getCdnCleanupReplacements(
+    targetEnv: string
+  ): Array<{ from: string; to: string }> {
+    const applicableEnvs = ['dev', 'uat', 'pprd', 'local'];
+    if (!applicableEnvs.includes(targetEnv)) {
+      return [];
+    }
+
+    return [
+      {
+        from: `wp.cdn.aws.${targetEnv}.wfu.edu`,
+        to: 'wp.cdn.aws.wfu.edu',
+      },
+      {
+        from: `.wp.cdn.aws.${targetEnv}.wfu.edu`,
+        to: '.wp.cdn.aws.wfu.edu',
+      },
+    ];
   }
 }
