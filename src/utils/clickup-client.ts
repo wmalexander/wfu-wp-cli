@@ -204,9 +204,40 @@ export class ClickUpClient {
     return response.data;
   }
 
-  async getTask(taskId: string): Promise<any> {
+  async getTask(
+    taskId: string,
+    options: { includeSubtasks?: boolean } = {}
+  ): Promise<any> {
+    const params: any = {};
+    if (options.includeSubtasks) {
+      params.include_subtasks = true;
+    }
     const response = await this.retryWithExponentialBackoff(() =>
-      this.api.get(`/task/${taskId}`)
+      this.api.get(`/task/${taskId}`, { params })
+    );
+    return response.data;
+  }
+
+  async updateTask(
+    taskId: string,
+    updates: {
+      name?: string;
+      description?: string;
+      status?: string;
+      priority?: number;
+      dueDate?: number;
+      assignees?: { add?: number[]; rem?: number[] };
+    }
+  ): Promise<any> {
+    const payload: any = {};
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.description !== undefined) payload.description = updates.description;
+    if (updates.status !== undefined) payload.status = updates.status;
+    if (updates.priority !== undefined) payload.priority = updates.priority;
+    if (updates.dueDate !== undefined) payload.due_date = updates.dueDate;
+    if (updates.assignees !== undefined) payload.assignees = updates.assignees;
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.put(`/task/${taskId}`, payload)
     );
     return response.data;
   }

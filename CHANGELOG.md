@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.22.0] - 2025-12-19
+
+### Added
+- Adding `wfuwp clickup update` command for modifying task properties (status, priority, assignees, due date, name, description)
+- Adding `--subtasks` flag to `wfuwp clickup task` command to display subtasks
+
+### Fixed
+- Fixing 'Cannot read properties of undefined' error in `wfuwp clickup create` command when displaying task details
+
 ## [0.21.1] - 2025-12-19
 
 ### Fixed

@@ -274,8 +274,7 @@ export const clickupCommand = new Command('clickup')
             }
 
             const client = new ClickUpClient();
-            const taskData = await client.createTask(listId, taskParams);
-            const task = taskData.task;
+            const task = await client.createTask(listId, taskParams);
 
             // Enhanced success feedback
             console.log(chalk.green.bold('✓ Task created successfully!'));
@@ -344,13 +343,37 @@ export const clickupCommand = new Command('clickup')
     new Command('task')
       .description('Get details of a specific ClickUp task')
       .argument('<task-id>', 'Task ID to retrieve')
-      .action(async (taskId: string) => {
+      .option('--subtasks', 'Include subtasks in output')
+      .action(async (taskId: string, options: { subtasks?: boolean }) => {
         try {
           const { ClickUpClient } = await import('../utils/clickup-client');
           const { TaskFormatter } = await import('../utils/task-formatter');
           const client = new ClickUpClient();
-          const task = await client.getTask(taskId);
+          const task = await client.getTask(taskId, {
+            includeSubtasks: options.subtasks,
+          });
           TaskFormatter.formatTaskDetails(task);
+          if (options.subtasks && task.subtasks && task.subtasks.length > 0) {
+            console.log('');
+            console.log(chalk.blue.bold(`Subtasks (${task.subtasks.length}):`));
+            console.log('');
+            const header = `${chalk.bold('ID'.padEnd(12))} | ${chalk.bold('Title'.padEnd(35))} | ${chalk.bold('Status'.padEnd(15))} | ${chalk.bold('Assignee'.padEnd(15))}`;
+            console.log(header);
+            console.log('-'.repeat(85));
+            task.subtasks.forEach((subtask: any) => {
+              const id = (subtask.id || '').substring(0, 12).padEnd(12);
+              const title = (subtask.name || '').substring(0, 35).padEnd(35);
+              const status = (subtask.status?.status || '-').substring(0, 15).padEnd(15);
+              const assignee =
+                subtask.assignees && subtask.assignees.length > 0
+                  ? `@${subtask.assignees[0].username}`.substring(0, 15)
+                  : '-';
+              console.log(`${id} | ${title} | ${status} | ${assignee.padEnd(15)}`);
+            });
+          } else if (options.subtasks) {
+            console.log('');
+            console.log(chalk.gray('No subtasks found.'));
+          }
         } catch (error) {
           console.error(
             chalk.red(
@@ -360,6 +383,125 @@ export const clickupCommand = new Command('clickup')
           process.exit(1);
         }
       })
+  )
+  .addCommand(
+    new Command('update')
+      .description('Update a ClickUp task')
+      .argument('<task-id>', 'Task ID to update')
+      .option('--name <name>', 'New task name/title')
+      .option('--description <description>', 'New task description')
+      .option('--status <status>', 'New status (e.g., "complete", "in progress", "to do")')
+      .option('--priority <priority>', 'New priority (urgent, high, normal, low)')
+      .option('--assignee <user-id>', 'Add assignee by user ID')
+      .option('--remove-assignee <user-id>', 'Remove assignee by user ID')
+      .option('--due <date>', 'Due date (YYYY-MM-DD format)')
+      .action(
+        async (
+          taskId: string,
+          options: {
+            name?: string;
+            description?: string;
+            status?: string;
+            priority?: string;
+            assignee?: string;
+            removeAssignee?: string;
+            due?: string;
+          }
+        ) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const client = new ClickUpClient();
+            const updates: any = {};
+            if (options.name) {
+              updates.name = options.name;
+            }
+            if (options.description) {
+              updates.description = options.description;
+            }
+            if (options.status) {
+              updates.status = options.status;
+            }
+            if (options.priority) {
+              const priorityMap: { [key: string]: number } = {
+                urgent: 1,
+                high: 2,
+                normal: 3,
+                low: 4,
+              };
+              const priority = priorityMap[options.priority.toLowerCase()];
+              if (!priority) {
+                throw new Error(
+                  'Priority must be one of: urgent, high, normal, low'
+                );
+              }
+              updates.priority = priority;
+            }
+            if (options.due) {
+              const dueDate = new Date(options.due);
+              if (isNaN(dueDate.getTime())) {
+                throw new Error(
+                  'Invalid due date format. Use YYYY-MM-DD format.'
+                );
+              }
+              updates.dueDate = dueDate.getTime();
+            }
+            if (options.assignee || options.removeAssignee) {
+              updates.assignees = {};
+              if (options.assignee) {
+                updates.assignees.add = [parseInt(options.assignee, 10)];
+              }
+              if (options.removeAssignee) {
+                updates.assignees.rem = [parseInt(options.removeAssignee, 10)];
+              }
+            }
+            if (Object.keys(updates).length === 0) {
+              throw new Error(
+                'No updates provided. Use --name, --status, --priority, --due, --assignee, or --description'
+              );
+            }
+            const task = await client.updateTask(taskId, updates);
+            console.log(chalk.green.bold('✓ Task updated successfully!'));
+            console.log('');
+            console.log(chalk.blue.bold('Updated Task:'));
+            console.log(`  ${chalk.cyan('ID:')} ${task.id}`);
+            console.log(`  ${chalk.cyan('Title:')} ${task.name}`);
+            if (task.status) {
+              console.log(`  ${chalk.cyan('Status:')} ${task.status.status}`);
+            }
+            if (task.priority && task.priority.priority !== null) {
+              const priorityLabels: { [key: string]: string } = {
+                '1': chalk.red('Urgent'),
+                '2': chalk.yellow('High'),
+                '3': chalk.blue('Normal'),
+                '4': chalk.gray('Low'),
+              };
+              console.log(
+                `  ${chalk.cyan('Priority:')} ${priorityLabels[task.priority.priority] || task.priority.priority}`
+              );
+            }
+            if (task.assignees && task.assignees.length > 0) {
+              const assigneeNames = task.assignees
+                .map((a: any) => `@${a.username}`)
+                .join(', ');
+              console.log(`  ${chalk.cyan('Assignees:')} ${assigneeNames}`);
+            }
+            if (task.due_date) {
+              const dueDate = new Date(
+                parseInt(task.due_date)
+              ).toLocaleDateString();
+              console.log(`  ${chalk.cyan('Due Date:')} ${dueDate}`);
+            }
+            console.log(`  ${chalk.cyan('URL:')} ${chalk.underline(task.url)}`);
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
+          }
+        }
+      )
   )
   .addCommand(
     new Command('whoami')
