@@ -126,6 +126,7 @@ export const clickupCommand = new Command('clickup')
       .option('--assignee <user-id>', 'Assignee user ID')
       .option('--due <date>', 'Due date (YYYY-MM-DD format)')
       .option('--tags <tags>', 'Comma-separated tags')
+      .option('--parent <task-id>', 'Parent task ID (creates a subtask)')
       .option('--interactive', 'Use interactive mode for guided task creation')
       .option(
         '--from-file <filepath>',
@@ -141,6 +142,7 @@ export const clickupCommand = new Command('clickup')
             assignee?: string;
             due?: string;
             tags?: string;
+            parent?: string;
             interactive?: boolean;
             fromFile?: string;
           }
@@ -266,6 +268,11 @@ export const clickupCommand = new Command('clickup')
                 .filter((tag) => tag.length > 0);
             }
 
+            // Handle parent task (for subtasks)
+            if (options.parent) {
+              taskParams.parent = options.parent;
+            }
+
             const client = new ClickUpClient();
             const taskData = await client.createTask(listId, taskParams);
             const task = taskData.task;
@@ -342,8 +349,7 @@ export const clickupCommand = new Command('clickup')
           const { ClickUpClient } = await import('../utils/clickup-client');
           const { TaskFormatter } = await import('../utils/task-formatter');
           const client = new ClickUpClient();
-          const taskData = await client.getTask(taskId);
-          const task = taskData.task;
+          const task = await client.getTask(taskId);
           TaskFormatter.formatTaskDetails(task);
         } catch (error) {
           console.error(
