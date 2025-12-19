@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.1] - 2025-12-19
+
+### Fixed
+- Fixing 'Cannot read properties of undefined' error in `wfuwp clickup task` command
+- The getTask API returns the task object directly, not wrapped; now accessing response correctly
+
 ## [0.21.0] - 2025-10-06
 
 ### Added
