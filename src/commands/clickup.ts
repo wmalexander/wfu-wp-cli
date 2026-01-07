@@ -1357,7 +1357,7 @@ export const clickupCommand = new Command('clickup')
             const doc = await client.getDoc(workspaceId, docId);
             DocFormatter.formatDocDetails(doc);
             const pagesResponse = await client.getDocPages(workspaceId, docId);
-            const pages = pagesResponse.pages || [];
+            const pages = Array.isArray(pagesResponse) ? pagesResponse : (pagesResponse.pages || []);
             if (pages.length > 0) {
               console.log('');
               console.log(chalk.blue.bold('Pages:'));
