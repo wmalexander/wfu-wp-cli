@@ -450,7 +450,11 @@ async function runEnvironmentMigration(
       }
 
       if (sitesToMigrate.length > 0) {
-        console.log(chalk.white('  Sites to migrate: ' + chalk.bold(sitesToMigrate.join(', '))));
+        console.log(
+          chalk.white(
+            '  Sites to migrate: ' + chalk.bold(sitesToMigrate.join(', '))
+          )
+        );
         if (options.verbose) {
           // Keep verbose-friendly duplicate with slightly different label for context
           console.log(chalk.cyan('  Sites: ' + sitesToMigrate.join(', ')));
@@ -893,9 +897,7 @@ async function runPreflightChecks(
       console.log(chalk.gray('  Testing AWS credentials...'));
       if (!S3Sync.checkAwsCredentials()) {
         console.log(
-          chalk.yellow(
-            '  Warning: AWS credentials are invalid or expired'
-          )
+          chalk.yellow('  Warning: AWS credentials are invalid or expired')
         );
         console.log(
           chalk.yellow(
@@ -1074,8 +1076,8 @@ async function migrateNetworkTables(
       const environmentMapping =
         EnvironmentMappingService.getEnvironmentMapping(sourceEnv, targetEnv);
 
-      const tablesToUpdate = NetworkTableOperations.getMigrateableNetworkTables()
-        .filter((t) =>
+      const tablesToUpdate =
+        NetworkTableOperations.getMigrateableNetworkTables().filter((t) =>
           NetworkTableOperations.getExistingNetworkTables(targetEnv).includes(t)
         );
 
@@ -1707,9 +1709,7 @@ async function confirmEnvironmentMigration(
         )
       );
     } else if (hasFilters) {
-      console.log(
-        chalk.white('  Scope: Network tables + filtered sites')
-      );
+      console.log(chalk.white('  Scope: Network tables + filtered sites'));
       if (options.activeOnly) {
         console.log(chalk.gray('    • Filter: Active sites only'));
       }
@@ -1718,12 +1718,16 @@ async function confirmEnvironmentMigration(
       }
       if (hasExclude) {
         console.log(
-          chalk.gray('    • Excluding sites: ' + chalk.bold(options.excludeSites!))
+          chalk.gray(
+            '    • Excluding sites: ' + chalk.bold(options.excludeSites!)
+          )
         );
       }
     } else {
       console.log(
-        chalk.white('  Scope: Complete environment (network tables + all sites)')
+        chalk.white(
+          '  Scope: Complete environment (network tables + all sites)'
+        )
       );
     }
   }

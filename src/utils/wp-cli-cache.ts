@@ -35,9 +35,7 @@ export async function ensureWpCliCache(
 
   if (verbose) {
     console.log(
-      chalk.gray(
-        `  Preparing WordPress CLI cache (${version}): ${cacheDir}`
-      )
+      chalk.gray(`  Preparing WordPress CLI cache (${version}): ${cacheDir}`)
     );
   }
 

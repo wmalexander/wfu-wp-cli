@@ -1357,7 +1357,9 @@ export const clickupCommand = new Command('clickup')
             const doc = await client.getDoc(workspaceId, docId);
             DocFormatter.formatDocDetails(doc);
             const pagesResponse = await client.getDocPages(workspaceId, docId);
-            const pages = Array.isArray(pagesResponse) ? pagesResponse : (pagesResponse.pages || []);
+            const pages = Array.isArray(pagesResponse)
+              ? pagesResponse
+              : pagesResponse.pages || [];
             if (pages.length > 0) {
               console.log('');
               console.log(chalk.blue.bold('Pages:'));
@@ -1464,6 +1466,59 @@ export const clickupCommand = new Command('clickup')
       )
   )
   .addCommand(
+    new Command('doc-rename')
+      .description('Rename a ClickUp Doc')
+      .argument('<doc-id>', 'Doc ID to rename')
+      .argument('<new-name>', 'New name for the doc')
+      .option('--workspace <workspace-id>', 'Workspace containing the doc')
+      .action(
+        async (
+          docId: string,
+          newName: string,
+          options: { workspace?: string }
+        ) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const client = new ClickUpClient();
+            let workspaceId = options.workspace;
+            if (!workspaceId) {
+              const defaultWorkspaceId = Config.get(
+                'clickup.defaultWorkspaceId'
+              );
+              if (!defaultWorkspaceId) {
+                throw new Error(
+                  'No workspace ID provided and no default workspace configured.'
+                );
+              }
+              workspaceId = defaultWorkspaceId;
+            }
+            const pagesResponse = await client.getDocPages(workspaceId, docId);
+            const pages = Array.isArray(pagesResponse)
+              ? pagesResponse
+              : pagesResponse.pages || [];
+            if (pages.length === 0) {
+              throw new Error('Doc has no pages.');
+            }
+            const firstPage = pages[0];
+            await client.updatePage(workspaceId, docId, firstPage.id, {
+              name: newName,
+            });
+            console.log(chalk.green.bold('Doc renamed successfully!'));
+            console.log('');
+            console.log(`${chalk.cyan('Doc ID:')} ${docId}`);
+            console.log(`${chalk.cyan('New Name:')} ${newName}`);
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
+          }
+        }
+      )
+  )
+  .addCommand(
     new Command('doc-update')
       .description('Update a ClickUp Doc page content')
       .argument('<doc-id>', 'Doc ID to update')
@@ -1521,7 +1576,9 @@ export const clickupCommand = new Command('clickup')
                 workspaceId,
                 docId
               );
-              const pages = Array.isArray(pagesResponse) ? pagesResponse : (pagesResponse.pages || []);
+              const pages = Array.isArray(pagesResponse)
+                ? pagesResponse
+                : pagesResponse.pages || [];
               if (pages.length === 0) {
                 throw new Error('Doc has no pages. Create a page first.');
               }
@@ -1539,7 +1596,9 @@ export const clickupCommand = new Command('clickup')
               const existingContent = existingPage.content || '';
               newContent = existingContent + '\n\n' + newContent;
             }
-            await client.updatePage(workspaceId, docId, pageId, newContent);
+            await client.updatePage(workspaceId, docId, pageId, {
+              content: newContent,
+            });
             console.log(chalk.green.bold('Page updated successfully!'));
             console.log('');
             console.log(`${chalk.cyan('Doc ID:')} ${docId}`);

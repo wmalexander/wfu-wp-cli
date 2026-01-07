@@ -929,9 +929,7 @@ async function runPreflightChecks(
     console.log(chalk.gray('  Testing AWS credentials...'));
     if (!S3Sync.checkAwsCredentials()) {
       console.log(
-        chalk.yellow(
-          '  Warning: AWS credentials are invalid or expired'
-        )
+        chalk.yellow('  Warning: AWS credentials are invalid or expired')
       );
       console.log(
         chalk.yellow(
@@ -981,7 +979,9 @@ async function runSqlSearchReplace(
   // Ensure migration DB has just this site's tables
   const siteTables = DatabaseOperations.getSiteTables(siteId, 'migration');
   if (siteTables.length === 0) {
-    throw new Error('No site tables found in migration database for replacements');
+    throw new Error(
+      'No site tables found in migration database for replacements'
+    );
   }
 
   const migrationConfig = Config.getMigrationDbConfig();

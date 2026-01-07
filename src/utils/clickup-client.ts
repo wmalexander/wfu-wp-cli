@@ -486,16 +486,18 @@ export class ClickUpClient {
     workspaceId: string,
     docId: string,
     pageId: string,
-    content: string,
-    contentFormat: 'text/md' | 'text/plain' = 'text/md'
+    updates: { content?: string; name?: string; content_format?: string }
   ): Promise<any> {
+    const payload: any = {};
+    if (updates.name !== undefined) payload.name = updates.name;
+    if (updates.content !== undefined) {
+      payload.content = updates.content;
+      payload.content_format = updates.content_format || 'text/md';
+    }
     const response = await this.retryWithExponentialBackoff(() =>
       this.apiV3.put(
         `/workspaces/${workspaceId}/docs/${docId}/pages/${pageId}`,
-        {
-          content,
-          content_format: contentFormat,
-        }
+        payload
       )
     );
     return response.data;

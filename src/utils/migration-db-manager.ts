@@ -12,14 +12,10 @@ interface MigrationDbConfig {
 const CONTAINER_NAME =
   process.env.WF_MIGRATION_DB_CONTAINER || 'wfuwp-migration-db';
 const MYSQL_IMAGE = process.env.WF_MIGRATION_DB_IMAGE || 'mysql:8.0';
-const HOST_PORT = parseInt(
-  process.env.WF_MIGRATION_DB_PORT || '23306',
-  10
-);
+const HOST_PORT = parseInt(process.env.WF_MIGRATION_DB_PORT || '23306', 10);
 const DB_NAME = process.env.WF_MIGRATION_DB_NAME || 'wp_migration';
 const DB_USER = process.env.WF_MIGRATION_DB_USER || 'wfuwp';
-const DB_PASSWORD =
-  process.env.WF_MIGRATION_DB_PASSWORD || 'wfuwp_local_pass';
+const DB_PASSWORD = process.env.WF_MIGRATION_DB_PASSWORD || 'wfuwp_local_pass';
 const ROOT_PASSWORD =
   process.env.WF_MIGRATION_DB_ROOT_PASSWORD || 'wfuwp_root_pass';
 
@@ -128,9 +124,7 @@ function waitForContainerReady(verbose = false): void {
   }
 }
 
-export function ensureLocalMigrationDb(
-  verbose = false
-): MigrationDbConfig {
+export function ensureLocalMigrationDb(verbose = false): MigrationDbConfig {
   if (cachedConfig) {
     return { ...cachedConfig };
   }
