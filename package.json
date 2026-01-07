@@ -35,7 +35,8 @@
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "inquirer": "^12.9.3",
-    "marked": "^4.3.0"
+    "marked": "^4.3.0",
+    "simple-git": "^3.30.0"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

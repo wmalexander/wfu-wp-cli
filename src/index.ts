@@ -21,6 +21,7 @@ import { clickupCommand } from './commands/clickup';
 import { localCommand } from './commands/local';
 import { cleanupCommand } from './commands/cleanup';
 import { migrationCleanupCommand } from './commands/migration-cleanup';
+import { releaseCommand } from './commands/release';
 import { registerDoctorCommand } from './commands/doctor';
 import { registerDocsCommand } from './commands/docs';
 import { registerInstallDepsCommand } from './commands/install-deps';
@@ -77,6 +78,7 @@ program.addCommand(clickupCommand);
 program.addCommand(localCommand);
 program.addCommand(cleanupCommand);
 program.addCommand(migrationCleanupCommand);
+program.addCommand(releaseCommand);
 
 // Add new commands
 registerDoctorCommand(program);
@@ -109,6 +111,7 @@ program
     console.log(chalk.green('  local') + '       - Manage local development environment (DDEV, domains, setup)');
     console.log(chalk.green('  cleanup') + '     - Clean up orphaned migration temporary directories');
     console.log(chalk.green('  migration-cleanup') + ' - Clean up migration state records and legacy files');
+    console.log(chalk.green('  release') + '     - Release management (cleanup git branches after merge)');
     console.log('\nUse "wfuwp <command> --help" for more information about a command.');
     console.log('\n' + chalk.bold('📚 Need help?'));
     console.log('  Documentation: ' + chalk.cyan('wfuwp docs'));

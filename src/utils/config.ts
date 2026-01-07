@@ -49,6 +49,12 @@ interface ConfigData {
     defaultWorkspaceId?: string;
   };
   local?: LocalConfig;
+  wordpress?: {
+    path?: string;
+  };
+  release?: {
+    environments?: string;
+  };
 }
 
 export class Config {
@@ -665,7 +671,9 @@ export class Config {
       );
     } catch (error) {
       this.lastMigrationConfigError =
-        error instanceof Error ? error : new Error('Unknown migration DB error');
+        error instanceof Error
+          ? error
+          : new Error('Unknown migration DB error');
       return false;
     }
   }
