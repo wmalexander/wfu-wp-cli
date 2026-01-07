@@ -1521,7 +1521,7 @@ export const clickupCommand = new Command('clickup')
                 workspaceId,
                 docId
               );
-              const pages = pagesResponse.pages || [];
+              const pages = Array.isArray(pagesResponse) ? pagesResponse : (pagesResponse.pages || []);
               if (pages.length === 0) {
                 throw new Error('Doc has no pages. Create a page first.');
               }
