@@ -363,12 +363,16 @@ export const clickupCommand = new Command('clickup')
             task.subtasks.forEach((subtask: any) => {
               const id = (subtask.id || '').substring(0, 12).padEnd(12);
               const title = (subtask.name || '').substring(0, 35).padEnd(35);
-              const status = (subtask.status?.status || '-').substring(0, 15).padEnd(15);
+              const status = (subtask.status?.status || '-')
+                .substring(0, 15)
+                .padEnd(15);
               const assignee =
                 subtask.assignees && subtask.assignees.length > 0
                   ? `@${subtask.assignees[0].username}`.substring(0, 15)
                   : '-';
-              console.log(`${id} | ${title} | ${status} | ${assignee.padEnd(15)}`);
+              console.log(
+                `${id} | ${title} | ${status} | ${assignee.padEnd(15)}`
+              );
             });
           } else if (options.subtasks) {
             console.log('');
@@ -390,8 +394,14 @@ export const clickupCommand = new Command('clickup')
       .argument('<task-id>', 'Task ID to update')
       .option('--name <name>', 'New task name/title')
       .option('--description <description>', 'New task description')
-      .option('--status <status>', 'New status (e.g., "complete", "in progress", "to do")')
-      .option('--priority <priority>', 'New priority (urgent, high, normal, low)')
+      .option(
+        '--status <status>',
+        'New status (e.g., "complete", "in progress", "to do")'
+      )
+      .option(
+        '--priority <priority>',
+        'New priority (urgent, high, normal, low)'
+      )
       .option('--assignee <user-id>', 'Add assignee by user ID')
       .option('--remove-assignee <user-id>', 'Remove assignee by user ID')
       .option('--due <date>', 'Due date (YYYY-MM-DD format)')
@@ -1267,6 +1277,277 @@ export const clickupCommand = new Command('clickup')
                   `  ${chalk.cyan('Notifications:')} All followers notified`
                 );
               }
+            }
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
+          }
+        }
+      )
+  )
+  .addCommand(
+    new Command('docs')
+      .description('List ClickUp Docs in workspace')
+      .option('--workspace <workspace-id>', 'Workspace to list docs from')
+      .action(async (options: { workspace?: string }) => {
+        try {
+          const { ClickUpClient } = await import('../utils/clickup-client');
+          const { DocFormatter } = await import('../utils/doc-formatter');
+          const client = new ClickUpClient();
+          let workspaceId = options.workspace;
+          if (!workspaceId) {
+            const defaultWorkspaceId = Config.get('clickup.defaultWorkspaceId');
+            if (!defaultWorkspaceId) {
+              throw new Error(
+                'No workspace ID provided and no default workspace configured. Use --workspace <workspace-id> or configure a default with: wfuwp clickup config set defaultWorkspaceId <workspace-id>'
+              );
+            }
+            workspaceId = defaultWorkspaceId;
+          }
+          const response = await client.searchDocs(workspaceId);
+          const docs = response.docs || [];
+          if (docs.length === 0) {
+            console.log(chalk.yellow('No docs found in workspace.'));
+            return;
+          }
+          console.log(chalk.blue.bold('Docs in Workspace:'));
+          console.log('');
+          DocFormatter.formatDocList(docs);
+        } catch (error) {
+          console.error(
+            chalk.red(
+              `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+            )
+          );
+          process.exit(1);
+        }
+      })
+  )
+  .addCommand(
+    new Command('doc')
+      .description('Get details of a specific ClickUp Doc')
+      .argument('<doc-id>', 'Doc ID to retrieve')
+      .option('--workspace <workspace-id>', 'Workspace containing the doc')
+      .option('--content', 'Show page content')
+      .action(
+        async (
+          docId: string,
+          options: { workspace?: string; content?: boolean }
+        ) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const { DocFormatter } = await import('../utils/doc-formatter');
+            const client = new ClickUpClient();
+            let workspaceId = options.workspace;
+            if (!workspaceId) {
+              const defaultWorkspaceId = Config.get(
+                'clickup.defaultWorkspaceId'
+              );
+              if (!defaultWorkspaceId) {
+                throw new Error(
+                  'No workspace ID provided and no default workspace configured. Use --workspace <workspace-id> or configure a default with: wfuwp clickup config set defaultWorkspaceId <workspace-id>'
+                );
+              }
+              workspaceId = defaultWorkspaceId;
+            }
+            const doc = await client.getDoc(workspaceId, docId);
+            DocFormatter.formatDocDetails(doc);
+            const pagesResponse = await client.getDocPages(workspaceId, docId);
+            const pages = pagesResponse.pages || [];
+            if (pages.length > 0) {
+              console.log('');
+              console.log(chalk.blue.bold('Pages:'));
+              DocFormatter.formatPages(pages);
+              if (options.content && pages.length > 0) {
+                console.log('');
+                console.log(chalk.blue.bold('Page Content:'));
+                console.log('');
+                for (const page of pages) {
+                  try {
+                    const pageContent = await client.getPage(
+                      workspaceId,
+                      docId,
+                      page.id
+                    );
+                    DocFormatter.formatPageContent(pageContent);
+                    console.log('');
+                  } catch (pageError) {
+                    console.log(
+                      chalk.yellow(
+                        `Could not fetch content for page: ${page.name}`
+                      )
+                    );
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
+          }
+        }
+      )
+  )
+  .addCommand(
+    new Command('docs-create')
+      .description('Create a new ClickUp Doc')
+      .argument('<title>', 'Doc title')
+      .option('--workspace <workspace-id>', 'Workspace to create doc in')
+      .option('--content <markdown>', 'Initial page content in markdown')
+      .option('--from-file <path>', 'Read initial content from file')
+      .action(
+        async (
+          title: string,
+          options: { workspace?: string; content?: string; fromFile?: string }
+        ) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const client = new ClickUpClient();
+            let workspaceId = options.workspace;
+            if (!workspaceId) {
+              const defaultWorkspaceId = Config.get(
+                'clickup.defaultWorkspaceId'
+              );
+              if (!defaultWorkspaceId) {
+                throw new Error(
+                  'No workspace ID provided and no default workspace configured. Use --workspace <workspace-id> or configure a default with: wfuwp clickup config set defaultWorkspaceId <workspace-id>'
+                );
+              }
+              workspaceId = defaultWorkspaceId;
+            }
+            let content = options.content;
+            if (options.fromFile) {
+              const { readFile } = await import('fs/promises');
+              try {
+                content = await readFile(options.fromFile, 'utf8');
+              } catch (fileError) {
+                throw new Error(`Could not read file: ${options.fromFile}`);
+              }
+            }
+            const doc = await client.createDoc(workspaceId, { name: title });
+            console.log(chalk.green.bold('Doc created successfully!'));
+            console.log('');
+            console.log(`${chalk.cyan('Name:')} ${doc.name}`);
+            console.log(`${chalk.cyan('ID:')} ${doc.id}`);
+            if (content && doc.id) {
+              try {
+                await client.createPage(workspaceId, doc.id, {
+                  name: 'Page 1',
+                  content: content,
+                });
+                console.log(chalk.green('Initial page content added.'));
+              } catch (pageError) {
+                console.log(
+                  chalk.yellow(
+                    'Doc created but could not add initial content. Add content manually.'
+                  )
+                );
+              }
+            }
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
+          }
+        }
+      )
+  )
+  .addCommand(
+    new Command('doc-update')
+      .description('Update a ClickUp Doc page content')
+      .argument('<doc-id>', 'Doc ID to update')
+      .option('--workspace <workspace-id>', 'Workspace containing the doc')
+      .option(
+        '--page <page-id>',
+        'Page ID to update (updates first page if not specified)'
+      )
+      .option('--content <markdown>', 'New page content in markdown')
+      .option('--from-file <path>', 'Read content from file')
+      .option('--append', 'Append to existing content instead of replacing')
+      .action(
+        async (
+          docId: string,
+          options: {
+            workspace?: string;
+            page?: string;
+            content?: string;
+            fromFile?: string;
+            append?: boolean;
+          }
+        ) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const client = new ClickUpClient();
+            let workspaceId = options.workspace;
+            if (!workspaceId) {
+              const defaultWorkspaceId = Config.get(
+                'clickup.defaultWorkspaceId'
+              );
+              if (!defaultWorkspaceId) {
+                throw new Error(
+                  'No workspace ID provided and no default workspace configured. Use --workspace <workspace-id> or configure a default with: wfuwp clickup config set defaultWorkspaceId <workspace-id>'
+                );
+              }
+              workspaceId = defaultWorkspaceId;
+            }
+            let newContent = options.content;
+            if (options.fromFile) {
+              const { readFile } = await import('fs/promises');
+              try {
+                newContent = await readFile(options.fromFile, 'utf8');
+              } catch (fileError) {
+                throw new Error(`Could not read file: ${options.fromFile}`);
+              }
+            }
+            if (!newContent) {
+              throw new Error(
+                'No content provided. Use --content or --from-file'
+              );
+            }
+            let pageId: string = options.page || '';
+            if (!pageId) {
+              const pagesResponse = await client.getDocPages(
+                workspaceId,
+                docId
+              );
+              const pages = pagesResponse.pages || [];
+              if (pages.length === 0) {
+                throw new Error('Doc has no pages. Create a page first.');
+              }
+              pageId = pages[0].id;
+              console.log(
+                chalk.gray(`Using first page: ${pages[0].name} (${pageId})`)
+              );
+            }
+            if (options.append) {
+              const existingPage = await client.getPage(
+                workspaceId,
+                docId,
+                pageId
+              );
+              const existingContent = existingPage.content || '';
+              newContent = existingContent + '\n\n' + newContent;
+            }
+            await client.updatePage(workspaceId, docId, pageId, newContent);
+            console.log(chalk.green.bold('Page updated successfully!'));
+            console.log('');
+            console.log(`${chalk.cyan('Doc ID:')} ${docId}`);
+            console.log(`${chalk.cyan('Page ID:')} ${pageId}`);
+            if (options.append) {
+              console.log(
+                chalk.gray('Content appended to existing page content.')
+              );
             }
           } catch (error) {
             console.error(

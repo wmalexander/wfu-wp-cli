@@ -10,22 +10,22 @@ interface RateLimitInfo {
 
 export class ClickUpClient {
   private api: AxiosInstance;
+  private apiV3: AxiosInstance;
   private token: string | undefined;
   private rateLimitInfo: RateLimitInfo | null = null;
   private readonly BASE_URL = 'https://api.clickup.com/api/v2';
+  private readonly BASE_URL_V3 = 'https://api.clickup.com/api/v3';
   private readonly MAX_RETRIES = 3;
   private readonly INITIAL_RETRY_DELAY = 1000; // 1 second
 
   constructor() {
     const clickupConfig = Config.getClickUpConfig();
     this.token = clickupConfig.token;
-
     if (!this.token) {
       throw new Error(
         'ClickUp API token not configured. Run: wfuwp clickup config set token <your-token>'
       );
     }
-
     this.api = axios.create({
       baseURL: this.BASE_URL,
       headers: {
@@ -34,9 +34,20 @@ export class ClickUpClient {
       },
       timeout: 30000, // 30 seconds
     });
-
+    this.apiV3 = axios.create({
+      baseURL: this.BASE_URL_V3,
+      headers: {
+        Authorization: this.token,
+        'Content-Type': 'application/json',
+      },
+      timeout: 30000,
+    });
     // Add response interceptor to handle rate limiting
     this.api.interceptors.response.use(
+      (response) => this.handleRateLimitHeaders(response),
+      (error) => this.handleError(error)
+    );
+    this.apiV3.interceptors.response.use(
       (response) => this.handleRateLimitHeaders(response),
       (error) => this.handleError(error)
     );
@@ -231,7 +242,8 @@ export class ClickUpClient {
   ): Promise<any> {
     const payload: any = {};
     if (updates.name !== undefined) payload.name = updates.name;
-    if (updates.description !== undefined) payload.description = updates.description;
+    if (updates.description !== undefined)
+      payload.description = updates.description;
     if (updates.status !== undefined) payload.status = updates.status;
     if (updates.priority !== undefined) payload.priority = updates.priority;
     if (updates.dueDate !== undefined) payload.due_date = updates.dueDate;
@@ -394,6 +406,97 @@ export class ClickUpClient {
         data,
         params,
       })
+    );
+    return response.data;
+  }
+
+  // Docs API methods (v3)
+  async searchDocs(
+    workspaceId: string,
+    options: { folderId?: string } = {}
+  ): Promise<any> {
+    const params: any = {};
+    if (options.folderId) {
+      params.folder_id = options.folderId;
+    }
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.apiV3.get(`/workspaces/${workspaceId}/docs`, { params })
+    );
+    return response.data;
+  }
+
+  async getDoc(workspaceId: string, docId: string): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.apiV3.get(`/workspaces/${workspaceId}/docs/${docId}`)
+    );
+    return response.data;
+  }
+
+  async createDoc(
+    workspaceId: string,
+    docData: { name: string; parent?: { id: string; type: number } }
+  ): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.apiV3.post(`/workspaces/${workspaceId}/docs`, docData)
+    );
+    return response.data;
+  }
+
+  async getDocPages(workspaceId: string, docId: string): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.apiV3.get(`/workspaces/${workspaceId}/docs/${docId}/pages`)
+    );
+    return response.data;
+  }
+
+  async getPage(
+    workspaceId: string,
+    docId: string,
+    pageId: string,
+    contentFormat: 'text/md' | 'text/plain' = 'text/md'
+  ): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.apiV3.get(
+        `/workspaces/${workspaceId}/docs/${docId}/pages/${pageId}`,
+        {
+          params: { content_format: contentFormat },
+        }
+      )
+    );
+    return response.data;
+  }
+
+  async createPage(
+    workspaceId: string,
+    docId: string,
+    pageData: { name: string; content?: string; content_format?: string }
+  ): Promise<any> {
+    const payload: any = { name: pageData.name };
+    if (pageData.content) {
+      payload.content = pageData.content;
+      payload.content_format = pageData.content_format || 'text/md';
+    }
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.apiV3.post(`/workspaces/${workspaceId}/docs/${docId}/pages`, payload)
+    );
+    return response.data;
+  }
+
+  async updatePage(
+    workspaceId: string,
+    docId: string,
+    pageId: string,
+    content: string,
+    contentFormat: 'text/md' | 'text/plain' = 'text/md'
+  ): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.apiV3.put(
+        `/workspaces/${workspaceId}/docs/${docId}/pages/${pageId}`,
+        {
+          content,
+          content_format: contentFormat,
+        }
+      )
     );
     return response.data;
   }
