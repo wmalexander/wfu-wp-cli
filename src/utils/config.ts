@@ -118,7 +118,7 @@ export class Config {
 
     if (keys.length < 2) {
       throw new Error(
-        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, or local.<key>'
+        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
       );
     }
 
@@ -136,9 +136,13 @@ export class Config {
       this.setClickUpConfig(config, keys, value);
     } else if (section === 'local') {
       this.setLocalConfig(config, keys, value);
+    } else if (section === 'wordpress') {
+      this.setWordPressConfig(config, keys, value);
+    } else if (section === 'release') {
+      this.setReleaseConfig(config, keys, value);
     } else {
       throw new Error(
-        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, or local.<key>'
+        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
       );
     }
 
@@ -363,13 +367,51 @@ export class Config {
     }
   }
 
+  private static setWordPressConfig(
+    config: ConfigData,
+    keys: string[],
+    value: string
+  ): void {
+    if (keys.length !== 2) {
+      throw new Error(
+        'Invalid wordpress config key. Use format: wordpress.<key>'
+      );
+    }
+    const wpKey = keys[1];
+    if (!['path'].includes(wpKey)) {
+      throw new Error('Invalid wordpress config key. Valid keys: path');
+    }
+    if (!config.wordpress) {
+      config.wordpress = {};
+    }
+    (config.wordpress as any)[wpKey] = value;
+  }
+
+  private static setReleaseConfig(
+    config: ConfigData,
+    keys: string[],
+    value: string
+  ): void {
+    if (keys.length !== 2) {
+      throw new Error('Invalid release config key. Use format: release.<key>');
+    }
+    const releaseKey = keys[1];
+    if (!['environments'].includes(releaseKey)) {
+      throw new Error('Invalid release config key. Valid keys: environments');
+    }
+    if (!config.release) {
+      config.release = {};
+    }
+    (config.release as any)[releaseKey] = value;
+  }
+
   static get(key: string): string | undefined {
     const config = this.loadConfig();
     const keys = key.split('.');
 
     if (keys.length < 2) {
       throw new Error(
-        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, or local.<key>'
+        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
       );
     }
 
@@ -387,9 +429,13 @@ export class Config {
       return this.getClickUpConfigValue(config, keys);
     } else if (section === 'local') {
       return this.getLocalConfigValue(config, keys);
+    } else if (section === 'wordpress') {
+      return this.getWordPressConfigValue(config, keys);
+    } else if (section === 'release') {
+      return this.getReleaseConfigValue(config, keys);
     } else {
       throw new Error(
-        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, or local.<key>'
+        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
       );
     }
   }
@@ -556,6 +602,36 @@ export class Config {
     }
 
     return value;
+  }
+
+  private static getWordPressConfigValue(
+    config: ConfigData,
+    keys: string[]
+  ): string | undefined {
+    if (keys.length !== 2) {
+      throw new Error(
+        'Invalid wordpress config key. Use format: wordpress.<key>'
+      );
+    }
+    const wpKey = keys[1];
+    if (!config.wordpress) {
+      return undefined;
+    }
+    return (config.wordpress as any)[wpKey];
+  }
+
+  private static getReleaseConfigValue(
+    config: ConfigData,
+    keys: string[]
+  ): string | undefined {
+    if (keys.length !== 2) {
+      throw new Error('Invalid release config key. Use format: release.<key>');
+    }
+    const releaseKey = keys[1];
+    if (!config.release) {
+      return undefined;
+    }
+    return (config.release as any)[releaseKey];
   }
 
   static list(): ConfigData {
