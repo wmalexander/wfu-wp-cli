@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-01-07
+
+### Added
+- Adding ClickUp Docs API support with new commands:
+  - `wfuwp clickup docs` - Listing docs in a workspace
+  - `wfuwp clickup doc <id>` - Viewing doc details and content
+  - `wfuwp clickup docs-create` - Creating new docs
+  - `wfuwp clickup doc-rename` - Renaming docs (updates first page name)
+  - `wfuwp clickup doc-update` - Updating doc page content with append mode support
+- Adding `wfuwp release cleanup` command for post-merge branch synchronization
+  - Automating sync of dev/uat branches after PRs are merged to main
+  - Supporting rebuild mode to recreate branches from primary
+  - Auto-discovering WFU repositories in wp-content directory
+  - Including dry-run mode for previewing changes
+
+### Fixed
+- Fixing ClickUp docs pages API response handling (returns array directly, not object)
+
 ## [0.22.0] - 2025-12-19
 
 ### Added
