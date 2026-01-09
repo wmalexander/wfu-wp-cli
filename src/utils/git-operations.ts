@@ -1,4 +1,19 @@
-import simpleGit, { SimpleGit, StatusResult } from 'simple-git';
+import simpleGit, {
+  SimpleGit,
+  SimpleGitOptions,
+  StatusResult,
+} from 'simple-git';
+
+const gitOptions: Partial<SimpleGitOptions> = {
+  baseDir: process.cwd(),
+  binary: 'git',
+  maxConcurrentProcesses: 1,
+  config: [],
+};
+
+function createGit(repoPath: string): SimpleGit {
+  return simpleGit({ ...gitOptions, baseDir: repoPath });
+}
 
 export interface BranchSyncResult {
   branch: string;
@@ -28,7 +43,7 @@ export interface CleanupOptions {
 
 export async function isGitRepository(path: string): Promise<boolean> {
   try {
-    const git = simpleGit(path);
+    const git = createGit(path);
     await git.revparse(['--is-inside-work-tree']);
     return true;
   } catch {
@@ -39,13 +54,13 @@ export async function isGitRepository(path: string): Promise<boolean> {
 export async function hasUncommittedChanges(
   repoPath: string
 ): Promise<boolean> {
-  const git = simpleGit(repoPath);
+  const git = createGit(repoPath);
   const status: StatusResult = await git.status();
   return !status.isClean();
 }
 
 export async function detectPrimaryBranch(repoPath: string): Promise<string> {
-  const git = simpleGit(repoPath);
+  const git = createGit(repoPath);
   const branches = await git.branchLocal();
   if (branches.all.includes('main')) {
     return 'main';
@@ -60,7 +75,7 @@ export async function remoteBranchExists(
   repoPath: string,
   branch: string
 ): Promise<boolean> {
-  const git = simpleGit(repoPath);
+  const git = createGit(repoPath);
   try {
     const refs = await git.listRemote(['--heads', 'origin', branch]);
     return refs.trim().length > 0;
@@ -73,7 +88,7 @@ export async function localBranchExists(
   repoPath: string,
   branch: string
 ): Promise<boolean> {
-  const git = simpleGit(repoPath);
+  const git = createGit(repoPath);
   const branches = await git.branchLocal();
   return branches.all.includes(branch);
 }
@@ -90,9 +105,9 @@ async function syncBranchNormal(
     if (await localBranchExistsInternal(git, branch)) {
       await git.branch(['-D', branch]);
     }
-    await git.fetch('origin', branch);
+    await git.fetch(['--quiet', 'origin', branch]);
     await git.checkout(['-b', branch, `origin/${branch}`]);
-    await git.pull('origin', branch);
+    await git.pull(['--quiet', 'origin', branch]);
     return { branch, success: true, action: 'synced' };
   } catch (error) {
     return {
@@ -119,12 +134,12 @@ async function syncBranchRebuild(
       await git.branch(['-D', branch]);
     }
     try {
-      await git.push('origin', `:${branch}`);
+      await git.push(['--quiet', 'origin', `:${branch}`]);
     } catch {
       // Remote branch may not exist, that's ok
     }
     await git.checkout(['-b', branch]);
-    await git.push(['-u', 'origin', branch]);
+    await git.push(['--quiet', '-u', 'origin', branch]);
     return { branch, success: true, action: 'rebuilt' };
   } catch (error) {
     return {
@@ -214,12 +229,12 @@ export async function cleanupRepo(
       result.skipReason = 'Uncommitted changes';
       return result;
     }
-    const git = simpleGit(repoPath);
+    const git = createGit(repoPath);
     result.primaryBranch = await detectPrimaryBranch(repoPath);
     if (!options.dryRun) {
       await git.checkout(result.primaryBranch);
-      await git.pull('origin', result.primaryBranch);
-      await git.fetch(['--tags']);
+      await git.pull(['--quiet', 'origin', result.primaryBranch]);
+      await git.fetch(['--tags', '--quiet']);
       if (result.primaryBranch === 'master') {
         await migrateMasterToMain(git, options.dryRun || false);
         result.primaryBranch = 'main';
