@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.2] - 2026-01-09
+
+### Added
+- Adding app repo (WordPress root) to `release cleanup` by default
+- Adding `--app` flag to filter to only the app repo
+- Auto-saving WordPress path to config on first successful run from inside wp-content
+
+### Changed
+- Updating error message when WordPress path not found to instruct user to run from inside wp-content
+
 ## [0.23.1] - 2026-01-08
 
 ### Fixed
