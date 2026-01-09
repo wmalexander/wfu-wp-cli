@@ -10,6 +10,7 @@ import {
   findWpContentPath,
   discoverRepositories,
   getTotalRepoCount,
+  getWordPressRoot,
   RepoFilter,
 } from '../utils/repo-discovery';
 
@@ -18,6 +19,7 @@ interface ReleaseCleanupOptions {
   rebuildBranch?: boolean;
   dryRun?: boolean;
   current?: boolean;
+  app?: boolean;
   plugins?: boolean;
   themes?: boolean;
   muPlugins?: boolean;
@@ -123,30 +125,42 @@ async function runReleaseCleanup(
     }
     return;
   }
-  let wpContentPath = options.path;
+  let wpContentPath: string | undefined = options.path
+    ? findWpContentPath(options.path) || undefined
+    : undefined;
+  let foundFromCwd = false;
   if (!wpContentPath) {
-    wpContentPath = Config.get('wordpress.path');
-    if (wpContentPath) {
-      const wpContent = findWpContentPath(wpContentPath);
-      wpContentPath = wpContent || undefined;
+    const configPath = Config.get('wordpress.path');
+    if (configPath) {
+      wpContentPath = findWpContentPath(configPath) || undefined;
     }
   }
   if (!wpContentPath) {
     wpContentPath = findWpContentPath(process.cwd()) || undefined;
+    if (wpContentPath) {
+      foundFromCwd = true;
+    }
   }
   if (!wpContentPath) {
+    console.error(chalk.red('WordPress installation not found.'));
     console.error(
-      chalk.red(
-        'Could not find wp-content directory. Use --path or run from within a WordPress installation.'
+      chalk.yellow(
+        'Run this command from inside your WordPress installation to auto-configure.'
       )
     );
     process.exit(1);
+  }
+  if (foundFromCwd && !Config.get('wordpress.path')) {
+    const wpRoot = getWordPressRoot(wpContentPath);
+    Config.set('wordpress.path', wpRoot);
+    console.log(chalk.gray(`Saved WordPress path to config: ${wpRoot}`));
   }
   console.log(chalk.cyan(`WordPress path: ${wpContentPath}`));
   console.log(chalk.cyan(`Environment branches: ${environments.join(', ')}`));
   console.log('');
   console.log(chalk.gray('Scanning repositories...'));
   const filter: RepoFilter = {
+    app: options.app,
     muPlugins: options.muPlugins,
     plugins: options.plugins,
     themes: options.themes,
@@ -157,12 +171,26 @@ async function runReleaseCleanup(
     console.log(chalk.yellow('No repositories found.'));
     return;
   }
-  console.log(
-    chalk.cyan(
-      `  Found: ${repos.plugins.length} plugins, ${repos.themes.length} themes, ${repos.muPlugins.length} mu-plugins`
-    )
-  );
+  const foundParts: string[] = [];
+  if (repos.appRepo) foundParts.push('1 app');
+  if (repos.plugins.length > 0)
+    foundParts.push(`${repos.plugins.length} plugins`);
+  if (repos.themes.length > 0) foundParts.push(`${repos.themes.length} themes`);
+  if (repos.muPlugins.length > 0)
+    foundParts.push(`${repos.muPlugins.length} mu-plugins`);
+  console.log(chalk.cyan(`  Found: ${foundParts.join(', ')}`));
   const totals = { processed: 0, skipped: 0, failed: 0 };
+  if (repos.appRepo) {
+    const stats = await processRepoCategory(
+      'app',
+      [repos.appRepo],
+      cleanupOptions,
+      options.verbose || false
+    );
+    totals.processed += stats.processed;
+    totals.skipped += stats.skipped;
+    totals.failed += stats.failed;
+  }
   if (repos.muPlugins.length > 0) {
     const stats = await processRepoCategory(
       'mu-plugins',
@@ -224,6 +252,7 @@ export const releaseCommand = new Command('release')
       )
       .option('--dry-run', 'Preview actions without making changes')
       .option('--current', 'Only process the current directory')
+      .option('--app', 'Only process the root WordPress application repo')
       .option('--plugins', 'Only process plugins (wfu-* prefixed)')
       .option('--themes', 'Only process themes')
       .option('--mu-plugins', 'Only process mu-plugins')
@@ -244,15 +273,17 @@ export const releaseCommand = new Command('release')
         'after',
         `
 Examples:
-  $ wfuwp release cleanup                    # Sync all WFU repositories
+  $ wfuwp release cleanup                    # Sync app + all WFU repositories
   $ wfuwp release cleanup --dry-run          # Preview what would happen
   $ wfuwp release cleanup --current          # Only process current directory
+  $ wfuwp release cleanup --app              # Only process app repo
   $ wfuwp release cleanup --plugins          # Only process WFU plugins
   $ wfuwp release cleanup --rebuild-branch   # Recreate env branches from primary
   $ wfuwp release cleanup --verbose          # Show detailed output
 
 Notes:
-  - Discovers repositories by walking up from current directory to find wp-content
+  - Includes app repo (WordPress root) by default along with plugins/themes/mu-plugins
+  - Auto-saves WordPress path on first run from inside wp-content
   - Only processes wfu-* prefixed plugins, all themes, and all mu-plugins
   - Skips repositories with uncommitted changes
   - Default environment branches: dev, uat (configurable via release.environments)

@@ -3,6 +3,7 @@ import { join, dirname, basename } from 'path';
 import { isGitRepository } from './git-operations';
 
 export interface DiscoveredRepos {
+  appRepo: string | null;
   muPlugins: string[];
   plugins: string[];
   themes: string[];
@@ -10,9 +11,14 @@ export interface DiscoveredRepos {
 }
 
 export interface RepoFilter {
+  app?: boolean;
   muPlugins?: boolean;
   plugins?: boolean;
   themes?: boolean;
+}
+
+export function getWordPressRoot(wpContentPath: string): string {
+  return dirname(wpContentPath);
 }
 
 export function findWpContentPath(startPath: string): string | null {
@@ -71,13 +77,21 @@ export async function discoverRepositories(
   filter?: RepoFilter
 ): Promise<DiscoveredRepos> {
   const result: DiscoveredRepos = {
+    appRepo: null,
     muPlugins: [],
     plugins: [],
     themes: [],
     wpContentPath,
   };
   const includeAll =
-    !filter || (!filter.muPlugins && !filter.plugins && !filter.themes);
+    !filter ||
+    (!filter.app && !filter.muPlugins && !filter.plugins && !filter.themes);
+  if (includeAll || filter?.app) {
+    const wpRoot = getWordPressRoot(wpContentPath);
+    if (await isGitRepository(wpRoot)) {
+      result.appRepo = wpRoot;
+    }
+  }
   if (includeAll || filter?.muPlugins) {
     const muPluginsPath = join(wpContentPath, 'mu-plugins');
     const muPluginDirs = getDirectories(muPluginsPath);
@@ -98,5 +112,11 @@ export async function discoverRepositories(
 }
 
 export function getTotalRepoCount(repos: DiscoveredRepos): number {
-  return repos.muPlugins.length + repos.plugins.length + repos.themes.length;
+  const appCount = repos.appRepo ? 1 : 0;
+  return (
+    appCount +
+    repos.muPlugins.length +
+    repos.plugins.length +
+    repos.themes.length
+  );
 }
