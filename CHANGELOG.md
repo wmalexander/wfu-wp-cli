@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.23.3] - 2026-01-09
+
+### Fixed
+- Silencing noisy git output (tag rejections, branch updates) during `release cleanup` that was incorrectly appearing as errors
+
 ## [0.23.2] - 2026-01-09
 
 ### Added
