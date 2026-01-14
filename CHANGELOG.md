@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-01-14
+
+### Added
+- Adding `--include-subtasks` flag to `wfuwp clickup tasks` command to include subtasks in results
+- Adding client-side subtask filtering when combining `--my-tasks` with `--include-subtasks`
+- Adding inline subtask display in task list output with visual indicator (↳)
+
 ## [0.24.0] - 2026-01-14
 
 ### Added

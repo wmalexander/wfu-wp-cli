@@ -622,6 +622,7 @@ export const clickupCommand = new Command('clickup')
         'Quick filter: Show urgent and high priority tasks'
       )
       .option('--recent', 'Quick filter: Show tasks updated in last 7 days')
+      .option('--include-subtasks', 'Include subtasks in results')
       .option('--export <format>', 'Export tasks to file (csv, json, markdown)')
       .option('--export-file <filename>', 'Custom filename for export')
       .action(
@@ -647,6 +648,7 @@ export const clickupCommand = new Command('clickup')
           urgent?: boolean;
           highPriority?: boolean;
           recent?: boolean;
+          includeSubtasks?: boolean;
           export?: string;
           exportFile?: string;
         }) => {
@@ -717,6 +719,7 @@ export const clickupCommand = new Command('clickup')
             const filterOptions: any = {
               includeClosed: options.includeClosed,
               includeArchived: options.includeArchived,
+              includeSubtasks: options.includeSubtasks,
             };
             if (options.status) {
               filterOptions.statuses = options.status
@@ -763,6 +766,35 @@ export const clickupCommand = new Command('clickup')
             }
             const response = await client.getTasks(listId, filterOptions);
             let tasks = response.tasks || [];
+            // Client-side subtask filtering when --my-tasks and --include-subtasks are combined
+            // The API returns all subtasks but doesn't filter them by assignee
+            if (
+              options.myTasks &&
+              options.includeSubtasks &&
+              options.assignee
+            ) {
+              const userId = options.assignee;
+              // Filter subtasks to only show those assigned to current user
+              tasks = tasks.map((task: any) => {
+                if (task.subtasks && task.subtasks.length > 0) {
+                  task.subtasks = task.subtasks.filter((subtask: any) =>
+                    subtask.assignees?.some(
+                      (a: any) => a.id.toString() === userId
+                    )
+                  );
+                }
+                return task;
+              });
+              // Keep tasks that are either assigned to user OR have subtasks assigned to user
+              tasks = tasks.filter((task: any) => {
+                const isAssignedToUser = task.assignees?.some(
+                  (a: any) => a.id.toString() === userId
+                );
+                const hasSubtasksForUser =
+                  task.subtasks && task.subtasks.length > 0;
+                return isAssignedToUser || hasSubtasksForUser;
+              });
+            }
             if (options.priority) {
               const priorityMap: { [key: string]: string } = {
                 urgent: '1',

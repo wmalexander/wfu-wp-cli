@@ -260,6 +260,7 @@ export class ClickUpClient {
     options: {
       includeArchived?: boolean;
       includeClosed?: boolean;
+      includeSubtasks?: boolean;
       statuses?: string[];
       assignees?: string[];
       tags?: string[];
@@ -275,6 +276,7 @@ export class ClickUpClient {
     const params: any = {};
     if (options.includeArchived) params.archived = true;
     if (options.includeClosed) params.include_closed = true;
+    if (options.includeSubtasks) params.subtasks = true;
     if (options.statuses && options.statuses.length > 0) {
       options.statuses.forEach((status, index) => {
         params[`statuses[${index}]`] = status;

@@ -91,7 +91,10 @@ export class TaskFormatter {
     const separator = '-'.repeat(90);
     console.log(header);
     console.log(separator);
-    tasks.forEach((task) => {
+    let totalCount = 0;
+    let subtaskCount = 0;
+    tasks.forEach((task: any) => {
+      totalCount++;
       const id = this.truncateText(task.id, 10).padEnd(10);
       const title = this.truncateText(task.name, 30).padEnd(30);
       const status = this.formatStatus(task.status.status).padEnd(22); // Account for ANSI color codes
@@ -108,11 +111,46 @@ export class TaskFormatter {
       console.log(
         `${id} | ${title} | ${status} | ${priority} | ${assignee} | ${dueDate}`
       );
+      // Display subtasks if present (indented)
+      if (task.subtasks && task.subtasks.length > 0) {
+        task.subtasks.forEach((subtask: any) => {
+          subtaskCount++;
+          const subId = this.truncateText(subtask.id, 8).padEnd(10);
+          const subTitle = this.truncateText(`↳ ${subtask.name}`, 30).padEnd(
+            30
+          );
+          const subStatus = this.formatStatus(
+            subtask.status?.status || '-'
+          ).padEnd(22);
+          const subPriority = this.formatPriority(
+            subtask.priority?.priority || null
+          ).padEnd(18);
+          const subAssignee = this.truncateText(
+            subtask.assignees && subtask.assignees.length > 0
+              ? `@${subtask.assignees[0].username}`
+              : '-',
+            12
+          ).padEnd(12);
+          const subDueDate = this.formatDate(subtask.due_date).padEnd(22);
+          console.log(
+            chalk.gray(`${subId}`) +
+              ` | ${chalk.gray(subTitle)} | ${subStatus} | ${subPriority} | ${subAssignee} | ${subDueDate}`
+          );
+        });
+      }
     });
     console.log('');
-    console.log(
-      chalk.gray(`Showing ${tasks.length} task${tasks.length === 1 ? '' : 's'}`)
-    );
+    if (subtaskCount > 0) {
+      console.log(
+        chalk.gray(
+          `Showing ${totalCount} task${totalCount === 1 ? '' : 's'} with ${subtaskCount} subtask${subtaskCount === 1 ? '' : 's'}`
+        )
+      );
+    } else {
+      console.log(
+        chalk.gray(`Showing ${totalCount} task${totalCount === 1 ? '' : 's'}`)
+      );
+    }
   }
 
   static formatTaskDetails(task: TaskData): void {
