@@ -201,16 +201,17 @@ export class ClickUpClient {
       parent?: string;
     }
   ): Promise<any> {
+    const payload: any = {
+      name: taskData.name,
+      description: taskData.description,
+      assignees: taskData.assignees,
+      tags: taskData.tags,
+      priority: taskData.priority,
+      due_date: taskData.dueDate,
+      parent: taskData.parent,
+    };
     const response = await this.retryWithExponentialBackoff(() =>
-      this.api.post(`/list/${listId}/task`, {
-        name: taskData.name,
-        description: taskData.description,
-        assignees: taskData.assignees,
-        tags: taskData.tags,
-        priority: taskData.priority,
-        due_date: taskData.dueDate,
-        parent: taskData.parent,
-      })
+      this.api.post(`/list/${listId}/task`, payload)
     );
     return response.data;
   }

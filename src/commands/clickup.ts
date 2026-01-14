@@ -124,7 +124,10 @@ export const clickupCommand = new Command('clickup')
         'normal'
       )
       .option('--assignee <user-id>', 'Assignee user ID')
-      .option('--due <date>', 'Due date (YYYY-MM-DD format)')
+      .option(
+        '--due <date>',
+        'Due date (YYYY-MM-DD, "today", "tomorrow", "next monday", etc.)'
+      )
       .option('--tags <tags>', 'Comma-separated tags')
       .option('--parent <task-id>', 'Parent task ID (creates a subtask)')
       .option('--interactive', 'Use interactive mode for guided task creation')
@@ -251,13 +254,9 @@ export const clickupCommand = new Command('clickup')
 
             // Handle due date
             if (options.due) {
-              const dueDate = new Date(options.due);
-              if (isNaN(dueDate.getTime())) {
-                throw new Error(
-                  'Invalid due date format. Use YYYY-MM-DD format.'
-                );
-              }
-              taskParams.dueDate = dueDate.getTime();
+              const { DateParser } = await import('../utils/date-parser');
+              const dueDate = DateParser.parse(options.due);
+              taskParams.dueDate = DateParser.toClickUpTimestamp(dueDate);
             }
 
             // Handle tags
@@ -341,52 +340,93 @@ export const clickupCommand = new Command('clickup')
   )
   .addCommand(
     new Command('task')
-      .description('Get details of a specific ClickUp task')
-      .argument('<task-id>', 'Task ID to retrieve')
+      .description(
+        'Get details of a specific ClickUp task, or update its due date'
+      )
+      .argument('<task-id>', 'Task ID to retrieve or update')
       .option('--subtasks', 'Include subtasks in output')
-      .action(async (taskId: string, options: { subtasks?: boolean }) => {
-        try {
-          const { ClickUpClient } = await import('../utils/clickup-client');
-          const { TaskFormatter } = await import('../utils/task-formatter');
-          const client = new ClickUpClient();
-          const task = await client.getTask(taskId, {
-            includeSubtasks: options.subtasks,
-          });
-          TaskFormatter.formatTaskDetails(task);
-          if (options.subtasks && task.subtasks && task.subtasks.length > 0) {
-            console.log('');
-            console.log(chalk.blue.bold(`Subtasks (${task.subtasks.length}):`));
-            console.log('');
-            const header = `${chalk.bold('ID'.padEnd(12))} | ${chalk.bold('Title'.padEnd(35))} | ${chalk.bold('Status'.padEnd(15))} | ${chalk.bold('Assignee'.padEnd(15))}`;
-            console.log(header);
-            console.log('-'.repeat(85));
-            task.subtasks.forEach((subtask: any) => {
-              const id = (subtask.id || '').substring(0, 12).padEnd(12);
-              const title = (subtask.name || '').substring(0, 35).padEnd(35);
-              const status = (subtask.status?.status || '-')
-                .substring(0, 15)
-                .padEnd(15);
-              const assignee =
-                subtask.assignees && subtask.assignees.length > 0
-                  ? `@${subtask.assignees[0].username}`.substring(0, 15)
-                  : '-';
+      .option(
+        '--due <date>',
+        'Update due date (YYYY-MM-DD, "today", "tomorrow", "next monday", etc.)'
+      )
+      .action(
+        async (
+          taskId: string,
+          options: { subtasks?: boolean; due?: string }
+        ) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const { TaskFormatter } = await import('../utils/task-formatter');
+            const { DateParser } = await import('../utils/date-parser');
+            const client = new ClickUpClient();
+            if (options.due) {
+              const task = await client.getTask(taskId);
+              const oldDueDate = task.due_date;
+              const newDate = DateParser.parse(options.due);
+              const newTimestamp = DateParser.toClickUpTimestamp(newDate);
+              const updatedTask = await client.updateTask(taskId, {
+                dueDate: newTimestamp,
+              });
+              console.log(chalk.green.bold('✓ Due date updated successfully!'));
+              console.log('');
+              console.log(chalk.blue.bold('Task:'));
+              console.log(`  ${chalk.cyan('ID:')} ${updatedTask.id}`);
+              console.log(`  ${chalk.cyan('Title:')} ${updatedTask.name}`);
+              console.log('');
+              console.log(chalk.blue.bold('Due Date Change:'));
               console.log(
-                `${id} | ${title} | ${status} | ${assignee.padEnd(15)}`
+                `  ${chalk.cyan('Old:')} ${DateParser.formatForDisplay(oldDueDate)}`
               );
+              console.log(
+                `  ${chalk.cyan('New:')} ${DateParser.formatForDisplay(newTimestamp)}`
+              );
+              console.log('');
+              console.log(
+                `  ${chalk.cyan('URL:')} ${chalk.underline(updatedTask.url)}`
+              );
+              return;
+            }
+            const task = await client.getTask(taskId, {
+              includeSubtasks: options.subtasks,
             });
-          } else if (options.subtasks) {
-            console.log('');
-            console.log(chalk.gray('No subtasks found.'));
+            TaskFormatter.formatTaskDetails(task);
+            if (options.subtasks && task.subtasks && task.subtasks.length > 0) {
+              console.log('');
+              console.log(
+                chalk.blue.bold(`Subtasks (${task.subtasks.length}):`)
+              );
+              console.log('');
+              const header = `${chalk.bold('ID'.padEnd(12))} | ${chalk.bold('Title'.padEnd(35))} | ${chalk.bold('Status'.padEnd(15))} | ${chalk.bold('Assignee'.padEnd(15))}`;
+              console.log(header);
+              console.log('-'.repeat(85));
+              task.subtasks.forEach((subtask: any) => {
+                const id = (subtask.id || '').substring(0, 12).padEnd(12);
+                const title = (subtask.name || '').substring(0, 35).padEnd(35);
+                const status = (subtask.status?.status || '-')
+                  .substring(0, 15)
+                  .padEnd(15);
+                const assignee =
+                  subtask.assignees && subtask.assignees.length > 0
+                    ? `@${subtask.assignees[0].username}`.substring(0, 15)
+                    : '-';
+                console.log(
+                  `${id} | ${title} | ${status} | ${assignee.padEnd(15)}`
+                );
+              });
+            } else if (options.subtasks) {
+              console.log('');
+              console.log(chalk.gray('No subtasks found.'));
+            }
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
           }
-        } catch (error) {
-          console.error(
-            chalk.red(
-              `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
-            )
-          );
-          process.exit(1);
         }
-      })
+      )
   )
   .addCommand(
     new Command('update')
@@ -404,7 +444,10 @@ export const clickupCommand = new Command('clickup')
       )
       .option('--assignee <user-id>', 'Add assignee by user ID')
       .option('--remove-assignee <user-id>', 'Remove assignee by user ID')
-      .option('--due <date>', 'Due date (YYYY-MM-DD format)')
+      .option(
+        '--due <date>',
+        'Due date (YYYY-MM-DD, "today", "tomorrow", "next monday", etc.)'
+      )
       .action(
         async (
           taskId: string,
@@ -420,6 +463,7 @@ export const clickupCommand = new Command('clickup')
         ) => {
           try {
             const { ClickUpClient } = await import('../utils/clickup-client');
+            const { DateParser } = await import('../utils/date-parser');
             const client = new ClickUpClient();
             const updates: any = {};
             if (options.name) {
@@ -447,13 +491,8 @@ export const clickupCommand = new Command('clickup')
               updates.priority = priority;
             }
             if (options.due) {
-              const dueDate = new Date(options.due);
-              if (isNaN(dueDate.getTime())) {
-                throw new Error(
-                  'Invalid due date format. Use YYYY-MM-DD format.'
-                );
-              }
-              updates.dueDate = dueDate.getTime();
+              const dueDate = DateParser.parse(options.due);
+              updates.dueDate = DateParser.toClickUpTimestamp(dueDate);
             }
             if (options.assignee || options.removeAssignee) {
               updates.assignees = {};

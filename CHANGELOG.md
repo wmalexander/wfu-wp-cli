@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-01-14
+
+### Added
+- Adding `--due` option to `wfuwp clickup task` command for updating task due dates directly
+- Adding relative date support across all ClickUp commands (`today`, `tomorrow`, `next monday`, `in 3 days`, etc.)
+- Adding date parser utility for flexible date input handling
+
+### Changed
+- Updating `wfuwp clickup update --due` to support relative dates in addition to ISO format
+- Updating `wfuwp clickup create --due` to support relative dates in addition to ISO format
+
 ## [0.23.3] - 2026-01-09
 
 ### Fixed
