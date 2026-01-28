@@ -186,17 +186,9 @@ export class NetworkTableOperations {
   }
 
   static getExistingNetworkTables(environment: string): string[] {
-    let envConfig;
-    if (environment === 'migration') {
-      envConfig = Config.getMigrationDbConfig();
-      if (!Config.hasRequiredMigrationConfig()) {
-        throw new Error('Migration database is not configured');
-      }
-    } else {
-      envConfig = Config.getEnvironmentConfig(environment);
-      if (!Config.hasRequiredEnvironmentConfig(environment)) {
-        throw new Error(`Environment '${environment}' is not configured`);
-      }
+    const envConfig = Config.getEnvironmentConfig(environment);
+    if (!Config.hasRequiredEnvironmentConfig(environment)) {
+      throw new Error(`Environment '${environment}' is not configured`);
     }
 
     try {
@@ -750,17 +742,9 @@ export class NetworkTableOperations {
     replacements: Array<{ from: string; to: string }>,
     verbose = false
   ): Promise<void> {
-    let envConfig;
-    if (environment === 'migration') {
-      envConfig = Config.getMigrationDbConfig();
-      if (!Config.hasRequiredMigrationConfig()) {
-        throw new Error('Migration database is not configured');
-      }
-    } else {
-      envConfig = Config.getEnvironmentConfig(environment);
-      if (!Config.hasRequiredEnvironmentConfig(environment)) {
-        throw new Error(`Environment '${environment}' is not configured`);
-      }
+    const envConfig = Config.getEnvironmentConfig(environment);
+    if (!Config.hasRequiredEnvironmentConfig(environment)) {
+      throw new Error(`Environment '${environment}' is not configured`);
     }
 
     const networkTables = this.getExistingNetworkTables(environment);

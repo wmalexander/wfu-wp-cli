@@ -13,34 +13,12 @@ wfuwp db list                     # List all environments
 ```
 
 ### 📦 Database Migration
-```bash
-# Basic migration
-wfuwp migrate 43 --from prod --to pprd
 
-# Migration with file sync
-wfuwp migrate 43 --from prod --to pprd --sync-s3
-
-# Dry run (preview only)
-wfuwp migrate 43 --from prod --to pprd --dry-run
-
-# Force without confirmation
-wfuwp migrate 43 --from prod --to pprd --force
-```
-
-### 🌍 Environment Migration (Full)
-```bash
-# Complete environment migration
-wfuwp env-migrate prod uat
-
-# Specific sites only
-wfuwp env-migrate prod pprd --include-sites "1,43,78"
-
-# Network tables only
-wfuwp env-migrate prod uat --network-only
-
-# With S3 file sync
-wfuwp env-migrate prod pprd --sync-s3
-```
+> **Note:** Database migration functionality has been moved to a dedicated tool: **wfu-migrate**
+>
+> Install it with: `npm install -g wfu-migrate`
+>
+> See the [wfu-migrate documentation](https://github.com/wmalexander/wfu-migrate) for usage.
 
 ### 💾 Backup & Restore
 ```bash
@@ -139,8 +117,8 @@ wfuwp clickup create "Fix bug"    # Create task
 wfuwp db test prod
 wfuwp db test pprd
 
-# 2. Migrate database
-wfuwp migrate 43 --from prod --to pprd --sync-s3
+# 2. Migrate database (use wfu-migrate)
+wfu-migrate migrate 43 --from prod --to pprd --sync-s3
 
 # 3. Verify
 # Visit the pprd site in browser
@@ -155,8 +133,8 @@ wfuwp config wizard
 wfuwp local install
 sudo wfuwp local domain add 43
 
-# 3. Get production data
-wfuwp migrate 43 --from prod --to local --sync-s3
+# 3. Get production data (use wfu-migrate)
+wfu-migrate migrate 43 --from prod --to local --sync-s3
 
 # 4. Start development
 wfuwp local start 43
@@ -198,23 +176,6 @@ wfuwp db test uat
 - `--verbose` / `-v` - Detailed output
 - `--force` / `-f` - Skip confirmations
 - `--dry-run` - Preview without changes
-
-### Migration Flags
-- `--from <env>` - Source environment
-- `--to <env>` - Target environment
-- `--sync-s3` - Include file sync
-- `--skip-backup` - Don't backup target
-- `--keep-files` - Keep SQL files
-- `--timeout <min>` - Custom timeout
-
-### Environment Migration Flags
-- `--include-sites` - Specific site IDs
-- `--exclude-sites` - Sites to skip
-- `--active-only` - Only active sites
-- `--network-only` - Network tables only
-- `--sites-only` - Skip network tables
-- `--parallel` - Parallel processing
-- `--batch-size` - Sites per batch
 
 ## Safety Reminders
 

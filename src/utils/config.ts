@@ -2,7 +2,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 import * as crypto from 'crypto';
-import { ensureLocalMigrationDb } from './migration-db-manager';
 
 interface EnvironmentConfig {
   host?: string;
@@ -27,13 +26,6 @@ interface ConfigData {
     pprd?: EnvironmentConfig;
     prod?: EnvironmentConfig;
     local?: EnvironmentConfig;
-  };
-  migration?: {
-    host?: string;
-    port?: string;
-    user?: string;
-    password?: string; // encrypted
-    database?: string;
   };
   s3?: {
     bucket?: string;
@@ -61,7 +53,6 @@ export class Config {
   private static readonly CONFIG_DIR = join(homedir(), '.wfuwp');
   private static readonly CONFIG_FILE = join(Config.CONFIG_DIR, 'config.json');
   private static readonly ENCRYPTION_KEY = 'wfuwp-config-key-v1';
-  private static lastMigrationConfigError: Error | null = null;
 
   private static ensureConfigDir(): void {
     if (!existsSync(this.CONFIG_DIR)) {
@@ -118,7 +109,7 @@ export class Config {
 
     if (keys.length < 2) {
       throw new Error(
-        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
+        'Invalid config key. Use format: env.<environment>.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
       );
     }
 
@@ -126,8 +117,6 @@ export class Config {
 
     if (section === 'env') {
       this.setEnvironmentConfig(config, keys, value);
-    } else if (section === 'migration') {
-      this.setMigrationConfig(config, keys, value);
     } else if (section === 's3') {
       this.setS3Config(config, keys, value);
     } else if (section === 'backup') {
@@ -142,7 +131,7 @@ export class Config {
       this.setReleaseConfig(config, keys, value);
     } else {
       throw new Error(
-        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
+        'Invalid config section. Use: env.<environment>.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
       );
     }
 
@@ -199,40 +188,6 @@ export class Config {
       envConfig[envKey as keyof EnvironmentConfig] = this.encrypt(value);
     } else {
       envConfig[envKey as keyof EnvironmentConfig] = value;
-    }
-  }
-
-  private static setMigrationConfig(
-    config: ConfigData,
-    keys: string[],
-    value: string
-  ): void {
-    if (keys.length !== 2) {
-      throw new Error(
-        'Invalid migration config key. Use format: migration.<key>'
-      );
-    }
-
-    const migrationKey = keys[1];
-
-    if (!['host', 'user', 'password', 'database'].includes(migrationKey)) {
-      throw new Error(
-        'Invalid migration config key. Valid keys: host, user, password, database'
-      );
-    }
-
-    if (!config.migration) {
-      config.migration = {};
-    }
-
-    if (migrationKey === 'password') {
-      config.migration[
-        migrationKey as keyof NonNullable<ConfigData['migration']>
-      ] = this.encrypt(value);
-    } else {
-      config.migration[
-        migrationKey as keyof NonNullable<ConfigData['migration']>
-      ] = value;
     }
   }
 
@@ -411,7 +366,7 @@ export class Config {
 
     if (keys.length < 2) {
       throw new Error(
-        'Invalid config key. Use format: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
+        'Invalid config key. Use format: env.<environment>.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
       );
     }
 
@@ -419,8 +374,6 @@ export class Config {
 
     if (section === 'env') {
       return this.getEnvironmentConfigValue(config, keys);
-    } else if (section === 'migration') {
-      return this.getMigrationConfigValue(config, keys);
     } else if (section === 's3') {
       return this.getS3ConfigValue(config, keys);
     } else if (section === 'backup') {
@@ -435,7 +388,7 @@ export class Config {
       return this.getReleaseConfigValue(config, keys);
     } else {
       throw new Error(
-        'Invalid config section. Use: env.<environment>.<key>, migration.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
+        'Invalid config section. Use: env.<environment>.<key>, s3.<key>, backup.<key>, clickup.<key>, local.<key>, wordpress.<key>, or release.<key>'
       );
     }
   }
@@ -473,38 +426,6 @@ export class Config {
     }
 
     if (envKey === 'password') {
-      return this.decrypt(value);
-    }
-
-    return value;
-  }
-
-  private static getMigrationConfigValue(
-    config: ConfigData,
-    keys: string[]
-  ): string | undefined {
-    if (keys.length !== 2) {
-      throw new Error(
-        'Invalid migration config key. Use format: migration.<key>'
-      );
-    }
-
-    const migrationKey = keys[1];
-
-    if (!config.migration) {
-      return undefined;
-    }
-
-    const value =
-      config.migration[
-        migrationKey as keyof NonNullable<ConfigData['migration']>
-      ];
-
-    if (!value) {
-      return undefined;
-    }
-
-    if (migrationKey === 'password') {
       return this.decrypt(value);
     }
 
@@ -650,11 +571,6 @@ export class Config {
       });
     }
 
-    // Mask password in migration config
-    if (config.migration?.password) {
-      config.migration.password = '****';
-    }
-
     // Mask token in ClickUp config
     if (config.clickup?.token) {
       config.clickup.token = '****';
@@ -696,30 +612,6 @@ export class Config {
     };
   }
 
-  static getMigrationDbConfig(): EnvironmentConfig {
-    const config = this.loadConfig();
-    if (!config.migration) {
-      const localConfig = ensureLocalMigrationDb(false);
-      return {
-        host: localConfig.host,
-        port: localConfig.port.toString(),
-        user: localConfig.user,
-        password: localConfig.password,
-        database: localConfig.database,
-      };
-    }
-
-    return {
-      host: config.migration.host,
-      port: config.migration.port,
-      user: config.migration.user,
-      password: config.migration.password
-        ? this.decrypt(config.migration.password)
-        : undefined,
-      database: config.migration.database,
-    };
-  }
-
   static getS3Config(): { bucket?: string; region?: string; prefix?: string } {
     const config = this.loadConfig();
     return config.s3 || {};
@@ -732,44 +624,6 @@ export class Config {
       envConfig.user &&
       envConfig.password &&
       envConfig.database
-    );
-  }
-
-  static hasRequiredMigrationConfig(): boolean {
-    try {
-      const migrationConfig = this.getMigrationDbConfig();
-      this.lastMigrationConfigError = null;
-      return !!(
-        migrationConfig.host &&
-        migrationConfig.user &&
-        migrationConfig.password &&
-        migrationConfig.database
-      );
-    } catch (error) {
-      this.lastMigrationConfigError =
-        error instanceof Error
-          ? error
-          : new Error('Unknown migration DB error');
-      return false;
-    }
-  }
-
-  static getLastMigrationConfigError(): Error | null {
-    return this.lastMigrationConfigError;
-  }
-
-  static hasRemoteMigrationConfig(): boolean {
-    const config = this.loadConfig();
-    const migration = config.migration;
-    if (!migration) {
-      return false;
-    }
-
-    return !!(
-      migration.host &&
-      migration.user &&
-      migration.password &&
-      migration.database
     );
   }
 

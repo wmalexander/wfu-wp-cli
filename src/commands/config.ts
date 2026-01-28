@@ -453,15 +453,6 @@ function verifyConfiguration(environment?: string): void {
       hasErrors = true;
     }
 
-    // Verify migration database
-    console.log(chalk.cyan('\nChecking migration database...'));
-    if (Config.hasRequiredMigrationConfig()) {
-      console.log(chalk.green('✓ Migration database configured'));
-    } else {
-      console.log(chalk.red('✗ Migration database not configured'));
-      hasErrors = true;
-    }
-
     // Verify S3
     console.log(chalk.cyan('\nChecking S3 configuration...'));
     if (Config.hasRequiredS3Config()) {

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-01-28
+
+### Removed
+
+- Removing all migration functionality (migrate, env-migrate, migration-cleanup commands)
+- Removing migration database configuration options
+- Removing migration utility files and tests
+- Moving database migration to dedicated `wfu-migrate` tool (`npm install -g wfu-migrate`)
+
+### Changed
+
+- Updating documentation to reference wfu-migrate for database migrations
+- Updating help text to point users to wfu-migrate
+
 ## [0.25.0] - 2026-01-14
 
 ### Added

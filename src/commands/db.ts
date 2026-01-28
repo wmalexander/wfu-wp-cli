@@ -206,15 +206,4 @@ function listDatabaseEnvironments(): void {
     );
   }
 
-  // Check migration database
-  console.log(chalk.blue('\nMigration Database:'));
-  if (Config.hasRequiredMigrationConfig()) {
-    const migrationConfig = Config.getMigrationDbConfig();
-    console.log(chalk.green('✓ migration'));
-    console.log(
-      chalk.gray(`    ${migrationConfig.host} → ${migrationConfig.database}`)
-    );
-  } else {
-    console.log(chalk.yellow('- migration (not configured)'));
-  }
 }

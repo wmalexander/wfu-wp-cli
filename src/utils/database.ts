@@ -79,49 +79,6 @@ export class DatabaseOperations {
     }
   }
 
-  // Helper method specifically for migration database commands
-  private static buildMigrationMysqlCommand(
-    migrationConfig: any,
-    additionalArgs: string[] = []
-  ): string {
-    if (this.hasNativeMysqlClient()) {
-      const portArg = migrationConfig.port ? `-P ${migrationConfig.port}` : '';
-      const baseArgs = [
-        'mysql',
-        '-h',
-        migrationConfig.host,
-        portArg,
-        '-u',
-        migrationConfig.user,
-        migrationConfig.database,
-      ].filter((arg) => arg.length > 0);
-      return [...baseArgs, ...additionalArgs].join(' ');
-    } else {
-      const portArg = migrationConfig.port
-        ? `--port=${migrationConfig.port}`
-        : '';
-      const hostArg =
-        migrationConfig.host === '127.0.0.1' ||
-        migrationConfig.host === 'localhost'
-          ? 'host.docker.internal'
-          : migrationConfig.host;
-      const baseArgs = [
-        'docker run --rm',
-        '-e',
-        `MYSQL_PWD="${migrationConfig.password}"`,
-        'mysql:8.0',
-        'mysql',
-        '-h',
-        `"${hostArg}"`,
-        portArg,
-        '-u',
-        `"${migrationConfig.user}"`,
-        `"${migrationConfig.database}"`,
-      ].filter((arg) => arg.length > 0);
-      return [...baseArgs, ...additionalArgs].join(' ');
-    }
-  }
-
   static checkDockerAvailability(): void {
     try {
       execSync('docker --version', { stdio: 'ignore' });
@@ -233,22 +190,11 @@ export class DatabaseOperations {
     verbose = false,
     timeoutMinutes = 15
   ): Promise<ExportResult> {
-    let envConfig;
-
-    if (environment === 'migration') {
-      envConfig = Config.getMigrationDbConfig();
-      if (!Config.hasRequiredMigrationConfig()) {
-        throw new Error(
-          'Migration database is not configured. Run "wfuwp config wizard" to set up.'
-        );
-      }
-    } else {
-      envConfig = Config.getEnvironmentConfig(environment);
-      if (!Config.hasRequiredEnvironmentConfig(environment)) {
-        throw new Error(
-          `Environment '${environment}' is not configured. Run 'wfuwp config wizard' to set up.`
-        );
-      }
+    const envConfig = Config.getEnvironmentConfig(environment);
+    if (!Config.hasRequiredEnvironmentConfig(environment)) {
+      throw new Error(
+        `Environment '${environment}' is not configured. Run 'wfuwp config wizard' to set up.`
+      );
     }
 
     const tables = this.getSiteTables(siteId, environment);
@@ -499,17 +445,9 @@ export class DatabaseOperations {
 
   // Get all tables for an environment (cached)
   static getAllTables(environment: string): string[] {
-    let envConfig;
-    if (environment === 'migration') {
-      envConfig = Config.getMigrationDbConfig();
-      if (!Config.hasRequiredMigrationConfig()) {
-        throw new Error('Migration database is not configured');
-      }
-    } else {
-      envConfig = Config.getEnvironmentConfig(environment);
-      if (!Config.hasRequiredEnvironmentConfig(environment)) {
-        throw new Error(`Environment '${environment}' is not configured`);
-      }
+    const envConfig = Config.getEnvironmentConfig(environment);
+    if (!Config.hasRequiredEnvironmentConfig(environment)) {
+      throw new Error(`Environment '${environment}' is not configured`);
     }
 
     // Check cache first
@@ -560,12 +498,7 @@ export class DatabaseOperations {
 
   // Get table columns (cached)
   static getTableColumns(tableName: string, environment: string): string[] {
-    let envConfig;
-    if (environment === 'migration') {
-      envConfig = Config.getMigrationDbConfig();
-    } else {
-      envConfig = Config.getEnvironmentConfig(environment);
-    }
+    const envConfig = Config.getEnvironmentConfig(environment);
 
     const cacheKey = `${environment}:${envConfig.host}:${envConfig.database}:${tableName}`;
     if (this.columnCache.has(cacheKey)) {
@@ -656,238 +589,15 @@ export class DatabaseOperations {
     }
   }
 
-  static async cleanMigrationDatabase(siteId?: string): Promise<void> {
-    const migrationConfig = Config.getMigrationDbConfig();
-
-    if (!Config.hasRequiredMigrationConfig()) {
-      throw new Error(
-        'Migration database is not configured. Run "wfuwp config wizard" to set up.'
-      );
-    }
-
-    // Security validation: only allow drops on wp_migration database
-    if (
-      !migrationConfig.database ||
-      !migrationConfig.database.includes('migration')
-    ) {
-      throw new Error(
-        'Security violation: Table drops are only allowed on wp_migration database for safety.'
-      );
-    }
-
-    // Use direct MySQL to clean migration database (much more efficient than WP-CLI)
-    try {
-      // Get all tables in the migration database
-      const showTablesQuery = 'SHOW TABLES';
-      const mysqlCommand = this.buildMigrationMysqlCommand(migrationConfig, [
-        '-e',
-        `"${showTablesQuery}"`,
-        '-s',
-      ]);
-      const execOptions = this.hasNativeMysqlClient()
-        ? {
-            encoding: 'utf8' as const,
-            env: {
-              ...process.env,
-              MYSQL_PWD: migrationConfig.password,
-              PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-            },
-          }
-        : { encoding: 'utf8' as const };
-
-      const tablesOutput = execSync(mysqlCommand, execOptions);
-
-      const allTables = tablesOutput
-        .trim()
-        .split('\n')
-        .filter((table) => table.length > 0);
-
-      let tablesToDrop = allTables;
-
-      // If siteId is provided, only drop tables for that specific site
-      if (siteId) {
-        // Get network table names to exclude from site migrations
-        const { NetworkTableOperations } = require('./network-tables');
-        const networkTableNames = NetworkTableOperations.getNetworkTables().map(
-          (table: any) => table.name
-        );
-
-        tablesToDrop = allTables.filter((table) => {
-          if (siteId === '1') {
-            // For main site, include wp_ tables but exclude numbered subsites (wp_43_*) AND network tables
-            return (
-              table.startsWith('wp_') &&
-              !table.match(/wp_\d+_/) &&
-              !networkTableNames.includes(table)
-            );
-          } else {
-            // For subsites, match exact prefix
-            const exactPrefix = `wp_${siteId}_`;
-            return (
-              table.startsWith(exactPrefix) &&
-              !table.startsWith(`${exactPrefix}\\d`) && // Avoid longer site IDs
-              table.split('_')[1] === siteId
-            ); // Ensure exact match
-          }
-        });
-      }
-
-      if (tablesToDrop.length > 0) {
-        // Drop tables in batches of 10 to avoid command length limits
-        const batchSize = 10;
-        for (let i = 0; i < tablesToDrop.length; i += batchSize) {
-          const batch = tablesToDrop.slice(i, i + batchSize);
-
-          // Drop tables one by one to avoid command length issues and get better error handling
-          for (const table of batch) {
-            try {
-              const dropQuery = `DROP TABLE IF EXISTS ${table}`;
-              const mysqlCommand = this.buildMigrationMysqlCommand(
-                migrationConfig,
-                ['-e', `'${dropQuery}'`]
-              );
-              const execOptions = this.hasNativeMysqlClient()
-                ? {
-                    encoding: 'utf8' as const,
-                    stdio: 'ignore' as const,
-                    env: {
-                      ...process.env,
-                      MYSQL_PWD: migrationConfig.password,
-                      PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-                    },
-                  }
-                : {
-                    encoding: 'utf8' as const,
-                    stdio: 'ignore' as const,
-                  };
-
-              execSync(mysqlCommand, execOptions);
-            } catch (tableError) {
-              // If DROP fails, try TRUNCATE as fallback to at least clear the data
-              try {
-                const truncateQuery = `TRUNCATE TABLE ${table}`;
-                execSync(
-                  this.buildMigrationMysqlCommand(migrationConfig, [
-                    '-e',
-                    `'${truncateQuery}'`,
-                  ]),
-                  {
-                    encoding: 'utf8' as const,
-                    stdio: 'ignore',
-                    env: {
-                      ...process.env,
-                      MYSQL_PWD: migrationConfig.password,
-                      PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-                    },
-                  }
-                );
-                // Only show this message on the first successful truncate to avoid spam
-                if (batch.indexOf(table) === 0) {
-                  console.warn(
-                    chalk.yellow(
-                      `Note: DROP permission denied, using TRUNCATE to clear table data instead.`
-                    )
-                  );
-                }
-              } catch (truncateError) {
-                // If both DROP and TRUNCATE fail, it's likely a more serious permission issue
-                if (batch.indexOf(table) === 0) {
-                  console.warn(
-                    chalk.yellow(
-                      `Warning: Insufficient database permissions for cleanup. Migration completed but temporary tables remain in wp_migration database.`
-                    )
-                  );
-                }
-              }
-            }
-          }
-        }
-      }
-    } catch (error) {
-      // Don't fail the entire migration if cleanup fails - log warning and continue
-      console.warn(
-        chalk.yellow(
-          `Warning: Could not clean migration database: ${error instanceof Error ? error.message : 'Unknown error'}`
-        )
-      );
-    }
-  }
-
-  static async verifyMigrationDatabase(): Promise<boolean> {
-    const migrationConfig = Config.getMigrationDbConfig();
-
-    if (!Config.hasRequiredMigrationConfig()) {
-      return false;
-    }
-
-    try {
-      const tableCount = this.getTableCount(migrationConfig);
-      return tableCount === 0;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  private static getTableCount(dbConfig: {
-    host?: string;
-    port?: string;
-    user?: string;
-    password?: string;
-    database?: string;
-  }): number {
-    // Use direct MySQL query to get table count (much more efficient than WP-CLI)
-    try {
-      const query = 'SHOW TABLES';
-      let mysqlCommand: string;
-      let execOptions: any;
-
-      if (this.hasNativeMysqlClient()) {
-        const portArg = dbConfig.port ? `-P ${dbConfig.port}` : '';
-        mysqlCommand = `mysql -h ${dbConfig.host} ${portArg} -u ${dbConfig.user} ${dbConfig.database} -e "${query}" -s`;
-        execOptions = {
-          encoding: 'utf8' as const,
-          env: {
-            ...process.env,
-            MYSQL_PWD: dbConfig.password,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        };
-      } else {
-        const portArg = dbConfig.port ? `--port=${dbConfig.port}` : '';
-        mysqlCommand = `docker run --rm -e MYSQL_PWD="${dbConfig.password}" mysql:8.0 mysql -h "${dbConfig.host}" ${portArg} -u "${dbConfig.user}" "${dbConfig.database}" -e "${query}" -s`;
-        execOptions = { encoding: 'utf8' as const };
-      }
-
-      const output = execSync(mysqlCommand, execOptions);
-
-      const tables = output
-        .trim()
-        .split('\n')
-        .filter((table) => table.length > 0);
-      return tables.length;
-    } catch (error) {
-      return 0;
-    }
-  }
-
   static async sqlSearchReplace(
     environment: string,
     replacements: Array<{ from: string; to: string }>,
     siteId: string,
     verbose = false
   ): Promise<void> {
-    let envConfig;
-
-    if (environment === 'migration') {
-      envConfig = Config.getMigrationDbConfig();
-      if (!Config.hasRequiredMigrationConfig()) {
-        throw new Error('Migration database is not configured');
-      }
-    } else {
-      envConfig = Config.getEnvironmentConfig(environment);
-      if (!Config.hasRequiredEnvironmentConfig(environment)) {
-        throw new Error(`Environment '${environment}' is not configured`);
-      }
+    const envConfig = Config.getEnvironmentConfig(environment);
+    if (!Config.hasRequiredEnvironmentConfig(environment)) {
+      throw new Error(`Environment '${environment}' is not configured`);
     }
 
     // Get all tables for the site
@@ -1107,240 +817,6 @@ export class DatabaseOperations {
     } catch (error) {
       throw new Error(
         `Failed to get table count: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
-  }
-
-  static async exportCompleteLocalDatabase(
-    sourceEnv: string,
-    workDir: string,
-    verbose = false,
-    timeout = 20
-  ): Promise<ExportResult> {
-    const migrationConfig = Config.getMigrationDbConfig();
-
-    if (!Config.hasRequiredMigrationConfig()) {
-      throw new Error('Migration database is not configured');
-    }
-
-    const timestamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, '-')
-      .slice(0, 19);
-
-    const exportPath = require('path').join(
-      workDir,
-      `complete-local-database-${timestamp}.sql`
-    );
-
-    try {
-      if (verbose) {
-        console.log(
-          chalk.gray('Creating complete database dump for local import...')
-        );
-      }
-
-      let mysqldumpCommand: string;
-      let execOptions: any;
-
-      if (this.hasNativeMysqlClient()) {
-        const portArg = migrationConfig.port
-          ? `-P ${migrationConfig.port}`
-          : '';
-        mysqldumpCommand = [
-          'mysqldump',
-          '-h',
-          migrationConfig.host,
-          portArg,
-          '-u',
-          migrationConfig.user,
-          '--single-transaction',
-          '--routines',
-          '--triggers',
-          '--add-drop-table',
-          '--complete-insert',
-          '--hex-blob',
-          migrationConfig.database,
-        ]
-          .filter((arg) => arg && arg.length > 0)
-          .join(' ');
-
-        execOptions = {
-          encoding: 'utf8' as const,
-          stdio: ['ignore', 'pipe', 'pipe'],
-          timeout: timeout * 60 * 1000,
-          env: {
-            ...process.env,
-            MYSQL_PWD: migrationConfig.password,
-            PATH: `/opt/homebrew/opt/mysql-client/bin:${process.env.PATH}`,
-          },
-        };
-      } else {
-        const portArg = migrationConfig.port
-          ? `--port=${migrationConfig.port}`
-          : '';
-        mysqldumpCommand = [
-          'docker run --rm',
-          '-e',
-          `MYSQL_PWD="${migrationConfig.password}"`,
-          'mysql:8.0',
-          'mysqldump',
-          '-h',
-          `"${migrationConfig.host}"`,
-          portArg,
-          '-u',
-          `"${migrationConfig.user}"`,
-          '--single-transaction',
-          '--routines',
-          '--triggers',
-          '--add-drop-table',
-          '--complete-insert',
-          '--hex-blob',
-          `"${migrationConfig.database}"`,
-        ]
-          .filter((arg) => arg && arg.length > 0)
-          .join(' ');
-
-        execOptions = {
-          encoding: 'utf8' as const,
-          stdio: ['ignore', 'pipe', 'pipe'],
-          timeout: timeout * 60 * 1000,
-        };
-      }
-
-      const output = execSync(mysqldumpCommand, execOptions);
-
-      require('fs').writeFileSync(exportPath, output);
-
-      const stats = require('fs').statSync(exportPath);
-      const tableCount = this.countTablesInDump(output);
-
-      if (verbose) {
-        console.log(
-          chalk.green(
-            `✓ Exported ${tableCount} tables (${(stats.size / 1024 / 1024).toFixed(2)} MB)`
-          )
-        );
-      }
-
-      return {
-        filePath: exportPath,
-        tableCount,
-        fileSize: stats.size,
-      };
-    } catch (error) {
-      throw new Error(
-        `Failed to export complete database: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
-  }
-
-  static async compressDatabaseExport(
-    sqlFilePath: string,
-    verbose = false
-  ): Promise<string> {
-    const gzipPath = `${sqlFilePath}.gz`;
-
-    try {
-      if (verbose) {
-        console.log(chalk.gray('Compressing database export...'));
-      }
-
-      execSync(`gzip -9 "${sqlFilePath}"`, {
-        stdio: verbose ? 'inherit' : 'ignore',
-      });
-
-      const stats = require('fs').statSync(gzipPath);
-
-      if (verbose) {
-        console.log(
-          chalk.green(
-            `✓ Compressed to ${(stats.size / 1024 / 1024).toFixed(2)} MB`
-          )
-        );
-      }
-
-      return gzipPath;
-    } catch (error) {
-      throw new Error(
-        `Failed to compress database export: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
-    }
-  }
-
-  private static countTablesInDump(dumpContent: string): number {
-    const tableMatches = dumpContent.match(/CREATE TABLE/gi);
-    return tableMatches ? tableMatches.length : 0;
-  }
-
-  static async performLocalSearchReplace(
-    environment: string,
-    verbose = false
-  ): Promise<void> {
-    const envConfig = Config.getEnvironmentConfig(environment);
-    const migrationConfig = Config.getMigrationDbConfig();
-
-    if (!Config.hasRequiredMigrationConfig()) {
-      throw new Error('Migration database is not configured');
-    }
-
-    if (verbose) {
-      console.log(
-        chalk.gray('Performing search-replace for local environment...')
-      );
-    }
-
-    const host = envConfig.host || 'localhost';
-    const searchReplaceOperations = [
-      {
-        from: host.includes('prod') ? 'https://www.wfu.edu' : `https://${host}`,
-        to: 'http://localhost:8080',
-      },
-      {
-        from: host.includes('prod') ? 'www.wfu.edu' : host,
-        to: 'localhost:8080',
-      },
-    ];
-
-    try {
-      for (const operation of searchReplaceOperations) {
-        const wpCliArgs = [
-          'search-replace',
-          `"${operation.from}"`,
-          `"${operation.to}"`,
-          '--skip-columns=guid',
-          '--dry-run=false',
-          '--quiet',
-        ];
-
-        if (verbose) {
-          console.log(
-            chalk.gray(`  Replacing: ${operation.from} → ${operation.to}`)
-          );
-        }
-
-        const dockerCommand = [
-          'docker run --rm',
-          `-e WORDPRESS_DB_HOST="${migrationConfig.host}:${migrationConfig.port || 3306}"`,
-          `-e WORDPRESS_DB_USER="${migrationConfig.user}"`,
-          `-e WORDPRESS_DB_PASSWORD="${migrationConfig.password}"`,
-          `-e WORDPRESS_DB_NAME="${migrationConfig.database}"`,
-          'wordpress:cli',
-          'wp',
-          ...wpCliArgs,
-        ].join(' ');
-
-        execSync(dockerCommand, {
-          stdio: verbose ? 'inherit' : 'ignore',
-        });
-      }
-
-      if (verbose) {
-        console.log(chalk.green('✓ Search-replace operations completed'));
-      }
-    } catch (error) {
-      throw new Error(
-        `Search-replace failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     }
   }

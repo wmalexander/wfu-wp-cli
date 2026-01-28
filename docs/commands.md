@@ -24,116 +24,13 @@ Global Options:
 
 ## Commands
 
-### migrate - Database Migration
+### Database Migration
 
-Migrate WordPress multisite databases between environments with automated search-replace operations.
-
-```bash
-wfuwp migrate <siteId> --from <source> --to <target> [options]
-```
-
-#### Arguments
-- `siteId` - WordPress site ID (e.g., 43 for site wp_43_*)
-
-#### Required Options
-- `--from <env>` - Source environment (dev/uat/pprd/prod)
-- `--to <env>` - Target environment (dev/uat/pprd/prod)
-
-#### Optional Options
-- `--sync-s3` - Also sync WordPress files between S3 buckets
-- `--simple` - Use simple mode (Phase 1 behavior)
-- `--skip-backup` - Skip backing up target database
-- `--skip-s3` - Skip S3 archival of SQL files
-- `--keep-files` - Don't delete temporary SQL files
-- `--work-dir <path>` - Custom working directory
-- `--dry-run` - Show what would be done without executing
-- `--force` - Skip confirmation prompts
-
-#### Examples
-
-```bash
-# Full migration with all safety features
-wfuwp migrate 43 --from prod --to pprd
-
-# Include WordPress files sync
-wfuwp migrate 43 --from prod --to pprd --sync-s3
-
-# Simple mode (search-replace only)
-wfuwp migrate 43 --from prod --to pprd --simple
-
-# Skip backups (dangerous!)
-wfuwp migrate 43 --from prod --to pprd --skip-backup --force
-
-# Dry run to preview operations
-wfuwp migrate 43 --from prod --to pprd --dry-run
-```
-
-#### Migration Workflow
-1. Export site tables from source database
-2. Import tables to migration database
-3. Run search-replace operations
-4. Backup existing target tables
-5. Export migrated tables
-6. Import to target database
-7. Sync S3 files (if --sync-s3)
-8. Archive SQL files to S3/local
-9. Cleanup migration database
-
----
-
-### env-migrate - Complete Environment Migration
-
-Comprehensive WordPress multisite environment migration with complete automation, safety features, and S3 integration (Phase 2).
-
-```bash
-wfuwp env-migrate <source-env> <target-env> [options]
-```
-
-#### Arguments
-- `source-env` - Source environment (dev/uat/pprd/prod)
-- `target-env` - Target environment (dev/uat/pprd/prod/local)
-
-#### Core Options
-- `--dry-run` - Preview migration without executing changes
-- `-f, --force` - Skip confirmation prompts
-- `-v, --verbose` - Show detailed output and progress
-- `--network-only` - Migrate network tables only (no individual sites)
-- `--sites-only` - Migrate sites only (skip network tables)
-
-#### Site Selection
-- `--include-sites <list>` - Comma-separated list of site IDs to include
-- `--exclude-sites <list>` - Comma-separated list of site IDs to exclude
-- `--exclude-main-site` - Exclude the main site (site ID 1) from migration
-- `--active-only` - Only migrate active sites (not archived/deleted)
-
-#### Batch Processing
-- `--batch-size <size>` - Number of sites to process at once (default: 5)
-- `--parallel` - Process sites in parallel within batches
-- `--concurrency <limit>` - Maximum concurrent migrations (default: 3)
-
-#### Safety & Recovery
-- `--skip-backup` - Skip environment backup (dangerous, not recommended)
-- `--auto-rollback` - Automatically rollback on failure
-- `--max-retries <count>` - Maximum retry attempts for transient errors (default: 3)
-- `--health-check` - Perform comprehensive health checks
-
-#### Examples
-
-```bash
-# Complete environment migration
-wfuwp env-migrate prod uat
-
-# Specific sites with parallel processing
-wfuwp env-migrate prod pprd --include-sites "1,43,78" --parallel
-
-# Network tables only migration
-wfuwp env-migrate prod uat --network-only --force
-
-# Local development setup
-wfuwp env-migrate prod local --sync-s3 --verbose
-```
-
-See [wp-docs/env-migrate.md](../wp-docs/env-migrate.md) for comprehensive documentation.
+> **Note:** Database migration functionality has been moved to a dedicated tool: **wfu-migrate**
+>
+> Install it with: `npm install -g wfu-migrate`
+>
+> See the [wfu-migrate documentation](https://github.com/wmalexander/wfu-migrate) for usage.
 
 ---
 
@@ -743,9 +640,9 @@ wfuwp md2wpblock ./docs --output ./html --recursive
 
 ---
 
-### cleanup - Clean Up Migration Directories
+### cleanup - Clean Up Temporary Directories
 
-Clean up orphaned migration temporary directories and files.
+Clean up orphaned temporary directories and files.
 
 ```bash
 wfuwp cleanup [options]
@@ -758,7 +655,7 @@ wfuwp cleanup [options]
 
 #### Examples
 ```bash
-# Clean up old migration files
+# Clean up old temporary files
 wfuwp cleanup
 
 # Preview cleanup
@@ -770,44 +667,18 @@ wfuwp cleanup --older-than 7
 
 ---
 
-### migration-cleanup - Clean Migration State Records
-
-Clean up migration state records and legacy files from previous migration attempts.
-
-```bash
-wfuwp migration-cleanup [options]
-```
-
-#### Options
-- `--dry-run` - Preview what would be cleaned
-- `--force` - Skip confirmation prompts
-- `--migration-id <id>` - Clean specific migration ID
-
-#### Examples
-```bash
-# Clean up old migration state records
-wfuwp migration-cleanup
-
-# Clean specific migration
-wfuwp migration-cleanup --migration-id mig_20241201_143022
-```
-
----
-
 ## Command Aliases
 
 For convenience, several command aliases are available:
 
 ```bash
 # Shortcuts
-wfuwp m    # migrate
 wfuwp c    # config
 wfuwp s3   # syncs3
 wfuwp ips  # listips
 wfuwp ssh  # sshaws
 
 # Examples
-wfuwp m 43 --from prod --to pprd
 wfuwp c wizard
 wfuwp s3 --from prod --to uat
 wfuwp ips --filter Environment=prod

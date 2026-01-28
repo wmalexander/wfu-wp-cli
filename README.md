@@ -1,12 +1,20 @@
 # WFU WordPress CLI Tool
 
-A comprehensive command-line interface for managing WordPress multisite installations across multiple environments. Automates database migrations, S3 synchronization, EC2 management, and local development workflows.
+A comprehensive command-line interface for managing WordPress multisite installations across multiple environments. Automates S3 synchronization, EC2 management, and local development workflows.
 
 ## 📚 Documentation
 
 - **[Tool Introduction](wp-docs/wfuwp-introduction.md)** - What is wfuwp and how to get started
 - **Built-in Help System** - Use `wfuwp --help` and `wfuwp docs --list` for complete, current documentation
 - **[Developer Documentation](docs/)** - Technical architecture and development guides
+
+## Database Migration
+
+> **Note:** Database migration functionality has been moved to a dedicated tool: **wfu-migrate**
+>
+> Install it with: `npm install -g wfu-migrate`
+>
+> See the [wfu-migrate documentation](https://github.com/wmalexander/wfu-migrate) for usage.
 
 ## Installation
 
@@ -187,13 +195,7 @@ wfuwp config list
 wfuwp config reset
 ```
 
-**Configuration Keys (Phase 1 - Single Database):**
-- `migration.host`: Migration database hostname
-- `migration.user`: Migration database username
-- `migration.password`: Migration database password (encrypted when stored)
-- `migration.database`: Migration database name
-
-**Multi-Environment Configuration (Phase 2 - env-migrate):**
+**Multi-Environment Configuration:**
 - `environments.dev.host`: Development database hostname
 - `environments.dev.user`: Development database username
 - `environments.dev.password`: Development database password (encrypted)
@@ -222,13 +224,7 @@ wfuwp config reset
 **Examples:**
 
 ```bash
-# Phase 1 Migration Database Setup
-wfuwp config set migration.host migration-db.wfu.edu
-wfuwp config set migration.user wp_admin
-wfuwp config set migration.password secretpassword123
-wfuwp config set migration.database wp_migration
-
-# Phase 2 Multi-Environment Setup (Interactive Wizard Recommended)
+# Multi-Environment Setup (Interactive Wizard Recommended)
 wfuwp config wizard
 
 # Manual Multi-Environment Configuration
@@ -245,7 +241,7 @@ wfuwp config set environments.uat.database wp_uat
 # S3 Configuration for Backup Archival
 wfuwp config set s3.bucket wfu-wp-backups
 wfuwp config set s3.region us-east-1
-wfuwp config set s3.prefix migrations
+wfuwp config set s3.prefix backups
 
 # Local Backup Alternative
 wfuwp config set backup.localPath /path/to/local/backups
@@ -338,233 +334,6 @@ wfuwp clickup tasks --export csv
 
 **📖 Detailed Documentation:** See [wp-docs/clickup.md](wp-docs/clickup.md) for comprehensive usage instructions, batch operations, export formats, and troubleshooting.
 
-#### `migrate` - Migrate WordPress multisite database between environments (Phase 1)
-
-Migrates WordPress multisite database content between environments by performing URL and path replacements. Integrates with WP-CLI for reliable database operations.
-
-**📋 Complete Migration Available:** For automated environment migration with all safety features, see `env-migrate` command below.
-
-#### `env-migrate` - Complete Environment Migration (Phase 2)
-
-Comprehensive WordPress multisite environment migration with complete automation, safety features, and S3 integration. Migrates entire environments or specific sites with full orchestration.
-
-**✅ Phase 2 Features:**
-- Complete automated workflow with export/import/archival
-- Multi-environment configuration support
-- Network table migration between environments
-- Automatic safety backups and rollback capability
-- S3 archival with configurable storage classes
-- WordPress file synchronization between environments
-- Batch processing with parallel execution
-- Comprehensive error recovery and retry logic
-- Pre-flight validation and health checks
-
-```bash
-wfuwp env-migrate <source-env> <target-env> [options]
-```
-
-**Arguments:**
-- `source-env`: Source environment (`dev`, `uat`, `pprd`, `prod`)
-- `target-env`: Target environment (`dev`, `uat`, `pprd`, `prod`, `local`)
-
-**Core Options:**
-- `--dry-run`: Preview migration without executing changes
-- `-f, --force`: Skip confirmation prompts
-- `-v, --verbose`: Show detailed output and progress
-- `--network-only`: Migrate network tables only (no individual sites)
-- `--sites-only`: Migrate sites only (skip network tables)
-
-**Site Selection:**
-- `--include-sites <list>`: Comma-separated list of site IDs to include
-- `--exclude-sites <list>`: Comma-separated list of site IDs to exclude
-- `--active-only`: Only migrate active sites (not archived/deleted)
-
-**Batch Processing:**
-- `--batch-size <size>`: Number of sites to process at once (default: 5)
-- `--parallel`: Process sites in parallel within batches
-- `--concurrency <limit>`: Maximum concurrent migrations when using --parallel (default: 3)
-
-**Safety & Recovery:**
-- `--skip-backup`: Skip environment backup (dangerous, not recommended)
-- `--auto-rollback`: Automatically rollback on failure
-- `--max-retries <count>`: Maximum retry attempts for transient errors (default: 3)
-- `--health-check`: Perform comprehensive health checks before migration
-
-**S3 Integration:**
-- `--skip-s3`: Skip S3 archival of migration files
-- `--sync-s3`: Sync WordPress files between S3 environments
-- `--s3-storage-class <class>`: S3 storage class for archives (STANDARD|STANDARD_IA|GLACIER, default: STANDARD_IA)
-- `--archive-backups`: Also archive backup files to S3
-
-**Advanced Options:**
-- `--work-dir <path>`: Custom working directory for temporary files
-- `--keep-files`: Do not delete local SQL files after migration
-- `--timeout <minutes>`: Custom timeout for large databases (default: 20)
-
-**Examples:**
-
-```bash
-# Complete environment migration with confirmation
-wfuwp env-migrate prod uat
-
-# Dry run to preview full migration
-wfuwp env-migrate prod uat --dry-run --verbose
-
-# Migrate specific sites with parallel processing
-wfuwp env-migrate prod pprd --include-sites "1,43,78" --parallel --concurrency 5
-
-# Network tables only migration
-wfuwp env-migrate prod uat --network-only --force
-
-# Full migration with S3 file sync and archival
-wfuwp env-migrate prod pprd --sync-s3 --archive-backups --s3-storage-class GLACIER
-
-# Batch migration with custom settings
-wfuwp env-migrate dev uat --batch-size 10 --parallel --max-retries 5 --timeout 30
-
-# Active sites only with safety features
-wfuwp env-migrate prod pprd --active-only --auto-rollback --health-check
-
-# Local environment migration (prod to local development)
-wfuwp env-migrate prod local --sync-s3 --verbose
-```
-
-**📍 Local Environment Support:**
-
-The `local` environment is a special target designed for local development setups:
-
-- **Supported Migration:** Only `prod → local` migrations are allowed
-- **Domain Transformation:** Converts production domains (e.g., `wordpress.wfu.edu` → `wordpress.wfu.local`)
-- **S3 File Sync:** For `--sync-s3`, files are synced from prod S3 to dev S3 (not to a local S3 bucket)
-- **Use Case:** Set up local development environments with production data
-
-**Local Environment Restrictions:**
-- ❌ `local` cannot be used as a source environment
-- ❌ Only `prod → local` migration path is supported
-- ❌ Other combinations like `dev → local`, `uat → local` are not allowed
-
-**Local Environment Example:**
-```bash
-# Migrate production data to local development environment
-wfuwp env-migrate prod local --sync-s3 --include-sites "1,43" --verbose
-```
-
-**Migration Workflow:**
-
-1. **Pre-flight Validation**
-   - System requirements check (MySQL, WP-CLI, AWS CLI, Docker)
-   - Database connection validation for all environments
-   - S3 access verification (if enabled)
-   - Site existence and consistency checks
-
-2. **Environment Backup**
-   - Complete backup of target environment
-   - Backup integrity validation
-   - S3 archival of backup files (if configured)
-
-3. **Site Enumeration & Selection**
-   - Discover all sites in source environment
-   - Apply filters (include/exclude lists, active-only)
-   - Site validation and consistency checks
-
-4. **Network Table Migration**
-   - Export network tables (wp_blogs, wp_site, wp_sitemeta, wp_blogmeta)
-   - Transform domains and URLs for target environment
-   - Import to target environment with validation
-
-5. **Site Migration (Batch Processing)**
-   - Process sites in configurable batches
-   - Parallel processing within batches (optional)
-   - Progress tracking with real-time updates
-   - Error recovery and retry for transient failures
-
-6. **WordPress File Synchronization (Optional)**
-   - Sync uploads and theme files between S3 environments
-   - Progress tracking and error handling
-   - Validation of file transfer integrity
-
-7. **Post-Migration Validation & Archival**
-   - Health checks on migrated environment
-   - Archive all migration artifacts to S3
-   - Cleanup of temporary files (unless --keep-files)
-   - Migration summary and reporting
-
-**Prerequisites:**
-- Multi-environment configuration (see Configuration section below)
-- Docker (for WP-CLI operations)
-- AWS CLI (for S3 operations)
-- Sufficient disk space for temporary files
-- Network access to all configured databases
-
-**Safety Features:**
-- Automatic environment backup before migration
-- Pre-flight validation prevents invalid configurations
-- Rollback capability with --auto-rollback
-- Retry logic for transient network/database errors
-- Comprehensive logging and error reporting
-- Dry-run mode for testing migration plans
-
-#### `migrate` - Single Site Migration (Phase 1)
-
-**Arguments:**
-- `site-id`: Numeric site identifier for the multisite installation (e.g., 43)
-
-**Required Options:**
-- `--from <env>`: Source environment (`dev`, `uat`, `pprd`, `prod`)
-- `--to <env>`: Target environment (`dev`, `uat`, `pprd`, `prod`, `local`)
-
-**Optional Flags:**
-- `--dry-run`: Preview changes without executing them
-- `-f, --force`: Skip confirmation prompts
-- `-v, --verbose`: Show detailed output including all WP-CLI commands
-- `--homepage`: Include homepage tables (default: exclude for non-homepage sites)
-- `--custom-domain <source:target>`: Additional custom domain replacement
-- `--log-dir <path>`: Custom log directory (default: `./logs`)
-
-**Supported Migration Paths:**
-- `prod` ↔ `pprd` (production to/from pre-production)
-- `dev` ↔ `uat` (development to/from user acceptance testing)
-- `prod` → `local` (production to local development environment)
-
-**Examples:**
-
-```bash
-# Basic migration with confirmation prompt
-wfuwp migrate 43 --from uat --to pprd
-
-# Dry run to preview changes
-wfuwp migrate 43 --from prod --to pprd --dry-run
-
-# Force migration without confirmation
-wfuwp migrate 15 --from pprd --to prod --force
-
-# Migration with custom domain replacement
-wfuwp migrate 22 --from dev --to uat --custom-domain "oldsite.wfu.edu:newsite.wfu.edu"
-
-# Homepage migration with verbose output
-wfuwp migrate 1 --from prod --to pprd --homepage --verbose
-
-# Custom log directory
-wfuwp migrate 43 --from uat --to pprd --log-dir /custom/logs
-
-# Migrate to local development environment
-wfuwp migrate 43 --from prod --to local --verbose
-```
-
-**Prerequisites:**
-- Database configuration must be set using `wfuwp config` commands
-- WP-CLI must be installed and accessible in PATH
-- Appropriate database access permissions for the configured user
-- **Phase 1**: Tables must be manually imported into migration database before running
-
-**Migrate Command Workflow (Phase 1):**
-1. Requires manual export/import of site tables
-2. Performs automated URL and path replacements
-3. Handles search-replace operations via WP-CLI
-4. Integrates with single migration database
-
-**Note:** For fully automated workflows including export/import, use `env-migrate` command.
-
 #### `local` - Local Development Environment Management
 
 Complete local development environment management for WFU WordPress sites with DDEV integration, domain management, and automated setup workflows.
@@ -654,10 +423,6 @@ wfuwp db list
 wfuwp --help                    # See all commands
 wfuwp docs --list               # Browse documentation topics
 wfuwp docs getting-started      # Detailed setup guide
-
-# 6. Your first migration (Phase 2)
-wfuwp env-migrate prod pprd --dry-run  # Preview first
-wfuwp env-migrate prod pprd            # Then execute
 ```
 
 ## Safety Features
@@ -668,17 +433,16 @@ wfuwp env-migrate prod pprd            # Then execute
 - Source and destination environments cannot be the same
 
 ### Confirmation Prompts
-- Interactive confirmation before executing sync and migration operations
+- Interactive confirmation before executing sync operations
 - Use `--force` flag to bypass confirmations in automated scripts
 
 ### Dry Run Mode
-- Use `--dry-run` to preview what files would be synced or what database changes would be made
+- Use `--dry-run` to preview what files would be synced
 - No actual changes are made in dry-run mode
 
 ### Secure Configuration Storage
 - Database passwords are encrypted when stored locally
 - Configuration files are stored in user's home directory (`~/.wfuwp/config.json`)
-- WP-CLI commands mask passwords in verbose output
 
 ### AWS CLI Verification
 - Checks if AWS CLI is installed and accessible
@@ -705,15 +469,6 @@ wfuwp env-migrate prod pprd            # Then execute
 - Set up database connection using `wfuwp config set` commands
 - Ensure all required fields are configured: host, user, password, name
 
-**"WP-CLI is not installed or not in PATH"**
-- Install WP-CLI: https://wp-cli.org/
-- Ensure it's accessible in your system PATH
-- Test with `wp --version`
-
-**"Migration path [env] -> [env] is not supported"**
-- Use supported migration paths: prod↔pprd, dev↔uat
-- Check that both environments are valid: dev, uat, pprd, prod
-
 ### Getting Help
 
 ```bash
@@ -723,7 +478,6 @@ wfuwp --help
 # Command-specific help
 wfuwp syncs3 --help
 wfuwp config --help
-wfuwp migrate --help
 
 # Display version
 wfuwp --version
@@ -760,8 +514,7 @@ wfu-wp-cli/
 │   │   ├── listips.ts    # EC2 IP listing command
 │   │   ├── sshaws.ts     # SSH connection command
 │   │   ├── removehostkey.ts # SSH host key removal command
-│   │   ├── config.ts     # Configuration management command
-│   │   └── migrate.ts    # Database migration command
+│   │   └── config.ts     # Configuration management command
 │   ├── utils/
 │   │   └── config.ts     # Configuration storage utilities
 │   └── index.ts          # Main CLI entry point

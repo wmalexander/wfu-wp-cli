@@ -4,8 +4,6 @@ This guide provides troubleshooting steps for each wfuwp command.
 
 ## Table of Contents
 
-- [migrate](#migrate-command)
-- [env-migrate](#env-migrate-command)
 - [config](#config-command)
 - [db](#db-command)
 - [restore](#restore-command)
@@ -17,157 +15,13 @@ This guide provides troubleshooting steps for each wfuwp command.
 
 ---
 
-## migrate Command
+## Database Migration
 
-### Error: "Database configuration incomplete"
-
-**Symptom:**
-```
-Error: Environment 'prod' is not configured
-```
-
-**Solution:**
-```bash
-# Run configuration wizard
-wfuwp config wizard
-
-# Or set manually
-wfuwp config set env.prod.host prod-db.wfu.edu
-wfuwp config set env.prod.user wp_user
-wfuwp config set env.prod.password --prompt
-wfuwp config set env.prod.database wp_production
-```
-
-### Error: "Site tables not found"
-
-**Symptom:**
-```
-Error: No tables found for site 43 in source database
-```
-
-**Solutions:**
-1. Verify site ID exists:
-   ```bash
-   wfuwp db test prod
-   # Check if wp_43_* tables exist
-   ```
-
-2. For main site (ID 1), tables don't have numeric prefix:
-   ```bash
-   wfuwp migrate 1 --from prod --to pprd --homepage
-   ```
-
-### Error: "Migration database connection failed"
-
-**Symptom:**
-```
-Error: Cannot connect to migration database
-```
-
-**Solution:**
-```bash
-# Configure migration database
-wfuwp config set migration.host migration-db.wfu.edu
-wfuwp config set migration.user wp_migration
-wfuwp config set migration.password --prompt
-wfuwp config set migration.database wp_migration
-
-# Test connection
-wfuwp db test migration
-```
-
-### Error: "S3 sync failed"
-
-**Symptom:**
-```
-Error: AWS CLI failed to sync files
-```
-
-**Solutions:**
-1. Check AWS credentials:
-   ```bash
-   aws configure list
-   aws s3 ls
-   ```
-
-2. Verify S3 bucket access:
-   ```bash
-   aws s3 ls s3://wfu-wordpress-prod/
-   ```
-
-3. Skip S3 sync if not needed:
-   ```bash
-   wfuwp migrate 43 --from prod --to pprd --skip-s3
-   ```
-
----
-
-## env-migrate Command
-
-### Error: "Pre-flight validation failed"
-
-**Symptom:**
-```
-Error: Pre-flight checks failed: Docker not found
-```
-
-**Solutions:**
-1. Install missing dependencies:
-   ```bash
-   # macOS
-   brew install --cask docker
-   open -a Docker
-   
-   # Linux
-   sudo apt-get install docker.io
-   sudo systemctl start docker
-   ```
-
-2. Verify all requirements:
-   ```bash
-   docker --version
-   aws --version
-   wp --version
-   ```
-
-### Error: "Site enumeration failed"
-
-**Symptom:**
-```
-Error: Failed to enumerate sites from source environment
-```
-
-**Solution:**
-```bash
-# Test source database connection
-wfuwp db test prod
-
-# Try with specific sites instead
-wfuwp env-migrate prod uat --include-sites "1,43,78"
-```
-
-### Error: "Batch processing timeout"
-
-**Symptom:**
-```
-Error: Batch 3 failed after maximum retries
-```
-
-**Solutions:**
-1. Reduce batch size:
-   ```bash
-   wfuwp env-migrate prod uat --batch-size 2
-   ```
-
-2. Increase timeout:
-   ```bash
-   wfuwp env-migrate prod uat --timeout 60
-   ```
-
-3. Skip problematic sites:
-   ```bash
-   wfuwp env-migrate prod uat --exclude-sites "99,105"
-   ```
+> **Note:** Database migration functionality has been moved to a dedicated tool: **wfu-migrate**
+>
+> Install it with: `npm install -g wfu-migrate`
+>
+> For migration troubleshooting, see the [wfu-migrate documentation](https://github.com/wmalexander/wfu-migrate).
 
 ---
 
@@ -564,7 +418,7 @@ npm update -g wfuwp
 ### Enable Debug Mode
 ```bash
 export WFUWP_DEBUG=true
-wfuwp migrate 43 --from prod --to pprd --verbose
+wfuwp db test prod --verbose
 ```
 
 ### Check System Requirements
