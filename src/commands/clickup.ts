@@ -1221,12 +1221,14 @@ export const clickupCommand = new Command('clickup')
       .argument('<task-id>', 'Task ID to retrieve comments from')
       .option('--start <number>', 'Pagination start point')
       .option('--start-id <id>', 'Start from specific comment ID')
+      .option('--no-replies', 'Skip fetching threaded replies')
       .action(
         async (
           taskId: string,
           options: {
             start?: string;
             startId?: string;
+            replies: boolean;
           }
         ) => {
           try {
@@ -1254,7 +1256,8 @@ export const clickupCommand = new Command('clickup')
             }
             console.log(chalk.blue.bold(`Comments for Task ${taskId}:`));
             console.log('');
-            comments.forEach((comment: any, index: number) => {
+            for (let index = 0; index < comments.length; index++) {
+              const comment = comments[index];
               console.log(chalk.cyan(`Comment #${index + 1}:`));
               console.log(`  ${chalk.white('ID:')} ${comment.id}`);
               if (comment.user) {
@@ -1278,8 +1281,30 @@ export const clickupCommand = new Command('clickup')
                   .join(', ');
                 console.log(`  ${chalk.white('Reactions:')} ${reactions}`);
               }
+              if (options.replies && comment.reply_count > 0) {
+                const replyData = await client.getCommentReplies(comment.id);
+                const replies = replyData.comments || replyData.replies || [];
+                replies.forEach((reply: any) => {
+                  console.log(`    ${chalk.magenta('↳ Reply:')}`);
+                  if (reply.user) {
+                    console.log(
+                      `      ${chalk.white('Author:')} ${reply.user.username} (${reply.user.email})`
+                    );
+                  }
+                  if (reply.date) {
+                    const replyDate = new Date(parseInt(reply.date)).toLocaleString();
+                    console.log(`      ${chalk.white('Date:')} ${replyDate}`);
+                  }
+                  if (reply.comment && reply.comment.length > 0) {
+                    const replyText = reply.comment
+                      .map((c: any) => c.text || '')
+                      .join('');
+                    console.log(`      ${chalk.white('Comment:')} ${replyText}`);
+                  }
+                });
+              }
               console.log('');
-            });
+            }
             console.log(chalk.gray(`Showing ${comments.length} comments`));
           } catch (error) {
             console.error(

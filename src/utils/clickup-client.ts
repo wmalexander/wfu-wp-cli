@@ -377,6 +377,13 @@ export class ClickUpClient {
     return response.data;
   }
 
+  async getCommentReplies(commentId: string): Promise<any> {
+    const response = await this.retryWithExponentialBackoff(() =>
+      this.api.get(`/comment/${commentId}/reply`)
+    );
+    return response.data;
+  }
+
   async createTaskComment(
     taskId: string,
     commentData: {
