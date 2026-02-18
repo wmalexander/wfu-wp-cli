@@ -8,6 +8,12 @@ A comprehensive command-line interface for managing WordPress multisite installa
 - **Built-in Help System** - Use `wfuwp --help` and `wfuwp docs --list` for complete, current documentation
 - **[Developer Documentation](docs/)** - Technical architecture and development guides
 
+## Documentation
+
+- [Developer Guide](documentation/DEVELOPER_GUIDE.md) — Architecture, APIs, and contribution guidelines
+- [Admin Guide](documentation/ADMIN_GUIDE.md) — Configuration and usage for WordPress admins
+- [User Guide](documentation/USER_GUIDE.md) — Features visible to website visitors
+
 ## Database Migration
 
 > **Note:** Database migration functionality has been moved to a dedicated tool: **wfu-migrate**

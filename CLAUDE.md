@@ -5,6 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 This is a Node.js CLI tool (`wfuwp`) for WFU WordPress management tasks, including complete database migration workflows, S3 synchronization, EC2 instance management, and DNS spoofing for development. **Phase 2** implements automated database migration with export/import/archival and comprehensive environment migration capabilities.
 
+## Documentation Maintenance
+
+This repository maintains audience-specific documentation in the `documentation/` directory:
+
+- `DEVELOPER_GUIDE.md` — Technical reference for developers
+- `ADMIN_GUIDE.md` — Usage guide for WordPress admins / operational users
+- `USER_GUIDE.md` — Feature guide for frontend visitors
+
+**PR Requirement:** Every pull request that changes functionality, adds features, fixes bugs, or modifies configuration must include corresponding updates to the relevant documentation files. Reviewers should verify documentation accuracy as part of the PR review process.
+
 ## Development Commands
 ```bash
 npm run build        # Compile TypeScript to dist/

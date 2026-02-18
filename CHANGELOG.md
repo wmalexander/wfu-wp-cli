@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-02-26
+
+### Added
+
+- Adding comprehensive developer documentation covering architecture, APIs, and contribution guidelines
+- Adding WordPress admin guide with configuration and usage instructions
+- Adding frontend user guide documenting visitor-facing features
+- Adding documentation maintenance requirements to CLAUDE.md and README.md
+
 ## [0.27.0] - 2026-02-12
 
 ### Added
