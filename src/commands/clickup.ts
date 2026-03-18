@@ -583,7 +583,8 @@ export const clickupCommand = new Command('clickup')
   .addCommand(
     new Command('tasks')
       .description('List tasks from a ClickUp list with filtering options')
-      .option('--list <list-id>', 'List ID to get tasks from')
+      .option('--list <list-id>', 'List ID to get tasks from (omit to search workspace-wide)')
+      .option('--space <space-id>', 'Filter workspace-wide search to a specific space')
       .option('--status <statuses>', 'Filter by comma-separated status names')
       .option('--assignee <assignees>', 'Filter by comma-separated user IDs')
       .option('--tag <tags>', 'Filter by comma-separated tag names')
@@ -628,6 +629,7 @@ export const clickupCommand = new Command('clickup')
       .action(
         async (options: {
           list?: string;
+          space?: string;
           status?: string;
           assignee?: string;
           tag?: string;
@@ -657,14 +659,12 @@ export const clickupCommand = new Command('clickup')
             const { TaskFormatter } = await import('../utils/task-formatter');
             const client = new ClickUpClient();
             let listId = options.list;
+            const useWorkspaceWide = !listId;
             if (!listId) {
               const defaultListId = Config.get('clickup.defaultListId');
-              if (!defaultListId) {
-                throw new Error(
-                  'No list ID provided and no default list configured. Use --list <list-id> or configure a default with: wfuwp clickup config set defaultListId <list-id>'
-                );
+              if (defaultListId) {
+                listId = defaultListId;
               }
-              listId = defaultListId;
             }
             if (options.myTasks && !options.assignee) {
               try {
@@ -764,7 +764,35 @@ export const clickupCommand = new Command('clickup')
               }
               filterOptions.page = pageNum;
             }
-            const response = await client.getTasks(listId, filterOptions);
+            let response;
+            if (useWorkspaceWide && !listId) {
+              let workspaceId: string = Config.get('clickup.defaultWorkspaceId') || '';
+              if (!workspaceId) {
+                const workspaces = await client.getWorkspaces();
+                if (!workspaces.teams || workspaces.teams.length === 0) {
+                  throw new Error('No ClickUp workspaces found.');
+                }
+                workspaceId = workspaces.teams[0].id;
+              }
+              const teamFilterOptions: any = { ...filterOptions };
+              if (options.space) {
+                teamFilterOptions.spaceIds = [options.space];
+              }
+              console.log(
+                chalk.gray('Searching across workspace (no --list specified)...')
+              );
+              response = await client.getFilteredTeamTasks(
+                workspaceId,
+                teamFilterOptions
+              );
+            } else {
+              if (!listId) {
+                throw new Error(
+                  'No list ID provided and no default list configured. Use --list <list-id>, configure a default with: wfuwp clickup config set defaultListId <list-id>, or omit --list to search workspace-wide.'
+                );
+              }
+              response = await client.getTasks(listId, filterOptions);
+            }
             let tasks = response.tasks || [];
             // Client-side subtask filtering when --my-tasks and --include-subtasks are combined
             // The API returns all subtasks but doesn't filter them by assignee
@@ -851,8 +879,11 @@ export const clickupCommand = new Command('clickup')
                 process.exit(1);
               }
             }
+            const headerLabel = useWorkspaceWide && !listId
+              ? 'Tasks from Workspace'
+              : 'Tasks from List';
             console.log(
-              chalk.blue.bold(`Tasks from List (Page ${options.page || '1'}):`)
+              chalk.blue.bold(`${headerLabel} (Page ${options.page || '1'}):`)
             );
             console.log('');
             TaskFormatter.formatTaskList(tasks);

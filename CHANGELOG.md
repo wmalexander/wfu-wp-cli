@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-03-18
+
+### Added
+
+- Adding workspace-wide task filtering to `clickup tasks` command when no `--list` is specified
+- Adding `--space` flag to scope workspace-wide searches to a specific space
+- Adding `getFilteredTeamTasks` method to ClickUp client using the filtered team tasks API endpoint
+
 ## [0.28.0] - 2026-02-26
 
 ### Added
