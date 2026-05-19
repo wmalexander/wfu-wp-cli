@@ -667,6 +667,76 @@ wfuwp cleanup --older-than 7
 
 ---
 
+### maintenance - Down/Maintenance Page Control
+
+Control the wfu.edu down/maintenance page. This is an Application Load Balancer
+switch (a tagged fixed-response listener rule), not a WordPress plugin. When ON,
+every visitor sees the page except the app loopback and any explicit bypass IPs.
+
+```bash
+wfuwp maintenance <subcommand> --env <dev|uat|pprd|prod>
+```
+
+#### Subcommands
+
+##### status
+Show whether the page is ON or OFF for an environment, which page is showing,
+any bypass IPs, and a live verification of the public URL.
+
+##### on
+Turn the page ON. Captures the current OFF state to S3 first so `off` can
+restore it exactly.
+- `-p, --page <maintenance|down>` - Which page to show (default: `maintenance`).
+  `maintenance` = planned-work message; `down` = full unplanned-outage page.
+- `--allow-me` - Also add your current public IP to the bypass rule
+  (unavailable on prod).
+- `-y, --yes` - Skip the confirmation prompt (prod requires typing `prod`).
+
+##### off
+Turn the page OFF, restore the captured pre-maintenance state, and clear the
+bypass rule so what you see is what the public sees.
+
+##### allow-me / revoke-me
+Add or clear your current public IP on the bypass rule so you can reach the
+real site while the page is ON for everyone else. Not available on prod.
+
+##### init
+Provision the standardized loopback/bypass/maintenance ALB rules. Allowed only
+on `dev` and `uat`; refuses `pprd` and `prod`.
+
+#### Options
+- `-e, --env <env>` - Target environment (required; `dev`, `uat`, `pprd`, `prod`)
+
+#### Examples
+```bash
+# Check status
+wfuwp maintenance status --env prod
+
+# Planned maintenance window on prod (confirmation required)
+wfuwp maintenance on --env prod --page maintenance
+
+# Unplanned outage page
+wfuwp maintenance on --env prod --page down
+
+# Work on the site while everyone else sees the page (non-prod)
+wfuwp maintenance on --env uat --allow-me
+
+# Bring it back online (also clears any bypass)
+wfuwp maintenance off --env prod
+
+# One-time setup of the ALB rules on a non-prod env
+wfuwp maintenance init --env dev
+```
+
+#### Notes
+- prod and pprd are already standardized; `init` is only for dev/uat.
+- prod has no bypass rule by design, so `--allow-me`/`allow-me` are disabled
+  there and prod is never modified structurally by this command.
+- The two pages are shared across all environments:
+  `wakealert.wfu.edu/downpage/maintenance-mode.html` and `.../downpage.html`.
+
+---
+
 ## Command Aliases
 
 For convenience, several command aliases are available:

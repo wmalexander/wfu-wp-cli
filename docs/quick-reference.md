@@ -99,6 +99,22 @@ wfuwp clickup tasks --my-tasks    # List your tasks
 wfuwp clickup create "Fix bug"    # Create task
 ```
 
+### 🚧 Down / Maintenance Page
+```bash
+# Check status
+wfuwp maintenance status --env prod
+
+# Turn ON (planned work = default; unplanned outage = --page down)
+wfuwp maintenance on --env prod
+wfuwp maintenance on --env prod --page down
+
+# Reach the site yourself while it is ON (non-prod only)
+wfuwp maintenance on --env uat --allow-me
+
+# Bring it back online (also clears bypass)
+wfuwp maintenance off --env prod
+```
+
 ## Environment Names
 
 | Environment | Description | Common Use |
