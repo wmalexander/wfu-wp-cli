@@ -20,6 +20,7 @@ A Claude Code skill that drives the `wfuwp maintenance` command (the
 wfu.edu down/maintenance page switch) with built-in preflight gates.
 
 - **Source of truth (version controlled):** [`skills/wfu-maintenance/SKILL.md`](skills/wfu-maintenance/SKILL.md)
+- **Distributed via the WFU internal S3 bucket:** `s3://wfu-umc-wp-team-internal-docs/skills/wfu-maintenance/SKILL.md` (the same private, account-scoped bucket the docs wiki uses; downloading it requires an authenticated WFU AWS session, which the skill needs anyway).
 - The skill enforces, before any action: `wfuwp` installed and
   **>= 0.30.0** (auto-updates via `npm i -g wfuwp@latest` if not), AWS
   CLI installed, and an authenticated AWS session for the WFU account
@@ -27,21 +28,32 @@ wfu.edu down/maintenance page switch) with built-in preflight gates.
 
 ### Install the skill
 
-This repo is public, so the skill installs straight from `raw`. Paste
-this to Claude Code:
+You need an authenticated AWS session for the WFU account first
+(`aws sso login`). Paste this to Claude Code:
 
-> Download `https://raw.githubusercontent.com/wmalexander/wfu-wp-cli/main/skills/wfu-maintenance/SKILL.md` and save it to `~/.claude/skills/wfu-maintenance/SKILL.md` (create the directory if needed), then confirm it is installed.
+> Run `aws s3 cp s3://wfu-umc-wp-team-internal-docs/skills/wfu-maintenance/SKILL.md ~/.claude/skills/wfu-maintenance/SKILL.md` (create the `~/.claude/skills/wfu-maintenance/` directory first if needed), then confirm the skill is installed.
 
 Or run it directly:
 
 ```bash
 mkdir -p ~/.claude/skills/wfu-maintenance && \
-curl -fsSL https://raw.githubusercontent.com/wmalexander/wfu-wp-cli/main/skills/wfu-maintenance/SKILL.md \
-  -o ~/.claude/skills/wfu-maintenance/SKILL.md
+aws s3 cp s3://wfu-umc-wp-team-internal-docs/skills/wfu-maintenance/SKILL.md \
+  ~/.claude/skills/wfu-maintenance/SKILL.md
 ```
 
 To update the skill later, re-run the same command (it overwrites with
-the latest tracked version on `main`).
+the latest published version).
+
+### Publishing the skill (maintainers)
+
+The repo is the source of truth; the S3 copy is the distribution mirror.
+After changing `skills/wfu-maintenance/SKILL.md` on `main`, publish it:
+
+```bash
+aws s3 cp skills/wfu-maintenance/SKILL.md \
+  s3://wfu-umc-wp-team-internal-docs/skills/wfu-maintenance/SKILL.md \
+  --content-type text/markdown
+```
 
 ## Database Migration
 
