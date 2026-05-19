@@ -1,23 +1,30 @@
 import { Command } from 'commander';
-import { cleanLowerEnvsCommand } from '../../src/commands/clean-lower-envs';
-import { Config } from '../../src/utils/config';
-import { DatabaseOperations } from '../../src/utils/database';
-import { EnvironmentCleanupService } from '../../src/utils/environment-cleanup';
 
 jest.mock('../../src/utils/config');
 jest.mock('../../src/utils/database');
 jest.mock('../../src/utils/environment-cleanup');
 
-const mockConfig = Config as jest.Mocked<typeof Config>;
-const mockDatabaseOperations = DatabaseOperations as jest.Mocked<typeof DatabaseOperations>;
-const mockCleanupService = EnvironmentCleanupService as jest.Mocked<typeof EnvironmentCleanupService>;
+// cleanLowerEnvsCommand is a commander singleton that retains parsed option
+// state across parses; re-require a fresh module graph per test to isolate it.
+let cleanLowerEnvsCommand: any;
+let mockConfig: any;
+let mockDatabaseOperations: any;
+let mockCleanupService: any;
 
 describe('clean-lower-envs command', () => {
   let consoleSpy: jest.SpyInstance;
   let processExitSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetModules();
+    cleanLowerEnvsCommand =
+      require('../../src/commands/clean-lower-envs').cleanLowerEnvsCommand;
+    mockConfig = require('../../src/utils/config').Config;
+    mockDatabaseOperations =
+      require('../../src/utils/database').DatabaseOperations;
+    mockCleanupService =
+      require('../../src/utils/environment-cleanup').EnvironmentCleanupService;
+
     consoleSpy = jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
     processExitSpy = jest.spyOn(process, 'exit').mockImplementation();
@@ -50,7 +57,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs']);
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('DRY RUN MODE'));
     expect(mockCleanupService.performEnvironmentCleanup).not.toHaveBeenCalled();
@@ -86,7 +93,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--execute', '--force'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--execute', '--force']);
 
     expect(mockCleanupService.performEnvironmentCleanup).toHaveBeenCalledWith(
       'prod',
@@ -114,7 +121,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--env', 'dev'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--env', 'dev']);
 
     expect(mockCleanupService.compareEnvironments).toHaveBeenCalledWith(
       'prod',
@@ -127,7 +134,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--env', 'prod'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--env', 'prod']);
 
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });
@@ -140,7 +147,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs']);
 
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });
@@ -167,7 +174,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--sites-only'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--sites-only']);
 
     expect(mockCleanupService.compareEnvironments).toHaveBeenCalledWith(
       'prod',
@@ -195,7 +202,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--tables-only'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--tables-only']);
 
     expect(mockCleanupService.compareEnvironments).toHaveBeenCalledWith(
       'prod',
@@ -223,7 +230,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--site', '43'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--site', '43']);
 
     expect(mockCleanupService.compareEnvironments).toHaveBeenCalledWith(
       'prod',
@@ -238,7 +245,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--site', 'invalid'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--site', 'invalid']);
 
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });
@@ -257,7 +264,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs']);
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No cleanup needed'));
   });
@@ -276,7 +283,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--verbose'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--verbose']);
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('database connection successful'));
   });
@@ -297,7 +304,7 @@ describe('clean-lower-envs command', () => {
     const program = new Command();
     program.addCommand(cleanLowerEnvsCommand);
 
-    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--source-env', 'uat'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'clean-lower-envs', '--source-env', 'uat']);
 
     expect(mockCleanupService.compareEnvironments).toHaveBeenCalledWith(
       'uat',

@@ -1,5 +1,5 @@
 import { Config } from '../src/utils/config';
-import { existsSync, rmSync, mkdirSync } from 'fs';
+import { existsSync, rmSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 
@@ -27,106 +27,104 @@ describe('Config', () => {
   });
 
   describe('set and get', () => {
-    it('should set and get database host', () => {
-      Config.set('migration.host', 'localhost');
-      expect(Config.get('migration.host')).toBe('localhost');
+    it('sets and gets an environment host', () => {
+      Config.set('env.dev.host', 'localhost');
+      expect(Config.get('env.dev.host')).toBe('localhost');
     });
 
-    it('should set and get database user', () => {
-      Config.set('migration.user', 'testuser');
-      expect(Config.get('migration.user')).toBe('testuser');
+    it('sets and gets an environment user', () => {
+      Config.set('env.dev.user', 'testuser');
+      expect(Config.get('env.dev.user')).toBe('testuser');
     });
 
-    it('should encrypt and decrypt passwords', () => {
-      const password = 'secret123';
-      Config.set('migration.password', password);
-      expect(Config.get('migration.password')).toBe(password);
+    it('encrypts and decrypts passwords transparently', () => {
+      Config.set('env.dev.password', 'secret123');
+      expect(Config.get('env.dev.password')).toBe('secret123');
     });
 
-    it('should set and get database name', () => {
-      Config.set('migration.database', 'wp_test');
-      expect(Config.get('migration.database')).toBe('wp_test');
+    it('sets and gets a database name', () => {
+      Config.set('env.dev.database', 'wp_test');
+      expect(Config.get('env.dev.database')).toBe('wp_test');
     });
 
-    it('should return undefined for unset keys', () => {
-      expect(Config.get('migration.host')).toBeUndefined();
+    it('returns undefined for unset keys', () => {
+      expect(Config.get('env.dev.host')).toBeUndefined();
     });
 
-    it('should throw error for invalid keys', () => {
+    it('throws for an invalid section', () => {
       expect(() => Config.set('invalid.key', 'value')).toThrow();
       expect(() => Config.get('invalid.key')).toThrow();
     });
   });
 
   describe('list', () => {
-    it('should list all configuration with masked password', () => {
-      Config.set('migration.host', 'localhost');
-      Config.set('migration.user', 'testuser');
-      Config.set('migration.password', 'secret123');
-      Config.set('migration.database', 'wp_test');
+    it('lists configuration with the password masked', () => {
+      Config.set('env.dev.host', 'localhost');
+      Config.set('env.dev.user', 'testuser');
+      Config.set('env.dev.password', 'secret123');
+      Config.set('env.dev.database', 'wp_test');
 
       const config = Config.list();
-      expect(config.migration?.host).toBe('localhost');
-      expect(config.migration?.user).toBe('testuser');
-      expect(config.migration?.password).toBe('****');
-      expect(config.migration?.database).toBe('wp_test');
+      expect(config.environments?.dev?.host).toBe('localhost');
+      expect(config.environments?.dev?.user).toBe('testuser');
+      expect(config.environments?.dev?.password).toBe('****');
+      expect(config.environments?.dev?.database).toBe('wp_test');
     });
 
-    it('should return empty object when no config exists', () => {
-      const config = Config.list();
-      expect(config).toEqual({});
+    it('returns an empty object when no config exists', () => {
+      expect(Config.list()).toEqual({});
     });
   });
 
   describe('reset', () => {
-    it('should reset configuration', () => {
-      Config.set('migration.host', 'localhost');
+    it('clears configuration', () => {
+      Config.set('env.dev.host', 'localhost');
       Config.reset();
-      expect(Config.get('migration.host')).toBeUndefined();
+      expect(Config.get('env.dev.host')).toBeUndefined();
     });
   });
 
-  describe('getDbConfig', () => {
-    it('should return complete database configuration', () => {
-      Config.set('migration.host', 'localhost');
-      Config.set('migration.user', 'testuser');
-      Config.set('migration.password', 'secret123');
-      Config.set('migration.database', 'wp_test');
+  describe('getEnvironmentConfig', () => {
+    it('returns the full decrypted environment configuration', () => {
+      Config.set('env.dev.host', 'localhost');
+      Config.set('env.dev.user', 'testuser');
+      Config.set('env.dev.password', 'secret123');
+      Config.set('env.dev.database', 'wp_test');
 
-      const dbConfig = Config.getMigrationDbConfig();
-      expect(dbConfig).toEqual({
-        host: 'localhost',
-        user: 'testuser',
-        password: 'secret123',
-        database: 'wp_test'
-      });
+      expect(Config.getEnvironmentConfig('dev')).toEqual(
+        expect.objectContaining({
+          host: 'localhost',
+          user: 'testuser',
+          password: 'secret123',
+          database: 'wp_test',
+        })
+      );
     });
 
-    it('should return empty object when no config exists', () => {
-      const dbConfig = Config.getMigrationDbConfig();
-      expect(dbConfig).toEqual({});
+    it('returns an empty object when no config exists', () => {
+      expect(Config.getEnvironmentConfig('dev')).toEqual({});
     });
   });
 
-  describe('hasRequiredDbConfig', () => {
-    it('should return true when all required fields are set', () => {
-      Config.set('migration.host', 'localhost');
-      Config.set('migration.user', 'testuser');
-      Config.set('migration.password', 'secret123');
-      Config.set('migration.database', 'wp_test');
+  describe('hasRequiredEnvironmentConfig', () => {
+    it('is true when all required fields are set', () => {
+      Config.set('env.dev.host', 'localhost');
+      Config.set('env.dev.user', 'testuser');
+      Config.set('env.dev.password', 'secret123');
+      Config.set('env.dev.database', 'wp_test');
 
-      expect(Config.hasRequiredMigrationConfig()).toBe(true);
+      expect(Config.hasRequiredEnvironmentConfig('dev')).toBe(true);
     });
 
-    it('should return false when fields are missing', () => {
-      Config.set('migration.host', 'localhost');
-      Config.set('migration.user', 'testuser');
-      
-      expect(Config.hasRequiredMigrationConfig()).toBe(false);
+    it('is false when fields are missing', () => {
+      Config.set('env.dev.host', 'localhost');
+      Config.set('env.dev.user', 'testuser');
+
+      expect(Config.hasRequiredEnvironmentConfig('dev')).toBe(false);
     });
 
-    it('should return false when no config exists', () => {
-      expect(Config.hasRequiredMigrationConfig()).toBe(false);
+    it('is false when no config exists', () => {
+      expect(Config.hasRequiredEnvironmentConfig('dev')).toBe(false);
     });
   });
 });

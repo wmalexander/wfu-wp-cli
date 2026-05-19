@@ -209,10 +209,14 @@ describe('EnvironmentCleanupService', () => {
         });
 
       mockSiteEnumerator.validateSiteExists.mockResolvedValue(true);
-      mockDatabaseOperations.getSiteTables
-        .mockReturnValueOnce(['wp_99_posts'])
-        .mockReturnValueOnce(['wp_43_posts'])
-        .mockReturnValueOnce(['wp_43_posts', 'wp_43_custom']);
+      mockDatabaseOperations.getSiteTables.mockImplementation(
+        (siteId: any, environment: any) => {
+          if (String(siteId) === '99') return ['wp_99_posts'];
+          return environment === 'prod'
+            ? ['wp_43_posts']
+            : ['wp_43_posts', 'wp_43_custom'];
+        }
+      );
 
       const results = await EnvironmentCleanupService.performEnvironmentCleanup(
         'prod',

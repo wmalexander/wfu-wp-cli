@@ -1,276 +1,195 @@
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync } from 'fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+} from 'fs';
+import { BackupRecovery, BackupMetadata } from '../../src/utils/backup-recovery';
 
-// Mock dependencies
 jest.mock('child_process');
 jest.mock('fs');
-jest.mock('../../src/utils/config');
+jest.mock('../../src/utils/site-enumerator');
+jest.mock('../../src/utils/network-tables');
 
 const mockExecSync = execSync as jest.MockedFunction<typeof execSync>;
 const mockExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
 const mockMkdirSync = mkdirSync as jest.MockedFunction<typeof mkdirSync>;
+const mockReadFileSync = readFileSync as jest.MockedFunction<
+  typeof readFileSync
+>;
+const mockReaddirSync = readdirSync as jest.MockedFunction<typeof readdirSync>;
+const mockWriteFileSync = writeFileSync as jest.MockedFunction<
+  typeof writeFileSync
+>;
+
+function sampleMetadata(overrides: Partial<BackupMetadata> = {}): BackupMetadata {
+  return {
+    timestamp: '2026-05-19T12:00:00.000Z',
+    environment: 'prod',
+    backupId: 'backup-2026-05-19T12-00-00-abc123',
+    networkTables: ['wp_blogs'],
+    sites: [1],
+    totalSize: 100,
+    backupPaths: {
+      networkTablesFile: '/b/network.sql',
+      sitesFiles: { 1: '/b/site-1.sql' },
+      metadataFile: '/b/metadata.json',
+    },
+    checksums: {},
+    ...overrides,
+  };
+}
 
 describe('BackupRecovery', () => {
-  let BackupRecovery: any;
-  let Config: any;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    // Reset modules to get fresh imports
-    jest.resetModules();
-    
-    // Mock Config module
-    Config = {
-      getEnvironmentConfig: jest.fn(),
-      hasRequiredEnvironmentConfig: jest.fn(),
-    };
-    
-    require('../../src/utils/config').Config = Config;
   });
 
-  describe('createEnvironmentBackup', () => {
-    beforeEach(async () => {
-      const module = await import('../../src/utils/backup-recovery');
-      BackupRecovery = module.BackupRecovery;
+  describe('generateBackupId', () => {
+    it('produces a backup- prefixed id', () => {
+      expect(BackupRecovery.generateBackupId()).toMatch(/^backup-[\dT-]+-[a-z0-9]+$/);
     });
 
-    it('should create environment backup successfully', async () => {
-      Config.hasRequiredEnvironmentConfig.mockReturnValue(true);
-      Config.getEnvironmentConfig.mockReturnValue({
-        host: 'localhost',
-        user: 'testuser',
-        password: 'testpass',
-        database: 'testdb'
-      });
+    it('produces distinct ids on repeated calls', () => {
+      const a = BackupRecovery.generateBackupId();
+      const b = BackupRecovery.generateBackupId();
+      expect(a).not.toEqual(b);
+    });
+  });
 
+  describe('getBackupDirectory', () => {
+    it('returns the explicit workDir, creating it when missing', () => {
       mockExistsSync.mockReturnValue(false);
-      mockMkdirSync.mockReturnValue(undefined);
-      mockExecSync.mockReturnValue(''); // Successful backup
-
-      const result = await BackupRecovery.createEnvironmentBackup('prod', '/tmp/backup');
-      
-      expect(result).toEqual({
-        backupPath: expect.stringContaining('/tmp/backup'),
-        tableCount: expect.any(Number),
-        fileSize: expect.any(Number),
-        timestamp: expect.any(String),
-        environment: 'prod'
+      const dir = BackupRecovery.getBackupDirectory('/tmp/custom');
+      expect(dir).toBe('/tmp/custom');
+      expect(mockMkdirSync).toHaveBeenCalledWith('/tmp/custom', {
+        recursive: true,
       });
-      
-      expect(mockExecSync).toHaveBeenCalledWith(
-        expect.stringContaining('mysqldump'),
-        expect.any(Object)
+    });
+
+    it('does not recreate an existing explicit workDir', () => {
+      mockExistsSync.mockReturnValue(true);
+      const dir = BackupRecovery.getBackupDirectory('/tmp/custom');
+      expect(dir).toBe('/tmp/custom');
+      expect(mockMkdirSync).not.toHaveBeenCalled();
+    });
+
+    it('defaults to ~/.wfuwp/backups when no workDir is given', () => {
+      mockExistsSync.mockReturnValue(true);
+      expect(BackupRecovery.getBackupDirectory()).toMatch(
+        /\.wfuwp[/\\]backups$/
+      );
+    });
+  });
+
+  describe('verifyBackupIntegrity', () => {
+    it('is valid when all referenced files exist and no checksums', () => {
+      mockExistsSync.mockReturnValue(true);
+      const result = BackupRecovery.verifyBackupIntegrity(sampleMetadata());
+      expect(result.valid).toBe(true);
+      expect(result.errors).toEqual([]);
+    });
+
+    it('reports missing metadata and site files', () => {
+      mockExistsSync.mockReturnValue(false);
+      const result = BackupRecovery.verifyBackupIntegrity(sampleMetadata());
+      expect(result.valid).toBe(false);
+      expect(result.errors).toEqual(
+        expect.arrayContaining([
+          'Metadata file missing',
+          'Network tables backup file missing',
+          expect.stringContaining('Site 1 backup file missing'),
+        ])
       );
     });
 
-    it('should throw error for unconfigured environment', async () => {
-      Config.hasRequiredEnvironmentConfig.mockReturnValue(false);
-      
-      await expect(
-        BackupRecovery.createEnvironmentBackup('invalid', '/tmp/backup')
-      ).rejects.toThrow("Environment 'invalid' is not configured");
-    });
-
-    it('should handle backup failures', async () => {
-      Config.hasRequiredEnvironmentConfig.mockReturnValue(true);
-      Config.getEnvironmentConfig.mockReturnValue({
-        host: 'localhost',
-        user: 'testuser',
-        password: 'testpass',
-        database: 'testdb'
-      });
-
-      mockExistsSync.mockReturnValue(false);
-      mockMkdirSync.mockReturnValue(undefined);
-      mockExecSync.mockImplementation(() => {
-        throw new Error('Backup failed');
-      });
-
-      await expect(
-        BackupRecovery.createEnvironmentBackup('prod', '/tmp/backup')
-      ).rejects.toThrow('Backup failed');
-    });
-
-    it('should create backup directory if needed', async () => {
-      Config.hasRequiredEnvironmentConfig.mockReturnValue(true);
-      Config.getEnvironmentConfig.mockReturnValue({
-        host: 'localhost',
-        user: 'testuser',
-        password: 'testpass',
-        database: 'testdb'
-      });
-
-      mockExistsSync.mockReturnValue(false);
-      mockMkdirSync.mockReturnValue(undefined);
-      mockExecSync.mockReturnValue('');
-
-      await BackupRecovery.createEnvironmentBackup('prod', '/path/to/backup');
-      
-      expect(mockMkdirSync).toHaveBeenCalledWith('/path/to/backup', { recursive: true });
+    it('flags a checksum mismatch', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockReturnValue('deadbeef  /b/site-1.sql' as any);
+      const result = BackupRecovery.verifyBackupIntegrity(
+        sampleMetadata({ checksums: { 'site-1.sql': 'expected123' } })
+      );
+      expect(result.valid).toBe(false);
+      expect(result.errors[0]).toContain('Checksum mismatch for site-1.sql');
     });
   });
 
-  describe('restoreFromBackup', () => {
-    beforeEach(async () => {
-      const module = await import('../../src/utils/backup-recovery');
-      BackupRecovery = module.BackupRecovery;
-    });
-
-    it('should restore from backup successfully', async () => {
-      Config.hasRequiredEnvironmentConfig.mockReturnValue(true);
-      Config.getEnvironmentConfig.mockReturnValue({
-        host: 'localhost',
-        user: 'testuser',
-        password: 'testpass',
-        database: 'testdb'
-      });
-
+  describe('listAvailableBackups', () => {
+    it('parses metadata.json from backup subdirectories, newest first', () => {
       mockExistsSync.mockReturnValue(true);
-      mockExecSync.mockReturnValue(''); // Successful restore
-
-      const result = await BackupRecovery.restoreFromBackup('prod', '/tmp/backup.sql');
-      
-      expect(result).toEqual({
-        success: true,
-        restoredTables: expect.any(Number),
-        environment: 'prod'
-      });
-      
-      expect(mockExecSync).toHaveBeenCalledWith(
-        expect.stringContaining('mysql'),
-        expect.any(Object)
+      mockReaddirSync.mockReturnValue([
+        { name: 'backup-old', isDirectory: () => true },
+        { name: 'backup-new', isDirectory: () => true },
+        { name: 'a-file', isDirectory: () => false },
+      ] as any);
+      mockReadFileSync.mockImplementation((p: any) =>
+        p.includes('backup-old')
+          ? JSON.stringify(sampleMetadata({ timestamp: '2026-01-01T00:00:00.000Z' }))
+          : JSON.stringify(sampleMetadata({ timestamp: '2026-05-01T00:00:00.000Z' }))
+      );
+      const list = BackupRecovery.listAvailableBackups('/tmp/b');
+      expect(list).toHaveLength(2);
+      expect(new Date(list[0].timestamp).getTime()).toBeGreaterThan(
+        new Date(list[1].timestamp).getTime()
       );
     });
 
-    it('should throw error for missing backup file', async () => {
-      Config.hasRequiredEnvironmentConfig.mockReturnValue(true);
-      
+    it('returns an empty array when the directory cannot be read', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReaddirSync.mockImplementation(() => {
+        throw new Error('ENOENT');
+      });
+      expect(BackupRecovery.listAvailableBackups('/tmp/missing')).toEqual([]);
+    });
+  });
+
+  describe('deleteBackup', () => {
+    it('returns false when the backup directory does not exist', async () => {
       mockExistsSync.mockReturnValue(false);
-      
-      await expect(
-        BackupRecovery.restoreFromBackup('prod', '/tmp/missing.sql')
-      ).rejects.toThrow('Backup file does not exist');
+      await expect(BackupRecovery.deleteBackup('backup-x', '/tmp/b')).resolves.toBe(
+        false
+      );
     });
 
-    it('should handle restore failures', async () => {
-      Config.hasRequiredEnvironmentConfig.mockReturnValue(true);
-      Config.getEnvironmentConfig.mockReturnValue({
-        host: 'localhost',
-        user: 'testuser',
-        password: 'testpass',
-        database: 'testdb'
-      });
+    it('removes the directory and returns true on success', async () => {
+      mockExistsSync.mockReturnValue(true);
+      mockExecSync.mockReturnValue('' as any);
+      await expect(BackupRecovery.deleteBackup('backup-x', '/tmp/b')).resolves.toBe(
+        true
+      );
+      expect(mockExecSync).toHaveBeenCalledWith(
+        expect.stringContaining('rm -rf')
+      );
+    });
 
+    it('returns false when removal fails', async () => {
       mockExistsSync.mockReturnValue(true);
       mockExecSync.mockImplementation(() => {
-        throw new Error('Restore failed');
+        throw new Error('rm failed');
       });
-
-      await expect(
-        BackupRecovery.restoreFromBackup('prod', '/tmp/backup.sql')
-      ).rejects.toThrow('Restore failed');
+      await expect(BackupRecovery.deleteBackup('backup-x', '/tmp/b')).resolves.toBe(
+        false
+      );
     });
   });
 
-  describe('validateBackupIntegrity', () => {
-    beforeEach(async () => {
-      const module = await import('../../src/utils/backup-recovery');
-      BackupRecovery = module.BackupRecovery;
-    });
-
-    it('should validate backup integrity successfully', async () => {
+  describe('createFullEnvironmentBackup', () => {
+    it('returns a result carrying a generated backupId and the environment', async () => {
       mockExistsSync.mockReturnValue(true);
-      mockExecSync.mockReturnValue('wp_blogs\nwp_site\nwp_sitemeta'); // Mock SQL content check
-
-      const result = await BackupRecovery.validateBackupIntegrity('/tmp/backup.sql');
-      
-      expect(result).toEqual({
-        isValid: true,
-        fileExists: true,
-        hasContent: true,
-        tableCount: expect.any(Number),
-        fileSize: expect.any(Number)
+      mockExecSync.mockReturnValue('' as any);
+      mockWriteFileSync.mockReturnValue(undefined);
+      const result = await BackupRecovery.createFullEnvironmentBackup('prod', {
+        workDir: '/tmp/b',
+        sites: [],
+        skipNetworkTables: true,
       });
-    });
-
-    it('should detect missing backup file', async () => {
-      mockExistsSync.mockReturnValue(false);
-
-      const result = await BackupRecovery.validateBackupIntegrity('/tmp/missing.sql');
-      
-      expect(result.isValid).toBe(false);
-      expect(result.fileExists).toBe(false);
-    });
-
-    it('should detect empty backup file', async () => {
-      mockExistsSync.mockReturnValue(true);
-      mockExecSync.mockReturnValue(''); // Empty content
-
-      const result = await BackupRecovery.validateBackupIntegrity('/tmp/empty.sql');
-      
-      expect(result.isValid).toBe(false);
-      expect(result.hasContent).toBe(false);
-    });
-  });
-
-  describe('cleanupOldBackups', () => {
-    beforeEach(async () => {
-      const module = await import('../../src/utils/backup-recovery');
-      BackupRecovery = module.BackupRecovery;
-    });
-
-    it('should cleanup old backups successfully', async () => {
-      mockExistsSync.mockReturnValue(true);
-      mockExecSync.mockReturnValue('backup1.sql\nbackup2.sql\nold_backup.sql'); // Mock ls output
-
-      const result = await BackupRecovery.cleanupOldBackups('/tmp/backups', 5);
-      
-      expect(result).toEqual({
-        cleanedCount: expect.any(Number),
-        remainingCount: expect.any(Number),
-        freedSpace: expect.any(Number)
-      });
-    });
-
-    it('should handle non-existent backup directory', async () => {
-      mockExistsSync.mockReturnValue(false);
-
-      const result = await BackupRecovery.cleanupOldBackups('/tmp/missing', 5);
-      
-      expect(result.cleanedCount).toBe(0);
-      expect(result.remainingCount).toBe(0);
-    });
-  });
-
-  describe('createRecoveryPlan', () => {
-    beforeEach(async () => {
-      const module = await import('../../src/utils/backup-recovery');
-      BackupRecovery = module.BackupRecovery;
-    });
-
-    it('should create recovery plan', () => {
-      const migrationConfig = {
-        sourceEnv: 'prod',
-        targetEnv: 'uat',
-        siteIds: [1, 2, 3],
-        backupPath: '/tmp/backup.sql'
-      };
-
-      const plan = BackupRecovery.createRecoveryPlan(migrationConfig);
-      
-      expect(plan).toEqual({
-        steps: expect.arrayContaining([
-          expect.objectContaining({
-            order: expect.any(Number),
-            action: expect.any(String),
-            description: expect.any(String)
-          })
-        ]),
-        estimatedTime: expect.any(Number),
-        backupPath: '/tmp/backup.sql',
-        environment: 'uat'
-      });
+      expect(result.backupId).toMatch(/^backup-/);
+      expect(result.metadata.environment).toBe('prod');
+      expect(result.metadata.backupPaths.metadataFile).toContain(
+        result.backupId
+      );
     });
   });
 });

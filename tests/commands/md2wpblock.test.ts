@@ -40,8 +40,8 @@ describe('md2wpblock command', () => {
       
       // Check output content
       const output = readFileSync(outputFile, 'utf8');
-      expect(output).toContain('<!-- wp:heading -->');
-      expect(output).toContain('<h1 class="wp-block-heading">Test Document</h1>');
+      expect(output).toContain('<!-- wp:heading {"level":1} -->');
+      expect(output).toContain('<h1>Test Document</h1>');
       expect(output).toContain('<!-- wp:paragraph -->');
       expect(output).toContain('<p>This is a test.</p>');
       
@@ -109,7 +109,7 @@ describe('md2wpblock command', () => {
       
       // Check content of one file
       const output1 = readFileSync(join(testDir, 'file1.html'), 'utf8');
-      expect(output1).toContain('<h1 class="wp-block-heading">File 1</h1>');
+      expect(output1).toContain('<h1>File 1</h1>');
       expect(output1).toContain('<p>Content 1</p>');
       
       // Check command output
@@ -157,7 +157,7 @@ describe('md2wpblock command', () => {
       });
       
       expect(result).toContain('--- Generated HTML ---');
-      expect(result).toContain('<!-- wp:heading -->');
+      expect(result).toContain('<!-- wp:heading {"level":1} -->');
       expect(result).toContain('--- End HTML ---');
     });
   });

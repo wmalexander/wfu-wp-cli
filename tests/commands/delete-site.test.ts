@@ -1,34 +1,70 @@
 import { Command } from 'commander';
-import { deleteSiteCommand } from '../../src/commands/delete-site';
-import { Config } from '../../src/utils/config';
-import { DatabaseOperations } from '../../src/utils/database';
-import { SiteEnumerator } from '../../src/utils/site-enumerator';
-import { EnvironmentCleanupService } from '../../src/utils/environment-cleanup';
 
 jest.mock('../../src/utils/config');
 jest.mock('../../src/utils/database');
 jest.mock('../../src/utils/site-enumerator');
 jest.mock('../../src/utils/backup-recovery');
 jest.mock('../../src/utils/environment-cleanup');
+jest.mock('inquirer', () => ({
+  __esModule: true,
+  default: {
+    prompt: jest.fn().mockResolvedValue({
+      proceed: true,
+      confirmDelete: true,
+      proceedWithoutBackup: true,
+      confirmCleanup: true,
+    }),
+  },
+}));
 
-const mockConfig = Config as jest.Mocked<typeof Config>;
-const mockDatabaseOperations = DatabaseOperations as jest.Mocked<typeof DatabaseOperations>;
-const mockSiteEnumerator = SiteEnumerator as jest.Mocked<typeof SiteEnumerator>;
-const mockCleanupService = EnvironmentCleanupService as jest.Mocked<typeof EnvironmentCleanupService>;
+// deleteSiteCommand is a commander singleton that retains parsed option state
+// across parses; re-require a fresh module graph per test to isolate it.
+let deleteSiteCommand: any;
+let mockConfig: any;
+let mockDatabaseOperations: any;
+let mockSiteEnumerator: any;
+let mockCleanupService: any;
 
 describe('delete-site command', () => {
   let consoleSpy: jest.SpyInstance;
   let processExitSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetModules();
+    deleteSiteCommand =
+      require('../../src/commands/delete-site').deleteSiteCommand;
+    mockConfig = require('../../src/utils/config').Config;
+    mockDatabaseOperations =
+      require('../../src/utils/database').DatabaseOperations;
+    mockSiteEnumerator =
+      require('../../src/utils/site-enumerator').SiteEnumerator;
+    mockCleanupService =
+      require('../../src/utils/environment-cleanup').EnvironmentCleanupService;
+
     consoleSpy = jest.spyOn(console, 'log').mockImplementation();
     jest.spyOn(console, 'error').mockImplementation();
     processExitSpy = jest.spyOn(process, 'exit').mockImplementation();
-    
+
     mockConfig.hasRequiredEnvironmentConfig.mockReturnValue(true);
     mockDatabaseOperations.testConnection.mockResolvedValue(true);
-    mockDatabaseOperations.getSiteTables.mockReturnValue(['wp_43_posts', 'wp_43_options']);
+    mockDatabaseOperations.getSiteTables.mockReturnValue([
+      'wp_43_posts',
+      'wp_43_options',
+    ]);
+    mockCleanupService.deleteSiteFromEnvironment.mockResolvedValue({
+      environment: 'dev',
+      deletedSites: [43],
+      droppedTables: ['wp_43_posts', 'wp_43_options'],
+      errors: [],
+      duration: 1000,
+    });
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('inquirer').default.prompt.mockResolvedValue({
+      proceed: true,
+      confirmDelete: true,
+      proceedWithoutBackup: true,
+      confirmCleanup: true,
+    });
   });
 
   afterEach(() => {
@@ -40,7 +76,7 @@ describe('delete-site command', () => {
     const program = new Command();
     program.addCommand(deleteSiteCommand);
 
-    await program.parseAsync(['node', 'test', 'delete-site', 'invalid', 'dev'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'delete-site', 'invalid', 'dev']);
 
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });
@@ -49,7 +85,7 @@ describe('delete-site command', () => {
     const program = new Command();
     program.addCommand(deleteSiteCommand);
 
-    await program.parseAsync(['node', 'test', 'delete-site', '43', 'prod'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'delete-site', '43', 'prod']);
 
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });
@@ -60,7 +96,7 @@ describe('delete-site command', () => {
     const program = new Command();
     program.addCommand(deleteSiteCommand);
 
-    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev']);
 
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });
@@ -71,7 +107,7 @@ describe('delete-site command', () => {
     const program = new Command();
     program.addCommand(deleteSiteCommand);
 
-    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev']);
 
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });
@@ -82,7 +118,7 @@ describe('delete-site command', () => {
     const program = new Command();
     program.addCommand(deleteSiteCommand);
 
-    await program.parseAsync(['node', 'test', 'delete-site', '999', 'dev'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'delete-site', '999', 'dev']);
 
     expect(processExitSpy).toHaveBeenCalledWith(1);
   });
@@ -106,7 +142,7 @@ describe('delete-site command', () => {
     const program = new Command();
     program.addCommand(deleteSiteCommand);
 
-    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev', '--dry-run'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev', '--dry-run']);
 
     expect(mockCleanupService.deleteSiteFromEnvironment).not.toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('DRY RUN'));
@@ -140,7 +176,7 @@ describe('delete-site command', () => {
     const program = new Command();
     program.addCommand(deleteSiteCommand);
 
-    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev', '--force'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev', '--force']);
 
     expect(mockCleanupService.deleteSiteFromEnvironment).toHaveBeenCalledWith(
       43,
@@ -173,7 +209,7 @@ describe('delete-site command', () => {
     const program = new Command();
     program.addCommand(deleteSiteCommand);
 
-    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev', '--dry-run'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev', '--dry-run']);
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No tables found'));
   });
@@ -197,7 +233,7 @@ describe('delete-site command', () => {
     const program = new Command();
     program.addCommand(deleteSiteCommand);
 
-    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev', '--dry-run', '--verbose'], { from: 'user' });
+    await program.parseAsync(['node', 'test', 'delete-site', '43', 'dev', '--dry-run', '--verbose']);
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Database connection successful'));
   });
