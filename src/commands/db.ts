@@ -205,5 +205,4 @@ function listDatabaseEnvironments(): void {
       chalk.cyan('Run "wfuwp config wizard" to set up your environments.')
     );
   }
-
 }
