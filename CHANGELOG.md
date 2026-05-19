@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-05-19
+
+### Added
+
+- Adding `maintenance` command to control the wfu.edu down/maintenance page through the ALB switch (`status`, `on`, `off`, `allow-me`, `revoke-me`, `init`)
+- Adding a standardized loopback/bypass/maintenance ALB rule model across the dev, uat, and pprd environments
+- Adding S3-backed OFF-state capture so `off` reliably restores the pre-maintenance rule
+- Listing the `maintenance` command in `wfuwp help`
+
+### Fixed
+
+- Formatting existing source files to satisfy the lint gate
+
 ## [0.29.0] - 2026-03-18
 
 ### Added

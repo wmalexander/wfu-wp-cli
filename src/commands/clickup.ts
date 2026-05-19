@@ -583,8 +583,14 @@ export const clickupCommand = new Command('clickup')
   .addCommand(
     new Command('tasks')
       .description('List tasks from a ClickUp list with filtering options')
-      .option('--list <list-id>', 'List ID to get tasks from (omit to search workspace-wide)')
-      .option('--space <space-id>', 'Filter workspace-wide search to a specific space')
+      .option(
+        '--list <list-id>',
+        'List ID to get tasks from (omit to search workspace-wide)'
+      )
+      .option(
+        '--space <space-id>',
+        'Filter workspace-wide search to a specific space'
+      )
       .option('--status <statuses>', 'Filter by comma-separated status names')
       .option('--assignee <assignees>', 'Filter by comma-separated user IDs')
       .option('--tag <tags>', 'Filter by comma-separated tag names')
@@ -766,7 +772,8 @@ export const clickupCommand = new Command('clickup')
             }
             let response;
             if (useWorkspaceWide && !listId) {
-              let workspaceId: string = Config.get('clickup.defaultWorkspaceId') || '';
+              let workspaceId: string =
+                Config.get('clickup.defaultWorkspaceId') || '';
               if (!workspaceId) {
                 const workspaces = await client.getWorkspaces();
                 if (!workspaces.teams || workspaces.teams.length === 0) {
@@ -779,7 +786,9 @@ export const clickupCommand = new Command('clickup')
                 teamFilterOptions.spaceIds = [options.space];
               }
               console.log(
-                chalk.gray('Searching across workspace (no --list specified)...')
+                chalk.gray(
+                  'Searching across workspace (no --list specified)...'
+                )
               );
               response = await client.getFilteredTeamTasks(
                 workspaceId,
@@ -879,9 +888,10 @@ export const clickupCommand = new Command('clickup')
                 process.exit(1);
               }
             }
-            const headerLabel = useWorkspaceWide && !listId
-              ? 'Tasks from Workspace'
-              : 'Tasks from List';
+            const headerLabel =
+              useWorkspaceWide && !listId
+                ? 'Tasks from Workspace'
+                : 'Tasks from List';
             console.log(
               chalk.blue.bold(`${headerLabel} (Page ${options.page || '1'}):`)
             );
@@ -1323,14 +1333,18 @@ export const clickupCommand = new Command('clickup')
                     );
                   }
                   if (reply.date) {
-                    const replyDate = new Date(parseInt(reply.date)).toLocaleString();
+                    const replyDate = new Date(
+                      parseInt(reply.date)
+                    ).toLocaleString();
                     console.log(`      ${chalk.white('Date:')} ${replyDate}`);
                   }
                   if (reply.comment && reply.comment.length > 0) {
                     const replyText = reply.comment
                       .map((c: any) => c.text || '')
                       .join('');
-                    console.log(`      ${chalk.white('Comment:')} ${replyText}`);
+                    console.log(
+                      `      ${chalk.white('Comment:')} ${replyText}`
+                    );
                   }
                 });
               }

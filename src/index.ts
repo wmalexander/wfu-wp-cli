@@ -19,6 +19,7 @@ import { clickupCommand } from './commands/clickup';
 import { localCommand } from './commands/local';
 import { cleanupCommand } from './commands/cleanup';
 import { releaseCommand } from './commands/release';
+import { maintenanceCommand } from './commands/maintenance';
 import { registerDoctorCommand } from './commands/doctor';
 import { registerDocsCommand } from './commands/docs';
 import { registerInstallDepsCommand } from './commands/install-deps';
@@ -37,7 +38,9 @@ program
   .name('wfuwp')
   .description('CLI tool for WFU WordPress management tasks')
   .version(packageJson.version)
-  .addHelpText('after', `
+  .addHelpText(
+    'after',
+    `
 ${chalk.bold('📚 Documentation:')}
   Getting Started:  ${chalk.cyan('wfuwp docs getting-started')}
   Quick Reference:  ${chalk.cyan('wfuwp docs quick')}
@@ -51,7 +54,8 @@ ${chalk.bold('🚀 First Time?')}
   1. Run ${chalk.cyan('wfuwp doctor')} to check requirements
   2. Run ${chalk.cyan('wfuwp config wizard')} to configure
   3. Read ${chalk.cyan('wfuwp docs getting-started')}
-`);
+`
+  );
 
 // Check for first run
 const isFirstRun = checkFirstRun();
@@ -73,6 +77,7 @@ program.addCommand(clickupCommand);
 program.addCommand(localCommand);
 program.addCommand(cleanupCommand);
 program.addCommand(releaseCommand);
+program.addCommand(maintenanceCommand);
 
 // Add new commands
 registerDoctorCommand(program);
@@ -85,28 +90,91 @@ program
   .action(() => {
     console.log(chalk.blue.bold('WFU WordPress CLI Tool'));
     console.log('\nAvailable commands:');
-    console.log(chalk.green('  doctor') + '      - Check system prerequisites and tool health');
-    console.log(chalk.green('  docs') + '        - Browse and search documentation');
-    console.log(chalk.green('  install-deps') + ' - Install required system dependencies (Docker, MySQL client)');
-    console.log(chalk.green('  syncs3') + '      - Sync WordPress sites between S3 environments');
-    console.log(chalk.green('  listips') + '     - List EC2 instance IP addresses for an environment');
-    console.log(chalk.green('  sshaws') + '      - SSH into EC2 instances for an environment');
-    console.log(chalk.green('  removehostkey') + ' - Remove SSH host keys for EC2 instances in an environment');
-    console.log(chalk.green('  spoof') + '       - Spoof DNS for a WFU subdomain by adding to /etc/hosts');
-    console.log(chalk.green('  unspoof') + '     - Remove WFU DNS spoofing entries from /etc/hosts');
-    console.log(chalk.green('  config') + '      - Manage configuration settings (database credentials)');
-    console.log(chalk.green('  db') + '          - Database connection utilities (test, list)');
-    console.log(chalk.green('  delete-site') + ' - Delete a WordPress site and all its tables from an environment');
-    console.log(chalk.green('  clean-lower-envs') + ' - Clean up orphaned sites and tables in lower environments');
-    console.log(chalk.green('  download-local') + ' - Download database exports from S3 for local import');
-    console.log(chalk.green('  md2wpblock') + '  - Convert Markdown files to WordPress block editor HTML');
-    console.log(chalk.green('  local') + '       - Manage local development environment (DDEV, domains, setup)');
-    console.log(chalk.green('  cleanup') + '     - Clean up orphaned temporary directories');
-    console.log(chalk.green('  release') + '     - Release management (cleanup git branches after merge)');
+    console.log(
+      chalk.green('  doctor') +
+        '      - Check system prerequisites and tool health'
+    );
+    console.log(
+      chalk.green('  docs') + '        - Browse and search documentation'
+    );
+    console.log(
+      chalk.green('  install-deps') +
+        ' - Install required system dependencies (Docker, MySQL client)'
+    );
+    console.log(
+      chalk.green('  syncs3') +
+        '      - Sync WordPress sites between S3 environments'
+    );
+    console.log(
+      chalk.green('  listips') +
+        '     - List EC2 instance IP addresses for an environment'
+    );
+    console.log(
+      chalk.green('  sshaws') +
+        '      - SSH into EC2 instances for an environment'
+    );
+    console.log(
+      chalk.green('  removehostkey') +
+        ' - Remove SSH host keys for EC2 instances in an environment'
+    );
+    console.log(
+      chalk.green('  spoof') +
+        '       - Spoof DNS for a WFU subdomain by adding to /etc/hosts'
+    );
+    console.log(
+      chalk.green('  unspoof') +
+        '     - Remove WFU DNS spoofing entries from /etc/hosts'
+    );
+    console.log(
+      chalk.green('  config') +
+        '      - Manage configuration settings (database credentials)'
+    );
+    console.log(
+      chalk.green('  db') +
+        '          - Database connection utilities (test, list)'
+    );
+    console.log(
+      chalk.green('  delete-site') +
+        ' - Delete a WordPress site and all its tables from an environment'
+    );
+    console.log(
+      chalk.green('  clean-lower-envs') +
+        ' - Clean up orphaned sites and tables in lower environments'
+    );
+    console.log(
+      chalk.green('  download-local') +
+        ' - Download database exports from S3 for local import'
+    );
+    console.log(
+      chalk.green('  md2wpblock') +
+        '  - Convert Markdown files to WordPress block editor HTML'
+    );
+    console.log(
+      chalk.green('  local') +
+        '       - Manage local development environment (DDEV, domains, setup)'
+    );
+    console.log(
+      chalk.green('  cleanup') +
+        '     - Clean up orphaned temporary directories'
+    );
+    console.log(
+      chalk.green('  release') +
+        '     - Release management (cleanup git branches after merge)'
+    );
+    console.log(
+      chalk.green('  maintenance') +
+        ' - Control the wfu.edu down/maintenance page (ALB switch)'
+    );
     console.log('\n' + chalk.bold('💡 Database Migration:'));
-    console.log('  Use ' + chalk.cyan('wfu-migrate') + ' for database migrations between environments.');
+    console.log(
+      '  Use ' +
+        chalk.cyan('wfu-migrate') +
+        ' for database migrations between environments.'
+    );
     console.log('  Install: ' + chalk.cyan('npm install -g wfu-migrate'));
-    console.log('\nUse "wfuwp <command> --help" for more information about a command.');
+    console.log(
+      '\nUse "wfuwp <command> --help" for more information about a command.'
+    );
     console.log('\n' + chalk.bold('📚 Need help?'));
     console.log('  Documentation: ' + chalk.cyan('wfuwp docs'));
     console.log('  System check:  ' + chalk.cyan('wfuwp doctor'));
@@ -127,4 +195,3 @@ if (process.argv.length <= 2) {
 }
 
 program.parse(process.argv);
-
