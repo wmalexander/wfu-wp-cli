@@ -407,6 +407,32 @@ wfuwp local install --force      # Reinstall dependencies
 - Linux: Native package managers (apt, yum, pacman)
 - Windows: WSL recommended, manual installation links provided
 
+#### `maintenance` - Down/Maintenance Page Control
+
+Turn the wfu.edu down/maintenance page on or off per environment. This drives an
+Application Load Balancer listener rule (not a WordPress plugin); when ON every
+visitor sees the page except the app loopback and explicit bypass IPs.
+
+```bash
+wfuwp maintenance <subcommand> --env <dev|uat|pprd|prod>
+```
+
+**Available Subcommands:**
+- `status` - Show ON/OFF, which page, bypass IPs, and verify the live URL
+- `on` - Turn the page ON (`--page maintenance|down`, default `maintenance`; `--allow-me` to keep your own access on non-prod)
+- `off` - Turn the page OFF, restore prior state, and clear any bypass
+- `allow-me` / `revoke-me` - Add/clear your public IP on the bypass rule (not prod)
+- `init` - Provision the standardized ALB rules (dev/uat only)
+
+```bash
+wfuwp maintenance status --env prod
+wfuwp maintenance on --env prod                 # planned work
+wfuwp maintenance on --env prod --page down     # unplanned outage
+wfuwp maintenance off --env prod
+```
+
+> See the [Commands Reference](docs/commands.md#maintenance---downmaintenance-page-control) for full details and notes.
+
 ## Quick Start
 
 New to wfuwp? Start with the **[Tool Introduction](wp-docs/wfuwp-introduction.md)** and use the built-in documentation system for complete guidance.
