@@ -31,11 +31,22 @@ Claude Code skills that wrap this CLI are version controlled here under
   `wfuwp` >= 0.30.0 (auto-updates if older), AWS CLI installed, and an
   authenticated AWS session for the WFU account before any action.
 
-Because this repo is public, skills install from
-`https://raw.githubusercontent.com/wmalexander/wfu-wp-cli/main/skills/<name>/SKILL.md`.
-Install/update instructions live in the README. When a skill's behavior
-changes, bump the version pin inside its `SKILL.md` and update the README
-and this section.
+The repo is the source of truth; skills are distributed via the WFU
+internal S3 bucket `s3://wfu-umc-wp-team-internal-docs/skills/<name>/SKILL.md`
+(the same private, account-scoped bucket the docs wiki uses — downloading
+requires an authenticated WFU AWS session, which these skills need anyway).
+Do **not** point install instructions at GitHub raw.
+
+When a skill changes: bump the version pin inside its `SKILL.md`, update
+the README and this section, and **publish the S3 copy**:
+
+```bash
+aws s3 cp skills/<name>/SKILL.md \
+  s3://wfu-umc-wp-team-internal-docs/skills/<name>/SKILL.md \
+  --content-type text/markdown
+```
+
+Install/update instructions for users live in the README.
 
 ## Development Commands
 
