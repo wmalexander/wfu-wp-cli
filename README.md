@@ -14,6 +14,35 @@ A comprehensive command-line interface for managing WordPress multisite installa
 - [Admin Guide](documentation/ADMIN_GUIDE.md) — Configuration and usage for WordPress admins
 - [User Guide](documentation/USER_GUIDE.md) — Features visible to website visitors
 
+## Claude Code Skill: `wfu-maintenance`
+
+A Claude Code skill that drives the `wfuwp maintenance` command (the
+wfu.edu down/maintenance page switch) with built-in preflight gates.
+
+- **Source of truth (version controlled):** [`skills/wfu-maintenance/SKILL.md`](skills/wfu-maintenance/SKILL.md)
+- The skill enforces, before any action: `wfuwp` installed and
+  **>= 0.30.0** (auto-updates via `npm i -g wfuwp@latest` if not), AWS
+  CLI installed, and an authenticated AWS session for the WFU account
+  (`841310976649`). If a gate fails it stops rather than acting.
+
+### Install the skill
+
+This repo is public, so the skill installs straight from `raw`. Paste
+this to Claude Code:
+
+> Download `https://raw.githubusercontent.com/wmalexander/wfu-wp-cli/main/skills/wfu-maintenance/SKILL.md` and save it to `~/.claude/skills/wfu-maintenance/SKILL.md` (create the directory if needed), then confirm it is installed.
+
+Or run it directly:
+
+```bash
+mkdir -p ~/.claude/skills/wfu-maintenance && \
+curl -fsSL https://raw.githubusercontent.com/wmalexander/wfu-wp-cli/main/skills/wfu-maintenance/SKILL.md \
+  -o ~/.claude/skills/wfu-maintenance/SKILL.md
+```
+
+To update the skill later, re-run the same command (it overwrites with
+the latest tracked version on `main`).
+
 ## Database Migration
 
 > **Note:** Database migration functionality has been moved to a dedicated tool: **wfu-migrate**

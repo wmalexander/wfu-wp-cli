@@ -20,6 +20,23 @@ In addition, in-tree user-facing help lives under `wp-docs/` and is surfaced via
 
 **PR Requirement:** Every pull request that changes functionality, adds features, fixes bugs, or modifies configuration must include corresponding updates to the relevant documentation files. Reviewers should verify documentation accuracy as part of the PR review process.
 
+## Claude Code Skills
+
+Claude Code skills that wrap this CLI are version controlled here under
+`skills/`. Each is the source of truth for a skill that users install into
+`~/.claude/skills/`.
+
+- `skills/wfu-maintenance/SKILL.md` — operates `wfuwp maintenance` (the
+  wfu.edu down/maintenance page switch). Enforces a preflight gate:
+  `wfuwp` >= 0.30.0 (auto-updates if older), AWS CLI installed, and an
+  authenticated AWS session for the WFU account before any action.
+
+Because this repo is public, skills install from
+`https://raw.githubusercontent.com/wmalexander/wfu-wp-cli/main/skills/<name>/SKILL.md`.
+Install/update instructions live in the README. When a skill's behavior
+changes, bump the version pin inside its `SKILL.md` and update the README
+and this section.
+
 ## Development Commands
 
 ```bash
