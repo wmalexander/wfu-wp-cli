@@ -704,6 +704,23 @@ real site while the page is ON for everyone else. Not available on prod.
 Provision the standardized loopback/bypass/maintenance ALB rules. Allowed only
 on `dev` and `uat`; refuses `pprd` and `prod`.
 
+##### probe
+Poll the environment's public URL on an interval and report perceived
+availability (per-sample status code + latency, summary with p50/p95 and the
+longest contiguous non-2xx run, log file). Useful from a bypassed IP during a
+scaling window to measure real app/DB unavailability separately from what the
+public sees through the maintenance page.
+
+```bash
+wfuwp maintenance probe --env prod
+wfuwp maintenance probe --env prod --interval 1 --duration 300
+wfuwp maintenance probe --env prod --out ~/probe.log
+```
+
+Additional options on `probe`: `-i, --interval <seconds>` (default 1, min 0.1),
+`-d, --duration <seconds>` (default: until Ctrl-C), `-o, --out <path>`
+(default: `~/workspace/tmp/wfuwp-probe-<env>-<ts>.log`).
+
 #### Options
 - `-e, --env <env>` - Target environment (required; `dev`, `uat`, `pprd`, `prod`)
 

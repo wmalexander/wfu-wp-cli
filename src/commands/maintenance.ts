@@ -1,9 +1,16 @@
 import { Command } from 'commander';
 import { execSync } from 'child_process';
-import { writeFileSync, unlinkSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import {
+  writeFileSync,
+  unlinkSync,
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+} from 'fs';
+import { tmpdir, homedir } from 'os';
+import { join, dirname } from 'path';
 import * as readline from 'readline';
+import * as https from 'https';
 import chalk from 'chalk';
 
 const VALID_ENVIRONMENTS = ['dev', 'uat', 'pprd', 'prod'];
@@ -758,6 +765,185 @@ async function doInit(env: string): Promise<void> {
   );
 }
 
+interface ProbeSample {
+  ts: number;
+  code: number | null;
+  ms: number;
+  err?: string;
+}
+
+function probeOnce(url: string, timeoutMs: number): Promise<ProbeSample> {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    let settled = false;
+    const done = (s: ProbeSample): void => {
+      if (settled) return;
+      settled = true;
+      resolve(s);
+    };
+    const req = https.get(
+      url,
+      {
+        headers: { 'User-Agent': 'wfuwp-maintenance-probe/1' },
+        timeout: timeoutMs,
+      },
+      (res) => {
+        res.on('data', () => undefined);
+        res.on('end', () =>
+          done({ ts: start, code: res.statusCode ?? 0, ms: Date.now() - start })
+        );
+        res.on('error', (e) =>
+          done({
+            ts: start,
+            code: null,
+            ms: Date.now() - start,
+            err: e.message,
+          })
+        );
+      }
+    );
+    req.on('error', (e) =>
+      done({ ts: start, code: null, ms: Date.now() - start, err: e.message })
+    );
+    req.on('timeout', () => {
+      req.destroy();
+      done({ ts: start, code: null, ms: Date.now() - start, err: 'timeout' });
+    });
+  });
+}
+
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  const idx = Math.min(
+    sorted.length - 1,
+    Math.floor((p / 100) * sorted.length)
+  );
+  return sorted[idx];
+}
+
+// "responding" = any HTTP response received with status < 500.
+// "outage" = no response (connection error/timeout) OR server-side 5xx.
+// 3xx redirects are treated as the site responding, not as downtime.
+function isResponding(s: ProbeSample): boolean {
+  return s.code !== null && s.code < 500;
+}
+
+function isOutage(s: ProbeSample): boolean {
+  return s.code === null || s.code >= 500;
+}
+
+function summarize(samples: ProbeSample[]): string {
+  if (samples.length === 0) return '  (no samples collected)';
+  const respondingCount = samples.filter(isResponding).length;
+  const outageCount = samples.filter(isOutage).length;
+  const errCount = samples.filter((s) => s.code === null).length;
+  const buckets: Record<string, number> = {};
+  for (const s of samples) {
+    const key = s.code === null ? 'err' : `${Math.floor(s.code / 100)}xx`;
+    buckets[key] = (buckets[key] || 0) + 1;
+  }
+  const latencies = samples.map((s) => s.ms).sort((a, b) => a - b);
+  const p50 = percentile(latencies, 50);
+  const p95 = percentile(latencies, 95);
+  let longestStart = 0;
+  let longestEnd = 0;
+  let longestLen = 0;
+  let curStart = 0;
+  let curLen = 0;
+  for (const s of samples) {
+    if (isOutage(s)) {
+      if (curLen === 0) curStart = s.ts;
+      curLen += 1;
+      if (curLen > longestLen) {
+        longestLen = curLen;
+        longestStart = curStart;
+        longestEnd = s.ts;
+      }
+    } else {
+      curLen = 0;
+    }
+  }
+  const respondingPct = ((respondingCount / samples.length) * 100).toFixed(2);
+  const lines = [
+    `  samples: ${samples.length}`,
+    `  by class: ${Object.entries(buckets)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(' ')}`,
+    `  responding (<500): ${respondingCount} (${respondingPct}%)`,
+    `  outage (5xx or no response): ${outageCount} (errors: ${errCount})`,
+    `  latency: p50=${p50}ms p95=${p95}ms`,
+  ];
+  if (longestLen > 0) {
+    const start = new Date(longestStart).toISOString();
+    const end = new Date(longestEnd).toISOString();
+    lines.push(
+      `  longest outage run: ${longestLen} samples, ${start} -> ${end}`
+    );
+  } else {
+    lines.push('  longest outage run: none');
+  }
+  return lines.join('\n');
+}
+
+async function doProbe(
+  env: string,
+  opts: { interval: string; duration?: string; out?: string }
+): Promise<void> {
+  validateEnvironment(env);
+  const url = ENV_CONFIG[env].verifyUrl;
+  const intervalMs = Math.max(
+    100,
+    Math.floor(Number(opts.interval || '1') * 1000)
+  );
+  const durationMs = opts.duration
+    ? Math.floor(Number(opts.duration) * 1000)
+    : 0;
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const outPath =
+    opts.out ||
+    join(homedir(), 'workspace', 'tmp', `wfuwp-probe-${env}-${stamp}.log`);
+  const outDir = dirname(outPath);
+  if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+  const header =
+    `# wfuwp maintenance probe\n# env=${env} url=${url} ` +
+    `interval=${intervalMs}ms duration=${durationMs ? durationMs + 'ms' : 'open'} ` +
+    `started=${new Date().toISOString()}\n`;
+  writeFileSync(outPath, header);
+  console.log(
+    chalk.bold(`Probing ${url}`) +
+      chalk.gray(`  (every ${intervalMs}ms, log: ${outPath}, Ctrl-C to stop)`)
+  );
+  const samples: ProbeSample[] = [];
+  let stopping = false;
+  const stop = (): void => {
+    stopping = true;
+  };
+  process.once('SIGINT', stop);
+  process.once('SIGTERM', stop);
+  const startedAt = Date.now();
+  while (!stopping) {
+    const tickStart = Date.now();
+    const s = await probeOnce(url, Math.max(intervalMs * 2, 5000));
+    samples.push(s);
+    const line =
+      `${new Date(s.ts).toISOString()} code=${s.code ?? 'ERR'} ` +
+      `t=${(s.ms / 1000).toFixed(3)}s` +
+      (s.err ? ` err=${s.err}` : '');
+    appendFileSync(outPath, line + '\n');
+    const colored = isOutage(s) ? chalk.red(line) : chalk.green(line);
+    console.log(`  ${colored}`);
+    if (durationMs > 0 && Date.now() - startedAt >= durationMs) break;
+    if (stopping) break;
+    const elapsed = Date.now() - tickStart;
+    const wait = Math.max(0, intervalMs - elapsed);
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  }
+  console.log('');
+  console.log(chalk.bold('Probe summary:'));
+  console.log(summarize(samples));
+  console.log(chalk.gray(`Log: ${outPath}`));
+}
+
 export const maintenanceCommand = new Command('maintenance')
   .description('Control the wfu.edu down/maintenance page (ALB switch)')
   .addCommand(
@@ -818,5 +1004,28 @@ export const maintenanceCommand = new Command('maintenance')
       .requiredOption('-e, --env <env>', 'Environment (dev|uat)')
       .action(async (opts) => {
         await doInit(opts.env);
+      })
+  )
+  .addCommand(
+    new Command('probe')
+      .description(
+        'Measure perceived availability of an environment by polling its public URL'
+      )
+      .requiredOption('-e, --env <env>', 'Environment (dev|uat|pprd|prod)')
+      .option(
+        '-i, --interval <seconds>',
+        'Seconds between samples (min 0.1)',
+        '1'
+      )
+      .option(
+        '-d, --duration <seconds>',
+        'Stop after this many seconds (default: until Ctrl-C)'
+      )
+      .option(
+        '-o, --out <path>',
+        'Log file path (default: ~/workspace/tmp/...)'
+      )
+      .action(async (opts) => {
+        await doProbe(opts.env, opts);
       })
   );
