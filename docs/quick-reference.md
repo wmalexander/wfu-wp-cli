@@ -108,7 +108,7 @@ wfuwp maintenance status --env prod
 wfuwp maintenance on --env prod
 wfuwp maintenance on --env prod --page down
 
-# Reach the site yourself while it is ON (non-prod only)
+# Reach the site yourself while it is ON (any environment)
 wfuwp maintenance on --env uat --allow-me
 
 # Bring it back online (also clears bypass)

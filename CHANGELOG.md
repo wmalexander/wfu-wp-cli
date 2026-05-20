@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.1] - 2026-05-20
+
+### Changed
+
+- Allowing `wfuwp maintenance allow-me` and `revoke-me` on prod now that prod has a `Maintenance Bypass` rule. The guard that disabled these on prod was tied to the original "prod stays as-is" design and is no longer correct.
+
+### Fixed
+
+- Updating documentation and the wfu-maintenance skill to reflect that the bypass works on every standardized environment, including prod.
+
 ## [0.30.0] - 2026-05-19
 
 ### Added

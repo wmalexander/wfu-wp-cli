@@ -730,8 +730,9 @@ wfuwp maintenance init --env dev
 
 #### Notes
 - prod and pprd are already standardized; `init` is only for dev/uat.
-- prod has no bypass rule by design, so `--allow-me`/`allow-me` are disabled
-  there and prod is never modified structurally by this command.
+- `--allow-me` / `allow-me` work on every standardized environment,
+  including prod. `off` clears the bypass automatically when bringing the
+  environment back online.
 - The two pages are shared across all environments:
   `wakealert.wfu.edu/downpage/maintenance-mode.html` and `.../downpage.html`.
 
