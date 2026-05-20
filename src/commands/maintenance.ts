@@ -456,11 +456,6 @@ async function doOn(
           ? `Run: wfuwp maintenance init --env ${env}`
           : `${env} is not standardized; refusing to act.`)
     );
-  if (allowMe && env === 'prod')
-    fail(
-      'prod has no "Maintenance Bypass" rule and prod must not be modified ' +
-        'structurally. --allow-me is unavailable on prod.'
-    );
   if (!yes) {
     console.log(
       chalk.red.bold(
@@ -576,8 +571,6 @@ async function doOff(env: string, yes: boolean): Promise<void> {
 
 async function doBypass(env: string, add: boolean): Promise<void> {
   validateEnvironment(env);
-  if (env === 'prod')
-    fail('prod has no "Maintenance Bypass" rule; this is unavailable on prod.');
   checkAwsCli();
   const listener = get443ListenerArn(resolveAlbArn(env));
   const bypass = findTaggedRule(listener, BYPASS_TAG);
@@ -805,16 +798,16 @@ export const maintenanceCommand = new Command('maintenance')
   )
   .addCommand(
     new Command('allow-me')
-      .description('Add your public IP to the bypass rule (not prod)')
-      .requiredOption('-e, --env <env>', 'Environment (dev|uat|pprd)')
+      .description('Add your public IP to the bypass rule')
+      .requiredOption('-e, --env <env>', 'Environment (dev|uat|pprd|prod)')
       .action(async (opts) => {
         await doBypass(opts.env, true);
       })
   )
   .addCommand(
     new Command('revoke-me')
-      .description('Clear the bypass rule (not prod)')
-      .requiredOption('-e, --env <env>', 'Environment (dev|uat|pprd)')
+      .description('Clear the bypass rule')
+      .requiredOption('-e, --env <env>', 'Environment (dev|uat|pprd|prod)')
       .action(async (opts) => {
         await doBypass(opts.env, false);
       })

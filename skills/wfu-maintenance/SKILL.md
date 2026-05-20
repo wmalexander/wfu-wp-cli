@@ -24,10 +24,10 @@ maintenance actions until all gates pass.
 
 ### Gate 1 — `wfuwp` installed and at the required version
 
-The maintenance command requires **wfuwp >= 0.30.0**.
+The maintenance command requires **wfuwp >= 0.30.1**.
 
 ```bash
-need=0.30.0
+need=0.30.1
 have=$(wfuwp --version 2>/dev/null | tr -d '[:space:]')
 if [ -z "$have" ] || [ "$(printf '%s\n%s\n' "$need" "$have" | sort -V | head -n1)" != "$need" ]; then
   echo "wfuwp missing or older than $need (found '${have:-none}') - updating..."
@@ -39,7 +39,7 @@ wfuwp --version
 - If `npm i -g` fails with `EACCES`/permission errors, STOP and tell the
   user to install/update it themselves (`npm i -g wfuwp@latest`, possibly
   with their node version manager) — do not use `sudo` automatically.
-- After updating, re-verify `wfuwp --version` is >= 0.30.0 before
+- After updating, re-verify `wfuwp --version` is >= 0.30.1 before
   continuing.
 
 ### Gate 2 — AWS CLI installed
@@ -90,7 +90,8 @@ wfuwp maintenance on --env <env> [--page maintenance|down] [--allow-me]
 - `--page` defaults to `maintenance` (planned work). Use `--page down`
   for an unplanned outage page.
 - `--allow-me` adds your current public IP to the bypass rule so you can
-  still reach the real site. Unavailable on prod.
+  still reach the real site. Available on every standardized environment
+  (dev/uat/pprd/prod). The bypass IP is cleared automatically by `off`.
 - **prod safety:** turning prod ON takes all of wfu.edu offline for the
   public. Never run `on --env prod` without explicit user confirmation in
   the chat for that specific action. The CLI itself also requires typing
@@ -107,15 +108,17 @@ Restores the exact pre-maintenance state and clears any bypass, so what
 you see is what the public sees. Run `status` afterward to confirm the
 site is live and bypass is cleared.
 
-### allow-me / revoke-me (non-prod only)
+### allow-me / revoke-me
 
 ```bash
 wfuwp maintenance allow-me --env <env>
 wfuwp maintenance revoke-me --env <env>
 ```
 
-Add or clear your current public IP on the bypass rule. Disabled on prod
-by design.
+Add or clear your current public IP on the bypass rule. Works on every
+standardized environment, including prod. `off` clears the bypass
+automatically as part of bringing the env back online, so what you see is
+always what the public sees once prod is back up.
 
 ### init (dev/uat only)
 
