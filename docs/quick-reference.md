@@ -113,6 +113,9 @@ wfuwp maintenance on --env uat --allow-me
 
 # Bring it back online (also clears bypass)
 wfuwp maintenance off --env prod
+
+# Measure perceived availability from a bypassed machine during scaling
+wfuwp maintenance probe --env prod --duration 600
 ```
 
 ## Environment Names

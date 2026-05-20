@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.2] - 2026-05-20
+
+### Added
+
+- Adding `wfuwp maintenance probe --env <env>` to poll an environment's public URL on a configurable interval and report perceived availability (per-sample HTTP code + latency, summary with p50/p95 and the longest contiguous non-2xx run, log file in `~/workspace/tmp` by default). Intended for measuring real app/DB unavailability from a bypassed IP during scaling windows.
+
 ## [0.30.1] - 2026-05-20
 
 ### Changed
