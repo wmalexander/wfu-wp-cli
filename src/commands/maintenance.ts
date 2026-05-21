@@ -887,10 +887,15 @@ function summarize(samples: ProbeSample[]): string {
 
 async function doProbe(
   env: string,
-  opts: { interval: string; duration?: string; out?: string }
+  opts: { interval: string; duration?: string; out?: string; url?: string }
 ): Promise<void> {
   validateEnvironment(env);
-  const url = ENV_CONFIG[env].verifyUrl;
+  let url = ENV_CONFIG[env].verifyUrl;
+  if (opts.url) {
+    if (!/^https?:\/\//i.test(opts.url))
+      fail(`--url must be http(s) (got "${opts.url}")`);
+    url = opts.url;
+  }
   const intervalMs = Math.max(
     100,
     Math.floor(Number(opts.interval || '1') * 1000)
@@ -1020,6 +1025,10 @@ export const maintenanceCommand = new Command('maintenance')
       .option(
         '-d, --duration <seconds>',
         'Stop after this many seconds (default: until Ctrl-C)'
+      )
+      .option(
+        '-u, --url <url>',
+        "Override the URL to probe (default: the env's public site)"
       )
       .option(
         '-o, --out <path>',
