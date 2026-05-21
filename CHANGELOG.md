@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.3] - 2026-05-21
+
+### Added
+
+- Adding `-u, --url <url>` to `wfuwp maintenance probe` so the operator can override the default per-env URL. Useful for probing the canonical host directly (e.g. `https://pprd.wfu.edu/` instead of `https://www.pprd.wfu.edu/`, which 301-redirects), or for probing a specific endpoint that exercises the DB during a scaling test.
+
 ## [0.30.2] - 2026-05-20
 
 ### Added

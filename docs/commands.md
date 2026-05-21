@@ -718,8 +718,19 @@ wfuwp maintenance probe --env prod --out ~/probe.log
 ```
 
 Additional options on `probe`: `-i, --interval <seconds>` (default 1, min 0.1),
-`-d, --duration <seconds>` (default: until Ctrl-C), `-o, --out <path>`
+`-d, --duration <seconds>` (default: until Ctrl-C), `-u, --url <url>` (override
+the URL to probe; defaults to the env's public site), `-o, --out <path>`
 (default: `~/workspace/tmp/wfuwp-probe-<env>-<ts>.log`).
+
+Examples with `--url`:
+
+```bash
+# Skip the www. redirect and probe the canonical host directly
+wfuwp maintenance probe --env pprd --url https://pprd.wfu.edu/
+
+# Probe a specific page that hits the DB harder
+wfuwp maintenance probe --env prod --url https://news.wfu.edu/
+```
 
 #### Options
 - `-e, --env <env>` - Target environment (required; `dev`, `uat`, `pprd`, `prod`)
