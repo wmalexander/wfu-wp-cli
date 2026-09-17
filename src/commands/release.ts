@@ -26,13 +26,22 @@ interface ReleaseCleanupOptions {
   path?: string;
 }
 
+const FAILURE_LABELS: Record<string, string> = {
+  'remote-branch-missing': 'no remote branch',
+  'remote-read-only': 'remote is read-only',
+  'remote-denied': 'push denied',
+  'push-rejected': 'push rejected',
+  unknown: 'failed',
+};
+
 function formatBranchResults(result: RepoCleanupResult): string {
   const branches = result.branchResults
     .filter((r) => r.action !== 'skipped' || r.error)
     .map((r) => {
       if (r.success && r.action === 'synced') return r.branch;
       if (r.success && r.action === 'rebuilt') return `${r.branch} (rebuilt)`;
-      return `${r.branch} (failed)`;
+      const label = FAILURE_LABELS[r.failureKind || 'unknown'] || 'failed';
+      return `${r.branch} (${label})`;
     });
   if (branches.length === 0) {
     return 'no branches to sync';
@@ -40,13 +49,25 @@ function formatBranchResults(result: RepoCleanupResult): string {
   return branches.join(', ');
 }
 
+function formatSkipMessage(result: RepoCleanupResult): string {
+  if (!result.skipDetail) {
+    return `${result.skipReason}, skipped`;
+  }
+  return `${result.skipReason}, skipped (${result.skipDetail})`;
+}
+
 async function processRepoCategory(
   categoryName: string,
   repos: string[],
   options: CleanupOptions,
   verbose: boolean
-): Promise<{ processed: number; skipped: number; failed: number }> {
-  const stats = { processed: 0, skipped: 0, failed: 0 };
+): Promise<{
+  processed: number;
+  skipped: number;
+  failed: number;
+  untrackedOnly: number;
+}> {
+  const stats = { processed: 0, skipped: 0, failed: 0, untrackedOnly: 0 };
   if (repos.length === 0) return stats;
   console.log('');
   console.log(chalk.blue.bold(`Processing ${categoryName}:`));
@@ -54,8 +75,11 @@ async function processRepoCategory(
     const result = await cleanupRepo(repoPath, options);
     if (result.skipped) {
       stats.skipped++;
+      if (result.untrackedOnly) {
+        stats.untrackedOnly++;
+      }
       console.log(
-        chalk.yellow(`  ⚠ ${result.repoName} - ${result.skipReason}, skipped`)
+        chalk.yellow(`  ⚠ ${result.repoName} - ${formatSkipMessage(result)}`)
       );
     } else if (result.success) {
       stats.processed++;
@@ -94,6 +118,11 @@ async function runReleaseCleanup(
   };
   if (options.dryRun) {
     console.log(chalk.yellow('DRY RUN - No changes will be made'));
+    console.log(
+      chalk.gray(
+        'Remotes are still contacted read-only, so remote failures are reported here too.'
+      )
+    );
     console.log('');
   }
   if (options.rebuildBranch) {
@@ -110,7 +139,14 @@ async function runReleaseCleanup(
     console.log('');
     const result = await cleanupRepo(cwd, cleanupOptions);
     if (result.skipped) {
-      console.log(chalk.yellow(`⚠ ${result.skipReason}`));
+      console.log(chalk.yellow(`⚠ ${formatSkipMessage(result)}`));
+      if (result.untrackedOnly) {
+        console.log(
+          chalk.gray(
+            'Only untracked files are in the way. Remove or commit them, then re-run.'
+          )
+        );
+      }
       return;
     }
     if (result.success) {
@@ -179,7 +215,7 @@ async function runReleaseCleanup(
   if (repos.muPlugins.length > 0)
     foundParts.push(`${repos.muPlugins.length} mu-plugins`);
   console.log(chalk.cyan(`  Found: ${foundParts.join(', ')}`));
-  const totals = { processed: 0, skipped: 0, failed: 0 };
+  const totals = { processed: 0, skipped: 0, failed: 0, untrackedOnly: 0 };
   if (repos.appRepo) {
     const stats = await processRepoCategory(
       'app',
@@ -190,6 +226,7 @@ async function runReleaseCleanup(
     totals.processed += stats.processed;
     totals.skipped += stats.skipped;
     totals.failed += stats.failed;
+    totals.untrackedOnly += stats.untrackedOnly;
   }
   if (repos.muPlugins.length > 0) {
     const stats = await processRepoCategory(
@@ -201,6 +238,7 @@ async function runReleaseCleanup(
     totals.processed += stats.processed;
     totals.skipped += stats.skipped;
     totals.failed += stats.failed;
+    totals.untrackedOnly += stats.untrackedOnly;
   }
   if (repos.plugins.length > 0) {
     const stats = await processRepoCategory(
@@ -212,6 +250,7 @@ async function runReleaseCleanup(
     totals.processed += stats.processed;
     totals.skipped += stats.skipped;
     totals.failed += stats.failed;
+    totals.untrackedOnly += stats.untrackedOnly;
   }
   if (repos.themes.length > 0) {
     const stats = await processRepoCategory(
@@ -223,6 +262,7 @@ async function runReleaseCleanup(
     totals.processed += stats.processed;
     totals.skipped += stats.skipped;
     totals.failed += stats.failed;
+    totals.untrackedOnly += stats.untrackedOnly;
   }
   console.log('');
   const summaryParts = [
@@ -235,6 +275,13 @@ async function runReleaseCleanup(
     summaryParts.push(`${totals.failed} failed`);
   }
   console.log(chalk.blue.bold(`Summary: ${summaryParts.join(', ')}`));
+  if (totals.untrackedOnly > 0) {
+    console.log(
+      chalk.gray(
+        `${totals.untrackedOnly} of the skipped repositories held only untracked files. Remove or commit them to include those repositories.`
+      )
+    );
+  }
   if (totals.failed > 0) {
     process.exit(1);
   }
