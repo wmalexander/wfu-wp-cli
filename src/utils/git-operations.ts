@@ -3,6 +3,7 @@ import simpleGit, {
   SimpleGitOptions,
   StatusResult,
 } from 'simple-git';
+import { realpathSync } from 'fs';
 
 const gitOptions: Partial<SimpleGitOptions> = {
   baseDir: process.cwd(),
@@ -15,11 +16,34 @@ function createGit(repoPath: string): SimpleGit {
   return simpleGit({ ...gitOptions, baseDir: repoPath });
 }
 
+export type BranchFailureKind =
+  | 'remote-branch-missing'
+  | 'remote-read-only'
+  | 'remote-denied'
+  | 'push-rejected'
+  | 'unknown';
+
 export interface BranchSyncResult {
   branch: string;
   success: boolean;
   action: 'synced' | 'rebuilt' | 'skipped' | 'failed';
+  failureKind?: BranchFailureKind;
   error?: string;
+}
+
+export function classifyGitFailure(message: string): BranchFailureKind {
+  if (/archived so it is read-only|read[- ]only/i.test(message)) {
+    return 'remote-read-only';
+  }
+  if (
+    /permission denied|403|access denied|authentication failed/i.test(message)
+  ) {
+    return 'remote-denied';
+  }
+  if (/\[rejected\]|non-fast-forward|failed to push/i.test(message)) {
+    return 'push-rejected';
+  }
+  return 'unknown';
 }
 
 export interface RepoCleanupResult {
@@ -31,6 +55,8 @@ export interface RepoCleanupResult {
   prunedBranches: string[];
   skipped: boolean;
   skipReason?: string;
+  skipDetail?: string;
+  untrackedOnly?: boolean;
   error?: string;
 }
 
@@ -44,11 +70,35 @@ export interface CleanupOptions {
 export async function isGitRepository(path: string): Promise<boolean> {
   try {
     const git = createGit(path);
-    await git.revparse(['--is-inside-work-tree']);
-    return true;
+    const topLevel = (await git.revparse(['--show-toplevel'])).trim();
+    if (!topLevel) {
+      return false;
+    }
+    return realpathSync(topLevel) === realpathSync(path);
   } catch {
     return false;
   }
+}
+
+export async function describeUncommittedChanges(
+  repoPath: string
+): Promise<{ detail: string; untrackedOnly: boolean }> {
+  const git = createGit(repoPath);
+  const status: StatusResult = await git.status();
+  const untracked = status.not_added.length;
+  const tracked = status.files.length - untracked;
+  const untrackedOnly = tracked === 0 && untracked > 0;
+  const parts: string[] = [];
+  if (tracked > 0) {
+    parts.push(`${tracked} tracked file${tracked === 1 ? '' : 's'} changed`);
+  }
+  if (untracked > 0) {
+    parts.push(`${untracked} untracked file${untracked === 1 ? '' : 's'}`);
+  }
+  const names = status.not_added.slice(0, 3).join(', ');
+  const suffix =
+    untrackedOnly && names ? ` (${names}${untracked > 3 ? ', ...' : ''})` : '';
+  return { detail: `${parts.join(', ')}${suffix}`, untrackedOnly };
 }
 
 export async function hasUncommittedChanges(
@@ -93,13 +143,29 @@ export async function localBranchExists(
   return branches.all.includes(branch);
 }
 
+function failureResult(branch: string, error: unknown): BranchSyncResult {
+  const message = error instanceof Error ? error.message : 'Unknown error';
+  return {
+    branch,
+    success: false,
+    action: 'failed',
+    failureKind: classifyGitFailure(message),
+    error: message,
+  };
+}
+
 async function syncBranchNormal(
   git: SimpleGit,
   branch: string,
   dryRun: boolean
 ): Promise<BranchSyncResult> {
   if (dryRun) {
-    return { branch, success: true, action: 'synced' };
+    try {
+      await git.fetch(['--dry-run', '--quiet', 'origin', branch]);
+      return { branch, success: true, action: 'synced' };
+    } catch (error) {
+      return failureResult(branch, error);
+    }
   }
   try {
     if (await localBranchExistsInternal(git, branch)) {
@@ -110,12 +176,7 @@ async function syncBranchNormal(
     await git.pull(['--quiet', 'origin', branch]);
     return { branch, success: true, action: 'synced' };
   } catch (error) {
-    return {
-      branch,
-      success: false,
-      action: 'failed',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+    return failureResult(branch, error);
   }
 }
 
@@ -126,7 +187,18 @@ async function syncBranchRebuild(
   dryRun: boolean
 ): Promise<BranchSyncResult> {
   if (dryRun) {
-    return { branch, success: true, action: 'rebuilt' };
+    try {
+      await git.push([
+        '--dry-run',
+        '--force',
+        '--quiet',
+        'origin',
+        `${primaryBranch}:${branch}`,
+      ]);
+      return { branch, success: true, action: 'rebuilt' };
+    } catch (error) {
+      return failureResult(branch, error);
+    }
   }
   try {
     await git.checkout(primaryBranch);
@@ -142,12 +214,7 @@ async function syncBranchRebuild(
     await git.push(['--quiet', '-u', 'origin', branch]);
     return { branch, success: true, action: 'rebuilt' };
   } catch (error) {
-    return {
-      branch,
-      success: false,
-      action: 'failed',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
+    return failureResult(branch, error);
   }
 }
 
@@ -225,13 +292,19 @@ export async function cleanupRepo(
       return result;
     }
     if (await hasUncommittedChanges(repoPath)) {
+      const { detail, untrackedOnly } =
+        await describeUncommittedChanges(repoPath);
       result.skipped = true;
       result.skipReason = 'Uncommitted changes';
+      result.skipDetail = detail;
+      result.untrackedOnly = untrackedOnly;
       return result;
     }
     const git = createGit(repoPath);
     result.primaryBranch = await detectPrimaryBranch(repoPath);
-    if (!options.dryRun) {
+    if (options.dryRun) {
+      await git.fetch(['--dry-run', '--quiet', 'origin']);
+    } else {
       await git.checkout(result.primaryBranch);
       await git.pull(['--quiet', 'origin', result.primaryBranch]);
       await git.fetch(['--tags', '--quiet']);
@@ -247,6 +320,7 @@ export async function cleanupRepo(
           branch,
           success: true,
           action: 'skipped',
+          failureKind: 'remote-branch-missing',
           error: 'Remote branch does not exist',
         });
         continue;

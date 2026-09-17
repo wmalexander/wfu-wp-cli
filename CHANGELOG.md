@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-09-17
+
+### Changed
+
+- Making `wfuwp release cleanup --dry-run` contact each remote read-only (`git fetch --dry-run`, and `git push --dry-run` under `--rebuild-branch`) instead of short-circuiting before touching git. A preview that never reached the network could not surface the failures a live run hits, so the two disagreed. The preview is slower now and needs the same remote access the real run needs.
+- Labeling branch outcomes by cause rather than rendering every non-success as `(failed)`. A run now distinguishes `no remote branch`, `remote is read-only`, `push denied`, `push rejected`, and `failed`.
+- Reporting what is actually in the way when a repository is skipped for uncommitted changes, including a count of tracked versus untracked files and a note when only untracked files are the blocker, with a closing summary line pointing at how many skips were of that kind.
+
+### Fixed
+
+- Fixing `isGitRepository` so a directory that merely sits inside a parent repository is no longer treated as a repository of its own. It used `git rev-parse --is-inside-work-tree`, which succeeds in any subdirectory, so nested non-repositories inherited the parent's status and were reported as having uncommitted changes when the true answer was that they are not git repositories.
+
+### Added
+
+- Adding unit coverage for failure classification, repository-root detection, untracked-only skip detection, missing remote branch labeling, and dry-run remote failure reporting.
+
 ## [0.30.4] - 2026-09-17
 
 ### Fixed
