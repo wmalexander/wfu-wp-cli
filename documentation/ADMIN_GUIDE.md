@@ -187,6 +187,16 @@ archived read-only remote) is counted as failed, printed with the underlying
 git error, and makes the command exit non-zero. Repositories that are skipped,
 such as those with uncommitted changes, do not affect the exit code.
 
+`--dry-run` contacts each remote read-only (`git fetch --dry-run`, and
+`git push --dry-run` under `--rebuild-branch`), so a remote that will reject the
+real run is reported during the preview. It is slower than a preview that never
+touches the network, and it needs the same remote access the real run needs.
+
+Skip and failure lines say which condition was hit. A skip caused only by
+untracked files is called out, since that is usually scratch work that can be
+removed. Branch failures are labeled by cause: `no remote branch`,
+`remote is read-only`, `push denied`, `push rejected`, or `failed`.
+
 ## Troubleshooting
 
 ### "AWS CLI is not installed or not in PATH"
