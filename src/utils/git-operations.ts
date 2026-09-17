@@ -18,7 +18,7 @@ function createGit(repoPath: string): SimpleGit {
 export interface BranchSyncResult {
   branch: string;
   success: boolean;
-  action: 'synced' | 'rebuilt' | 'skipped';
+  action: 'synced' | 'rebuilt' | 'skipped' | 'failed';
   error?: string;
 }
 
@@ -113,7 +113,7 @@ async function syncBranchNormal(
     return {
       branch,
       success: false,
-      action: 'skipped',
+      action: 'failed',
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
@@ -145,7 +145,7 @@ async function syncBranchRebuild(
     return {
       branch,
       success: false,
-      action: 'skipped',
+      action: 'failed',
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
@@ -272,9 +272,13 @@ export async function cleanupRepo(
     if (!options.dryRun) {
       await git.checkout(result.primaryBranch);
     }
-    result.success = result.branchResults.every(
-      (r) => r.success || r.action === 'skipped'
-    );
+    const failedBranches = result.branchResults.filter((r) => !r.success);
+    result.success = failedBranches.length === 0;
+    if (failedBranches.length > 0) {
+      result.error = failedBranches
+        .map((r) => `${r.branch}: ${r.error || 'Unknown error'}`)
+        .join('; ');
+    }
   } catch (error) {
     result.success = false;
     result.error = error instanceof Error ? error.message : 'Unknown error';

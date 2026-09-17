@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.30.4] - 2026-09-17
+
+### Fixed
+
+- Counting a failed branch sync in `wfuwp release cleanup` as a failure instead of a success. Both failure paths returned the `skipped` action, which the repository verdict treated as an acceptable outcome, so a repository that synced nothing was reported with a green checkmark, included in the "repositories cleaned" total, and left the exit code at 0. Failures now carry their own `failed` action, increment the failed count, print the underlying git error, and drive a non-zero exit code.
+
+### Added
+
+- Adding unit coverage for `cleanupRepo`, exercising a successful sync, a push rejected by a read-only remote, a non-repository path, and a repository with uncommitted changes.
+
 ## [0.30.3] - 2026-05-21
 
 ### Added

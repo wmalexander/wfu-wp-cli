@@ -182,6 +182,11 @@ wfuwp release cleanup              # Sync all repos
 wfuwp release cleanup --dry-run    # Preview changes
 ```
 
+A repository whose branch sync fails (for example, a push rejected by an
+archived read-only remote) is counted as failed, printed with the underlying
+git error, and makes the command exit non-zero. Repositories that are skipped,
+such as those with uncommitted changes, do not affect the exit code.
+
 ## Troubleshooting
 
 ### "AWS CLI is not installed or not in PATH"
