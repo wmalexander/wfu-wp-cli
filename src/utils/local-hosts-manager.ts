@@ -124,19 +124,33 @@ export class LocalHostsManager {
 
     const currentDomains = this.getCurrentDomains();
     const existingDomain = currentDomains.find((d) => d.domain === domain);
-    if (existingDomain) {
+    if (existingDomain && this.hasIpv6Entry(domain)) {
       throw new Error(`Domain ${domain} already exists in hosts file`);
     }
+    if (existingDomain) {
+      this.rewriteLocalSection(currentDomains);
+      return existingDomain;
+    }
+    this.rewriteLocalSection([...currentDomains, localDomain]);
+    return localDomain;
+  }
+
+  private hasIpv6Entry(domain: string): boolean {
+    const hostsContent = this.readHostsFile();
+    return hostsContent.split('\n').some((line) => {
+      const parts = line.trim().split(/\s+/);
+      return parts[0] === IPV6_LOOPBACK && parts[1] === domain;
+    });
+  }
+
+  private rewriteLocalSection(domains: LocalDomain[]): void {
     const hostsContent = this.readHostsFile();
     const cleanedContent = this.removeExistingLocalSection(hostsContent);
-    const updatedDomains = [...currentDomains, localDomain];
-    const newLocalSection = this.buildLocalSection(updatedDomains);
+    const newLocalSection = this.buildLocalSection(domains);
     const newContent = cleanedContent.endsWith('\n')
       ? cleanedContent
       : cleanedContent + '\n';
-    const finalContent = newContent + newLocalSection;
-    this.writeHostsFile(finalContent);
-    return localDomain;
+    this.writeHostsFile(newContent + newLocalSection);
   }
 
   removeDomain(domain: string): boolean {

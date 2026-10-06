@@ -52,6 +52,21 @@ describe('LocalHostsManager', () => {
       `${START}\n127.0.0.1\tnews.wfu.local\n::1\tnews.wfu.local\n127.0.0.1\tmagazine.wfu.local\n::1\tmagazine.wfu.local\n${END}\n`
     );
   });
+  it('upgrades an IPv4-only domain when it is added again', () => {
+    hostsContent = `${START}\n127.0.0.1\tnews.wfu.local\n${END}\n`;
+    const manager = new LocalHostsManager();
+    manager.addDomain('news.wfu.local');
+    expect(hostsContent).toContain(
+      `${START}\n127.0.0.1\tnews.wfu.local\n::1\tnews.wfu.local\n${END}\n`
+    );
+  });
+  it('still rejects a domain that already has both lines', () => {
+    const manager = new LocalHostsManager();
+    manager.addDomain('news.wfu.local');
+    expect(() => manager.addDomain('news.wfu.local')).toThrow(
+      'Domain news.wfu.local already exists in hosts file'
+    );
+  });
   it('removes both lines when a domain is removed', () => {
     const manager = new LocalHostsManager();
     manager.addDomain('news.wfu.local');

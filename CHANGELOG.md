@@ -11,11 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Writing a `::1` line beside each `127.0.0.1` line when `wfuwp local domain` manages `.wfu.local` entries in `/etc/hosts`. With only the IPv4 line, macOS waits out a five-second Bonjour (mDNS) timeout on the IPv6 lookup for every `.local` request, so local pages took five to seven seconds to load and a block editor save could take a minute. Existing IPv4-only sections pick up the missing lines the next time a domain is added or removed. (WP-8692)
+- Writing a `::1` line beside each `127.0.0.1` line when `wfuwp local domain` manages `.wfu.local` entries in `/etc/hosts`. With only the IPv4 line, macOS waits out a five-second Bonjour (mDNS) timeout on the IPv6 lookup for every `.local` request, so local pages took five to seven seconds to load and a block editor save could take a minute. Existing IPv4-only sections pick up the missing lines the next time a domain is added or removed, and running `sudo wfuwp local domain add` on a domain that is already listed now upgrades it instead of failing with "already exists". (WP-8692)
 
 ### Added
 
-- Adding unit coverage for `LocalHostsManager` covering dual-stack entries, single reporting per domain, upgrading an IPv4-only section, and removal of both lines.
+- Adding unit coverage for `LocalHostsManager` covering dual-stack entries, single reporting per domain, upgrading an IPv4-only section, re-adding an IPv4-only domain, rejecting a true duplicate, and removal of both lines.
 
 ## [0.31.0] - 2026-09-17
 
