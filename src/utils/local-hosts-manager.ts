@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from 'fs';
 const HOSTS_FILE = '/etc/hosts';
 const MARKER_START = '# WFU WordPress CLI - Local Development Start';
 const MARKER_END = '# WFU WordPress CLI - Local Development End';
+const IPV6_LOOPBACK = '::1';
 
 export interface LocalDomain {
   domain: string;
@@ -43,8 +44,11 @@ export class LocalHostsManager {
     return '127.0.0.1';
   }
 
-  private createHostEntry(domain: LocalDomain): string {
-    return `${domain.ipAddress}\t${domain.domain}`;
+  private createHostEntries(domain: LocalDomain): string[] {
+    return [
+      `${domain.ipAddress}\t${domain.domain}`,
+      `${IPV6_LOOPBACK}\t${domain.domain}`,
+    ];
   }
 
   private removeExistingLocalSection(hostsContent: string): string {
@@ -84,7 +88,7 @@ export class LocalHostsManager {
         }
         if (inLocalSection && line.trim() && !line.startsWith('#')) {
           const parts = line.split(/\s+/);
-          if (parts.length >= 2) {
+          if (parts.length >= 2 && parts[0] !== IPV6_LOOPBACK) {
             const ipAddress = parts[0];
             const domain = parts[1];
             // Accept any .wfu.local domain
@@ -177,7 +181,7 @@ export class LocalHostsManager {
     }
     const lines = [MARKER_START];
     for (const domain of domains) {
-      lines.push(this.createHostEntry(domain));
+      lines.push(...this.createHostEntries(domain));
     }
     lines.push(MARKER_END);
     return lines.join('\n') + '\n';
