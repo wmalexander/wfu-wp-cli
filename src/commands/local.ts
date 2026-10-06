@@ -203,10 +203,15 @@ localCommand
       .action(async (domainName) => {
         try {
           const manager = new LocalHostsManager();
+          const upgrading = manager.domainExists(domainName);
           const domain = manager.addDomain(domainName);
 
           console.log(
-            chalk.green(`Successfully added local development domain:`)
+            chalk.green(
+              upgrading
+                ? `Added the missing IPv6 entry for local development domain:`
+                : `Successfully added local development domain:`
+            )
           );
           console.log(`  Domain: ${chalk.blue(domain.domain)}`);
           console.log(`  IP: ${chalk.dim(domain.ipAddress)}`);

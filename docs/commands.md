@@ -459,7 +459,7 @@ wfuwp local <subcommand> [options]
 ```
 
 #### Subcommands
-- `domain` - Manage local development domains (/etc/hosts)
+- `domain` - Manage local development domains (/etc/hosts). Each domain gets both a `127.0.0.1` and a `::1` line, so macOS does not stall for five seconds on `.local` lookups
 - `status` - Show environment status and health checks
 - `install` - Install and setup development dependencies
 - `start` - Start local development environment
