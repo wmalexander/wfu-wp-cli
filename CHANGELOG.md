@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-19
+
+### Added
+
+- Adding `wfuwp clickup branch <taskId>`, which starts work on a ClickUp task by cutting a correctly named feature branch from `origin/main` in the current repository (or `--repo <path>`). The branch name follows the team convention, `feature-wp-8848-review-php-coding-standards-page`, built from the task's custom ID and up to five words of its title. The command refuses a dirty working tree, an existing branch of the same name (local or remote), and a directory that is not a repository root. `--push` publishes the branch, `--pr` also opens a draft pull request titled from the task with a ticket link and an unchecked development-stages checklist (it adds one empty starting commit so GitHub will open the pull request, and delegates authentication to the `gh` CLI), and `--dry-run` previews every action without changing anything. (WP goal: branch and PR creation from ClickUp tasks)
+- Supporting ClickUp custom task IDs (`WP-8848`) in task lookups by sending `custom_task_ids` with the workspace's team ID, resolved from `clickup.defaultWorkspaceId` or the account's first workspace.
+
 ## [0.31.1] - 2026-10-06
 
 ### Fixed

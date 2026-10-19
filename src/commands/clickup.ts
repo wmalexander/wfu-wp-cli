@@ -113,6 +113,89 @@ export const clickupCommand = new Command('clickup')
       })
   )
   .addCommand(
+    new Command('branch')
+      .description(
+        'Create a feature branch (and optionally a draft pull request) from a ClickUp task'
+      )
+      .argument('<taskId>', 'Task ID or custom ID (e.g., WP-8848 or 86akkbrcx)')
+      .option(
+        '--repo <path>',
+        'Repository to branch in (defaults to the current directory)'
+      )
+      .option('--push', 'Push the new branch to origin')
+      .option(
+        '--pr',
+        'Open a draft pull request (implies --push; needs the gh CLI)'
+      )
+      .option('--dry-run', 'Show what would happen without changing anything')
+      .action(
+        async (
+          taskId: string,
+          options: {
+            repo?: string;
+            push?: boolean;
+            pr?: boolean;
+            dryRun?: boolean;
+          }
+        ) => {
+          try {
+            const { ClickUpClient } = await import('../utils/clickup-client');
+            const { isCustomTaskId, startTaskBranch } = await import(
+              '../utils/task-branch'
+            );
+            const { resolve } = await import('path');
+            const client = new ClickUpClient();
+            let task: any;
+            if (isCustomTaskId(taskId)) {
+              let teamId: string | undefined =
+                Config.getClickUpConfig().defaultWorkspaceId;
+              if (!teamId) {
+                const workspaces = await client.getWorkspaces();
+                if (!workspaces.teams || workspaces.teams.length === 0) {
+                  throw new Error('No ClickUp workspaces found.');
+                }
+                teamId = workspaces.teams[0].id;
+              }
+              task = await client.getTask(taskId, {
+                customTaskIds: true,
+                teamId,
+              });
+            } else {
+              task = await client.getTask(taskId);
+            }
+            const ref: string = task.custom_id || task.id;
+            console.log(`${chalk.cyan('Task:')} ${ref} ${task.name}`);
+            if (task.status?.status) {
+              console.log(`${chalk.cyan('Status:')} ${task.status.status}`);
+            }
+            const repoPath = resolve(options.repo || process.cwd());
+            const result = await startTaskBranch(
+              repoPath,
+              { ref, name: task.name, url: task.url },
+              {
+                push: options.push,
+                pr: options.pr,
+                dryRun: options.dryRun,
+              }
+            );
+            for (const action of result.actions) {
+              console.log(chalk.green(`✓ ${action}`));
+            }
+            if (options.dryRun) {
+              console.log(chalk.gray('Dry run: nothing was changed.'));
+            }
+          } catch (error) {
+            console.error(
+              chalk.red(
+                `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+              )
+            );
+            process.exit(1);
+          }
+        }
+      )
+  )
+  .addCommand(
     new Command('create')
       .description('Create a new ClickUp task')
       .argument('[title]', 'Task title')
