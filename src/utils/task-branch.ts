@@ -32,12 +32,14 @@ export interface StartBranchResult {
   base: string;
   actions: string[];
   pushed: boolean;
+  prOpened: boolean;
   prUrl?: string;
 }
 
 /// The comment posted on the ClickUp task once a draft pull request exists.
+/// The URL ends the comment bare so no renderer folds punctuation into it.
 export function prCommentText(prUrl: string, branch: string): string {
-  return `A draft pull request for this task is open at ${prUrl}, on branch ${branch}.`;
+  return `A draft pull request for this task is open on branch ${branch}: ${prUrl}`;
 }
 
 /// A ClickUp custom task ID like WP-8848: a letter-led prefix, a hyphen, digits.
@@ -174,6 +176,7 @@ export async function startTaskBranch(
     base,
     actions: [],
     pushed: false,
+    prOpened: false,
   };
   if (options.dryRun) {
     result.actions.push(`Would create ${branch} from ${base}.`);
@@ -250,6 +253,7 @@ export async function startTaskBranch(
           `The branch is created and pushed, but opening the draft pull request failed: ${create.output}`
         );
       }
+      result.prOpened = true;
       const urlMatch = create.output.match(/https:\/\/github\.com\/\S+/);
       result.prUrl = urlMatch ? urlMatch[0] : undefined;
       result.actions.push(

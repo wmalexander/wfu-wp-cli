@@ -208,6 +208,12 @@ export const clickupCommand = new Command('clickup')
                   )
                 );
               }
+            } else if (result.prOpened) {
+              console.warn(
+                chalk.yellow(
+                  'The pull request opened, but its URL could not be read from the gh output, so no comment was posted on the task.'
+                )
+              );
             }
             if (options.dryRun) {
               console.log(chalk.gray('Dry run: nothing was changed.'));

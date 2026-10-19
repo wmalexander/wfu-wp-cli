@@ -71,11 +71,11 @@ describe('slugifyTaskName', () => {
 });
 
 describe('prCommentText', () => {
-  it('names the pull request URL and the branch in one full sentence', () => {
+  it('ends with the bare URL so no renderer folds punctuation into it', () => {
     expect(
       prCommentText('https://github.com/org/repo/pull/9', 'feature-wp-1-fix')
     ).toBe(
-      'A draft pull request for this task is open at https://github.com/org/repo/pull/9, on branch feature-wp-1-fix.'
+      'A draft pull request for this task is open on branch feature-wp-1-fix: https://github.com/org/repo/pull/9'
     );
   });
 });
