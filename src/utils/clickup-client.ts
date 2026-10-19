@@ -218,14 +218,27 @@ export class ClickUpClient {
 
   async getTask(
     taskId: string,
-    options: { includeSubtasks?: boolean } = {}
+    options: {
+      includeSubtasks?: boolean;
+      customTaskIds?: boolean;
+      teamId?: string;
+    } = {}
   ): Promise<any> {
     const params: any = {};
     if (options.includeSubtasks) {
       params.include_subtasks = true;
     }
+    if (options.customTaskIds) {
+      if (!options.teamId) {
+        throw new Error(
+          'A team ID is required to look up a task by custom ID.'
+        );
+      }
+      params.custom_task_ids = true;
+      params.team_id = options.teamId;
+    }
     const response = await this.retryWithExponentialBackoff(() =>
-      this.api.get(`/task/${taskId}`, { params })
+      this.api.get(`/task/${encodeURIComponent(taskId)}`, { params })
     );
     return response.data;
   }
