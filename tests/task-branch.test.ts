@@ -193,6 +193,55 @@ describe('startTaskBranch', () => {
     expect(log).toContain('Starting WP-8848');
   });
 
+  it('refuses a detached HEAD so stranded commits cannot happen', async () => {
+    const sha = git(repo, 'rev-parse', 'HEAD').trim();
+    git(repo, 'checkout', '--detach', sha);
+    await expect(startTaskBranch(repo, TASK)).rejects.toThrow(
+      'HEAD is detached'
+    );
+  });
+
+  it('names the missing origin remote plainly', async () => {
+    const bare = join(root, 'no-origin');
+    execFileSync('git', ['init', '--initial-branch=main', bare]);
+    git(bare, 'config', 'user.email', 'test@example.com');
+    git(bare, 'config', 'user.name', 'Test');
+    writeFileSync(join(bare, 'README.md'), 'hello\n');
+    git(bare, 'add', '.');
+    git(bare, 'commit', '-m', 'initial');
+    await expect(startTaskBranch(bare, TASK)).rejects.toThrow(
+      'no origin remote'
+    );
+  });
+
+  it('reports the kept branch when the push itself fails', async () => {
+    const hook = join(origin, 'hooks', 'pre-receive');
+    writeFileSync(hook, '#!/bin/sh\necho rejected by policy >&2\nexit 1\n', {
+      mode: 0o755,
+    });
+    await expect(startTaskBranch(repo, TASK, { push: true })).rejects.toThrow(
+      'created and checked out locally, but pushing'
+    );
+    const current = git(repo, 'rev-parse', '--abbrev-ref', 'HEAD').trim();
+    expect(current).toBe('feature-wp-8848-review-php-coding-standards-page');
+  });
+
+  it('reports the create failure when gh exists but pr create fails', async () => {
+    await expect(
+      startTaskBranch(repo, TASK, {
+        pr: true,
+        runGh: (args) =>
+          args[0] === '--version'
+            ? { status: 0, output: 'gh version 2.0.0' }
+            : { status: 1, output: 'GraphQL: something broke' },
+      })
+    ).rejects.toThrow(
+      'opening the draft pull request failed: GraphQL: something broke'
+    );
+    const remote = git(repo, 'ls-remote', '--heads', 'origin').trim();
+    expect(remote).toContain('feature-wp-8848');
+  });
+
   it('keeps the branch but reports when gh is unavailable', async () => {
     await expect(
       startTaskBranch(repo, TASK, {

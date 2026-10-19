@@ -66,7 +66,11 @@ function defaultRunGh(
   args: string[],
   cwd: string
 ): { status: number; output: string } {
-  const result = spawnSync('gh', args, { cwd, encoding: 'utf8' });
+  const result = spawnSync('gh', args, {
+    cwd,
+    encoding: 'utf8',
+    timeout: 60000,
+  });
   if (result.error) {
     return { status: 127, output: result.error.message };
   }
@@ -79,6 +83,18 @@ function prBodySkeleton(task: TaskRef): string {
     '## TL;DR',
     '',
     '(Describe the change in plain English once the work exists.)',
+    '',
+    '## Why this is worth your time',
+    '',
+    '(Fill in before requesting review.)',
+    '',
+    '## Review gates',
+    '',
+    '(Answer all five before requesting review: actual problem, demonstrable impact, would prioritize, tested by the author, context for the reviewer.)',
+    '',
+    '## Testing already done',
+    '',
+    '(Say exactly what ran.)',
     '',
     '## Ticket and evidence',
     '',
@@ -95,7 +111,20 @@ function prBodySkeleton(task: TaskRef): string {
   ].join('\n');
 }
 
+async function assertOnABranch(git: SimpleGit): Promise<void> {
+  const head = (await git.revparse(['--abbrev-ref', 'HEAD'])).trim();
+  if (head === 'HEAD') {
+    throw new Error(
+      'HEAD is detached. Check out a branch first, so nothing you have committed here gets stranded.'
+    );
+  }
+}
+
 async function resolveBase(repoPath: string, git: SimpleGit): Promise<string> {
+  const remotes = await git.getRemotes();
+  if (!remotes.some((remote) => remote.name === 'origin')) {
+    throw new Error('This repository has no origin remote.');
+  }
   const primary = await detectPrimaryBranch(repoPath);
   if (!(await remoteBranchExists(repoPath, primary))) {
     throw new Error(
@@ -121,6 +150,7 @@ export async function startTaskBranch(
     );
   }
   const git = simpleGit({ baseDir: repoPath, binary: 'git' });
+  await assertOnABranch(git);
   const branch = buildBranchName(task.ref, task.name);
   const base = await resolveBase(repoPath, git);
   if (await localBranchExists(repoPath, branch)) {
@@ -155,18 +185,32 @@ export async function startTaskBranch(
   await git.checkout(['-b', branch, '--no-track', base]);
   result.actions.push(`Created ${branch} from ${base}.`);
   if (options.pr) {
-    await git.raw([
-      'commit',
-      '--allow-empty',
-      '-m',
-      `Starting ${task.ref}: ${task.name}`,
-    ]);
+    try {
+      await git.raw([
+        'commit',
+        '--allow-empty',
+        '-m',
+        `Starting ${task.ref}: ${task.name}`,
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `The branch ${branch} is created and checked out, but the starting commit failed (${message}). Commit hooks or signing settings are the usual cause.`
+      );
+    }
     result.actions.push(
       'Added an empty starting commit so the pull request can open.'
     );
   }
   if (wantsPush) {
-    await git.push(['--quiet', '-u', 'origin', branch]);
+    try {
+      await git.push(['--quiet', '-u', 'origin', branch]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `The branch ${branch} is created and checked out locally, but pushing it to origin failed (${message}).`
+      );
+    }
     result.pushed = true;
     result.actions.push(`Pushed ${branch} to origin.`);
   }

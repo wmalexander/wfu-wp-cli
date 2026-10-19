@@ -156,10 +156,21 @@ export const clickupCommand = new Command('clickup')
                 }
                 teamId = workspaces.teams[0].id;
               }
-              task = await client.getTask(taskId, {
-                customTaskIds: true,
-                teamId,
-              });
+              try {
+                task = await client.getTask(taskId.toUpperCase(), {
+                  customTaskIds: true,
+                  teamId,
+                });
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : String(error);
+                if (message.includes('not found')) {
+                  throw new Error(
+                    `${message} If the task ID is right, set clickup.defaultWorkspaceId in case your account has several workspaces.`
+                  );
+                }
+                throw error;
+              }
             } else {
               task = await client.getTask(taskId);
             }
