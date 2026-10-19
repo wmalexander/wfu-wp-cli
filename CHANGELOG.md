@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.1] - 2026-10-19
+
+### Fixed
+
+- Declaring the repository URL in package.json, which npm's provenance validation requires for trusted publishing. The 0.33.0 publish was rejected with "repository.url is empty" after the provenance statement was already signed, so this release carries 0.33.0's features to npm.
+
 ## [0.33.0] - 2026-10-19
 
 ### Changed
