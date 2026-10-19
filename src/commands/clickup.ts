@@ -140,9 +140,8 @@ export const clickupCommand = new Command('clickup')
         ) => {
           try {
             const { ClickUpClient } = await import('../utils/clickup-client');
-            const { isCustomTaskId, startTaskBranch } = await import(
-              '../utils/task-branch'
-            );
+            const { isCustomTaskId, startTaskBranch, prCommentText } =
+              await import('../utils/task-branch');
             const { resolve } = await import('path');
             const client = new ClickUpClient();
             let task: any;
@@ -191,6 +190,30 @@ export const clickupCommand = new Command('clickup')
             );
             for (const action of result.actions) {
               console.log(chalk.green(`✓ ${action}`));
+            }
+            if (result.prUrl) {
+              try {
+                await client.createTaskComment(task.id, {
+                  commentText: prCommentText(result.prUrl, result.branch),
+                });
+                console.log(
+                  chalk.green(
+                    '✓ Commented the pull request link on the ClickUp task.'
+                  )
+                );
+              } catch (commentError) {
+                console.warn(
+                  chalk.yellow(
+                    `The pull request is open, but commenting on the task failed: ${commentError instanceof Error ? commentError.message : 'Unknown error'}`
+                  )
+                );
+              }
+            } else if (result.prOpened) {
+              console.warn(
+                chalk.yellow(
+                  'The pull request opened, but its URL could not be read from the gh output, so no comment was posted on the task.'
+                )
+              );
             }
             if (options.dryRun) {
               console.log(chalk.gray('Dry run: nothing was changed.'));

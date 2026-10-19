@@ -8,6 +8,7 @@ import {
   slugifyTaskName,
   buildBranchName,
   startTaskBranch,
+  prCommentText,
 } from '../src/utils/task-branch';
 
 jest.setTimeout(60000);
@@ -66,6 +67,16 @@ describe('slugifyTaskName', () => {
 
   it('returns an empty slug for a name with no usable words', () => {
     expect(slugifyTaskName('!!! ???')).toBe('');
+  });
+});
+
+describe('prCommentText', () => {
+  it('ends with the bare URL so no renderer folds punctuation into it', () => {
+    expect(
+      prCommentText('https://github.com/org/repo/pull/9', 'feature-wp-1-fix')
+    ).toBe(
+      'A draft pull request for this task is open on branch feature-wp-1-fix: https://github.com/org/repo/pull/9'
+    );
   });
 });
 
