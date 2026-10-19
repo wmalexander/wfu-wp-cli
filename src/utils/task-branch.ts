@@ -35,6 +35,11 @@ export interface StartBranchResult {
   prUrl?: string;
 }
 
+/// The comment posted on the ClickUp task once a draft pull request exists.
+export function prCommentText(prUrl: string, branch: string): string {
+  return `A draft pull request for this task is open at ${prUrl}, on branch ${branch}.`;
+}
+
 /// A ClickUp custom task ID like WP-8848: a letter-led prefix, a hyphen, digits.
 export function isCustomTaskId(value: string): boolean {
   return /^[A-Za-z][A-Za-z0-9]*-\d+$/.test(value);
@@ -177,7 +182,7 @@ export async function startTaskBranch(
     }
     if (options.pr) {
       result.actions.push(
-        `Would add an empty starting commit and open a draft pull request titled "${task.ref}: ${task.name}".`
+        `Would add an empty starting commit, open a draft pull request titled "${task.ref}: ${task.name}", and comment its link on the task.`
       );
     }
     return result;

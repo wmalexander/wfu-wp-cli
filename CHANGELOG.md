@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-10-19
+
+### Added
+
+- Commenting the draft pull request link on the ClickUp task when `wfuwp clickup branch --pr` succeeds, so the ticket and the code link themselves without anyone pasting URLs. The comment names the pull request URL and the branch. A failed comment warns without failing the command, since the branch and pull request already exist.
+
 ## [0.32.0] - 2026-10-19
 
 ### Added
