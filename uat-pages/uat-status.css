@@ -31,3 +31,33 @@ brand change made there.
 		font-size: 15px;
 	}
 }
+.uat-status__wake {
+	background: #8c6d2c;
+	border: 0;
+	border-radius: 4px;
+	color: #fff;
+	cursor: pointer;
+	font-family: "Open Sans", "Helvetica Neue", Helvetica, sans-serif;
+	font-size: 18px;
+	font-weight: 700;
+	padding: 12px 28px;
+	transition: background .2s ease-in-out;
+}
+.uat-status__wake:hover, .uat-status__wake:focus-visible {
+	background: #755a23;
+}
+.uat-status__wake:focus-visible {
+	outline: 3px solid #1a1a1a;
+	outline-offset: 2px;
+}
+.uat-status__wake:disabled {
+	background: #8a8a8a;
+	cursor: wait;
+}
+.text-container .uat-status__message:empty {
+	display: none;
+}
+.text-container .uat-status__fallback {
+	color: #555;
+	font-size: 15px;
+}

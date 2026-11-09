@@ -100,6 +100,11 @@ export function ebHealth(envName: string): string {
   return `${e.Status}/${e.Health}`;
 }
 
+export function workerReady(health: string): boolean {
+  const color = health.split('/')[1] ?? '';
+  return color === 'Green' || color === 'Yellow';
+}
+
 export function healthyTargets(targetGroup: string): number {
   const res = awsJson<{
     TargetHealthDescriptions: { TargetHealth: { State: string } }[];
@@ -250,13 +255,16 @@ async function waitUntilAwake(
   while (Date.now() < deadline) {
     const healthy = healthyTargets(ctx.targetGroup);
     const worker = asgState(ctx.workerAsg);
-    if (healthy > 0 && worker.inService > 0) return true;
+    const workerHealth = ebHealth(UAT_WORKER_ENV);
+    if (healthy > 0 && worker.inService > 0 && workerReady(workerHealth))
+      return true;
     if (Date.now() - lastProgress >= PROGRESS_EVERY_SECONDS * 1000) {
       const web = asgState(ctx.webAsg);
       console.log(
         chalk.gray(
           `  ${elapsedLabel(startedAt)}: web in service ${web.inService}, ` +
-            `healthy ${healthy}; worker in service ${worker.inService}`
+            `healthy ${healthy}; worker in service ${worker.inService} ` +
+            `(${workerHealth})`
         )
       );
       lastProgress = Date.now();

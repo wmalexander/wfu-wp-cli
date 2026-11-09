@@ -6,7 +6,7 @@ import {
   UAT_ASLEEP_URL,
   UAT_WAKING_URL,
 } from '../../src/utils/uat-pages';
-import { classifyPhase, AsgState } from '../../src/commands/uat';
+import { classifyPhase, workerReady, AsgState } from '../../src/commands/uat';
 
 function asg(desired: number, inService: number): AsgState {
   return { name: 'g', min: desired, max: 2, desired, inService };
@@ -71,5 +71,21 @@ describe('classifyPhase', () => {
 
   it('reports mixed for the nightly scale-in with the worker still running', () => {
     expect(classifyPhase(null, asg(0, 0), asg(1, 1), 0)).toBe('mixed');
+  });
+});
+
+describe('workerReady', () => {
+  it('waits for Elastic Beanstalk to report the worker healthy', () => {
+    expect(workerReady('Ready/Grey')).toBe(false);
+    expect(workerReady('Launching/Grey')).toBe(false);
+    expect(workerReady('Ready/Red')).toBe(false);
+    expect(workerReady('Ready/Green')).toBe(true);
+    expect(workerReady('Ready/Yellow')).toBe(true);
+  });
+});
+
+describe('page bodies and the wake button', () => {
+  it('reload when the asleep page button posts the wake message', () => {
+    expect(uatAsleepBody()).toContain('e.data=="uat-wake"');
   });
 });

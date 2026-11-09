@@ -25,11 +25,50 @@
 			<p class="uat-status__eyebrow">WordPress test environment</p>
 			<h2>UAT is asleep</h2>
 			<p>UAT, the environment where we test WordPress changes before they go live, sleeps while nobody is using it. It wakes up in about four minutes.</p>
-			<p>To wake it, email the WordPress team at <a href="mailto:web@wfu.edu?subject=Please%20wake%20UAT" target="_blank">web@wfu.edu</a>. Keep this tab open: it changes on its own once UAT starts waking, and takes you to the page you asked for when UAT is ready.</p>
+			<p>Press the button to wake it. Keep this tab open: it will take you to the page you asked for as soon as UAT is ready.</p>
+			<p><button type="button" class="uat-status__wake" id="uat-wake">Wake UAT</button></p>
+			<p class="uat-status__message" id="uat-wake-message" role="status" aria-live="polite"></p>
+			<p class="uat-status__fallback">Having trouble? Email the WordPress team at <a href="mailto:web@wfu.edu?subject=Please%20wake%20UAT" target="_blank">web@wfu.edu</a>.</p>
 			<hr />
 			<p class="contact-info">Wake Forest University | Winston-Salem NC 27109 | 336.758.5000</p>
 		</div>
 	</div>
 </main>
+<script>
+	( function () {
+		var wakeApi = 'https://api.wordpress.dev.wfu.edu/uat/wake';
+		var button = document.getElementById( 'uat-wake' );
+		var message = document.getElementById( 'uat-wake-message' );
+		function tellParent() {
+			if ( window.parent !== window ) {
+				window.parent.postMessage( 'uat-wake', '*' );
+			}
+		}
+		function fail( text ) {
+			message.textContent = text;
+			button.disabled = false;
+			button.textContent = 'Try again';
+		}
+		button.addEventListener( 'click', function () {
+			button.disabled = true;
+			button.textContent = 'Waking UAT…';
+			message.textContent = '';
+			fetch( wakeApi, { method: 'POST', cache: 'no-store' } ).then( function ( res ) {
+				return res.json().catch( function () {
+					return {};
+				} ).then( function ( body ) {
+					if ( res.status === 200 || res.status === 202 ) {
+						message.textContent = 'UAT is waking up. This page will change in a moment.';
+						tellParent();
+						return;
+					}
+					fail( body.error || 'UAT could not be woken right now.' );
+				} );
+			} ).catch( function () {
+				fail( 'The wake service could not be reached. Check that you are on the campus network or VPN.' );
+			} );
+		} );
+	} )();
+</script>
 </body>
 </html>

@@ -18,6 +18,14 @@ function pollScript(title: string): string {
   );
 }
 
+function messageListener(): string {
+  return (
+    '<script>addEventListener("message",function(e){' +
+    'if(e.data=="uat-wake")setTimeout(function(){location.reload()},3000)' +
+    '})</script>'
+  );
+}
+
 function page(title: string, src: string): string {
   return (
     '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
@@ -25,7 +33,7 @@ function page(title: string, src: string): string {
     `<title>${title}</title></head><body style="margin:0">` +
     `<iframe src="${src}" title="${title}" style="position:fixed;inset:0;` +
     `width:100%;height:100%;border:0">${title}</iframe>` +
-    `${pollScript(title)}</body></html>`
+    `${pollScript(title)}${messageListener()}</body></html>`
   );
 }
 
