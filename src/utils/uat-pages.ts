@@ -21,7 +21,7 @@ function pollScript(title: string): string {
 function messageListener(): string {
   return (
     '<script>addEventListener("message",function(e){' +
-    'if(e.data=="uat-wake")setTimeout(function(){location.reload()},3000)' +
+    'if(e.data=="uat-wake")setTimeout(function(){location.reload()},8000)' +
     '})</script>'
   );
 }
