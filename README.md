@@ -487,7 +487,18 @@ wfuwp uat status          # ASLEEP, WAKING, AWAKE, or MIXED, with ASG and health
 wfuwp uat down            # asleep page ON, web and worker ASGs to 0
 wfuwp uat up              # waking page ON, ASGs to 1, wait for healthy, page OFF
 wfuwp uat up --timeout 30 # wait longer before giving up (minutes, default 25)
+wfuwp uat build --base main --with wfu-golinks:feature-wp-1234-x --dry-run
+wfuwp uat build --base dev                      # UAT gets each package's dev branch
+wfuwp uat build                                 # back to the uat branches
 ```
+
+`uat build` chooses the code UAT builds from: `uat` (each package's uat
+branch, the default), `dev` (each package's dev branch, a shared playground,
+so not for sign-off), or `main` (released versions). `--with` pins one WFU
+package to a branch and can be repeated. The choice is committed to the app
+repository's uat branch as `uat-build.json`, so the baseline is recorded and
+reproducible, and Jenkins rebuilds UAT from it. Building is always separate
+from waking; a wake never changes UAT's code.
 
 The branded pages live in `uat-pages/` and are served from the UAT CDN at
 `https://uat.wp.cdn.aws.wfu.edu/uat-status/`. They share the down page

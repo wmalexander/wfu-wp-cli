@@ -1,5 +1,16 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import { execSync } from 'child_process';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import {
   AlbRule,
   MAINT_TAG,
@@ -26,10 +37,21 @@ import {
   uatAsleepBody,
   uatWakingBody,
 } from '../utils/uat-pages';
+import {
+  UAT_BASES,
+  UatBuildRequest,
+  describeRequest,
+  isDefaultRequest,
+  isUatBase,
+  packageAlias,
+  parseWith,
+} from '../utils/uat-build';
 
 export const UAT_WEB_ENV = 'wordpress-uat';
 export const UAT_WORKER_ENV = 'wordpress-uat-worker';
 const POLL_SECONDS = 15;
+const APP_REPO = 'git@github.com:wakeforestuniversity/app-web-aws-wp.git';
+const UAT_BUILD_FILE = 'uat-build.json';
 const PROGRESS_EVERY_SECONDS = 60;
 
 export interface AsgState {
@@ -326,6 +348,155 @@ async function doUatUp(yes: boolean, timeoutMinutes: number): Promise<void> {
   );
 }
 
+function git(dir: string, args: string): string {
+  return execSync(`git -C ${dir} ${args}`, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim();
+}
+
+function packageRepoUrl(devComposer: any, pkg: string): string | null {
+  const core = pkg.split('/')[1].replace(/^wfu-/, '');
+  const repos: { url?: string }[] = devComposer.repositories ?? [];
+  const matches = repos.filter((r) => {
+    const name =
+      (r.url ?? '')
+        .split('/')
+        .pop()
+        ?.replace(/\.git$/, '') ?? '';
+    return name === `wfu-${core}` || name.endsWith(`-${core}`);
+  });
+  return matches.length === 1 ? (matches[0].url ?? null) : null;
+}
+
+function checkPinnedBranches(
+  devComposer: any,
+  pinned: Record<string, string>
+): void {
+  for (const [pkg, branch] of Object.entries(pinned)) {
+    if (!packageAlias(devComposer, pkg))
+      fail(
+        `${pkg} has no branch alias in composer-dev.json, so it cannot be pinned to a branch.`
+      );
+    const url = packageRepoUrl(devComposer, pkg);
+    if (!url) {
+      console.log(
+        chalk.yellow(
+          `  Could not find the repository for ${pkg}; not checking that ${branch} exists.`
+        )
+      );
+      continue;
+    }
+    const heads = execSync(`git ls-remote --heads ${url} ${branch}`, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+    if (!heads) fail(`${pkg} has no branch named ${branch} (${url}).`);
+  }
+}
+
+async function doUatBuild(opts: {
+  base: string;
+  with: string[];
+  dryRun: boolean;
+  yes: boolean;
+}): Promise<void> {
+  if (!isUatBase(opts.base))
+    fail(`--base must be one of ${UAT_BASES.join(', ')} (got "${opts.base}")`);
+  let pinned: Record<string, string> = {};
+  try {
+    pinned = parseWith(opts.with);
+  } catch (error) {
+    fail((error as Error).message);
+  }
+  const dir = mkdtempSync(join(tmpdir(), 'wfuwp-uat-build-'));
+  try {
+    console.log(chalk.gray(`  Cloning the uat branch of ${APP_REPO}...`));
+    execSync(`git clone --quiet --branch uat ${APP_REPO} ${dir}`, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const devComposer = JSON.parse(
+      readFileSync(join(dir, 'composer-dev.json'), 'utf8')
+    );
+    checkPinnedBranches(devComposer, pinned);
+    if (opts.base === 'main') {
+      try {
+        git(
+          dir,
+          'merge --no-ff --no-edit -m "Merging main into uat for a UAT build." origin/main'
+        );
+      } catch {
+        fail(
+          'Merging main into uat conflicts. Resolve it on the uat branch by hand, then rerun.'
+        );
+      }
+    }
+    const requestPath = join(dir, UAT_BUILD_FILE);
+    const request: UatBuildRequest = {
+      base: opts.base,
+      with: pinned,
+      requestedBy: git(dir, 'config user.name') || 'unknown',
+      requestedAt: new Date().toISOString(),
+    };
+    if (isDefaultRequest(request)) {
+      if (existsSync(requestPath)) unlinkSync(requestPath);
+    } else {
+      writeFileSync(requestPath, JSON.stringify(request, null, 2) + '\n');
+    }
+    const tracked = git(dir, `ls-files ${UAT_BUILD_FILE}`);
+    if (existsSync(requestPath) || tracked)
+      git(dir, `add -A -- ${UAT_BUILD_FILE}`);
+    const staged = git(dir, 'diff --cached --name-only');
+    const ahead = git(dir, 'log --oneline origin/uat..HEAD');
+    if (!staged && !ahead) {
+      console.log(
+        chalk.green(
+          `[uat] UAT already builds from ${describeRequest(request)}. Run juat to rebuild it.`
+        )
+      );
+      return;
+    }
+    console.log(chalk.bold('[uat] Build UAT from ') + describeRequest(request));
+    if (ahead)
+      console.log(`  New commits for uat:\n${ahead.replace(/^/gm, '    ')}`);
+    if (staged)
+      console.log(
+        `  ${UAT_BUILD_FILE}: ${isDefaultRequest(request) ? 'removed (back to the uat branches)' : 'written'}`
+      );
+    if (opts.dryRun) {
+      console.log(chalk.gray('  Dry run: nothing was pushed.'));
+      return;
+    }
+    if (!opts.yes) {
+      const ok = await confirm(
+        'Push this to uat? Jenkins will rebuild and deploy UAT. (y/N)'
+      );
+      if (!ok) {
+        console.log('Aborted.');
+        return;
+      }
+    }
+    if (staged)
+      git(
+        dir,
+        `commit --quiet -m "Building UAT from ${describeRequest(request).replace(/"/g, "'")}."`
+      );
+    git(dir, 'push --quiet origin HEAD:uat');
+    console.log(
+      chalk.green(
+        '[uat] Pushed. Jenkins is building UAT; follow it in #ait-wp-jenkins.'
+      )
+    );
+    console.log(
+      chalk.gray(
+        '  If UAT is asleep, the new build is what it runs the next time it wakes.'
+      )
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 export const uatCommand = new Command('uat')
   .description('Put the UAT environment to sleep or wake it up')
   .addCommand(
@@ -357,5 +528,23 @@ export const uatCommand = new Command('uat')
       .option('-t, --timeout <minutes>', 'Minutes to wait for UAT', '25')
       .action(async (opts) => {
         await doUatUp(opts.yes, Number(opts.timeout));
+      })
+  )
+  .addCommand(
+    new Command('build')
+      .description(
+        'Choose the code UAT builds from and push it so Jenkins rebuilds UAT'
+      )
+      .option('-b, --base <base>', 'uat, dev, or main', 'uat')
+      .option(
+        '-w, --with <package:branch>',
+        'Pin one WFU package to a branch (repeatable)',
+        (value: string, previous: string[]) => previous.concat([value]),
+        [] as string[]
+      )
+      .option('--dry-run', 'Show what would be pushed without pushing', false)
+      .option('-y, --yes', 'Skip confirmation prompt', false)
+      .action(async (opts) => {
+        await doUatBuild(opts);
       })
   );

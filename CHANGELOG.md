@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Branding the asleep and waking pages like the maintenance and down pages: the university header, the aerial photograph, the card with the shield watermark, and the same type, by sharing the down page stylesheet. The page sources live in `uat-pages/` and are served from the UAT CDN, framed by the load balancer the same way the maintenance page is. The waking page shows the walking deacon and a running wait timer.
 - Adding a "Wake UAT" button to the asleep page. It calls the UatWake service in the serverless app, then tells the framed page to reload so the visitor sees the waking page within seconds. Errors from the service, such as an off-campus caller, appear under the button with the email fallback.
 - Waiting in `wfuwp uat up` until Elastic Beanstalk reports the worker Green or Yellow, so UAT is not called awake while the worker is still being set up and background jobs are not running yet.
+- Adding `wfuwp uat build --base uat|dev|main [--with package:branch ...]` to choose the code UAT builds from. It clones the app repository's uat branch, merges main for a main base, records the choice in `uat-build.json`, checks that each pinned branch exists, previews the change, and pushes to uat after confirmation so Jenkins rebuilds UAT. `--dry-run` previews without pushing, and `--base uat` with no pins returns UAT to building from the uat branches. Requires the matching Jenkinsfile change in app-web-aws-wp.
 
 ## [0.33.1] - 2026-10-19
 
