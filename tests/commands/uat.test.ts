@@ -36,6 +36,11 @@ describe('uat pages', () => {
     expect(uatAsleepBody()).toContain('<title>UAT is asleep</title>")<0');
     expect(uatWakingBody()).toContain('<title>UAT is waking up</title>")<0');
   });
+
+  it('treat a redirect as WordPress being back', () => {
+    expect(uatWakingBody()).toContain('redirect:"manual"');
+    expect(uatWakingBody()).toContain('r.type=="opaqueredirect"');
+  });
 });
 
 describe('classifyPhase', () => {

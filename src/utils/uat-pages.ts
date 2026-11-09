@@ -11,9 +11,11 @@ const STYLE =
 
 function pollScript(title: string): string {
   return (
-    '<script>setInterval(function(){fetch(location.href,{cache:"no-store"})' +
-    '.then(function(r){return r.text()}).then(function(t){' +
-    `if(t.indexOf("<title>${title}</title>")<0)location.reload()` +
+    '<script>setInterval(function(){fetch(location.href,' +
+    '{cache:"no-store",redirect:"manual"}).then(function(r){' +
+    'if(r.type=="opaqueredirect")return location.reload();' +
+    'return r.text().then(function(t){' +
+    `if(t.indexOf("<title>${title}</title>")<0)location.reload()})` +
     '}).catch(function(){})},15000)</script>'
   );
 }
