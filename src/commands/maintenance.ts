@@ -500,6 +500,12 @@ async function doOn(
       actions: maint.Actions,
     });
   }
+  if (forwardParkedAdminRules(listener) > 0)
+    console.log(
+      chalk.gray(
+        '  Login and admin paths were showing the UAT page; forwarding them again.'
+      )
+    );
   const pageUrl = page === 'down' ? DOWN_URL : MAINTENANCE_URL;
   modifyRuleSourceIp(
     maint.RuleArn,
@@ -522,6 +528,33 @@ async function doOn(
     );
   }
   verify(env, true, listener, maint);
+}
+
+const ADMIN_PATH_TAGS = [
+  'Allow Maintenance Page',
+  'Allow Maintenance Support',
+  'Allow Maintenance Assets',
+];
+
+export function forwardParkedAdminRules(listener: string): number {
+  const targetGroup = defaultTargetGroupArn(listRules(listener));
+  let fixed = 0;
+  for (const tag of ADMIN_PATH_TAGS) {
+    const rule = findTaggedRule(listener, tag);
+    if (rule?.Actions?.[0]?.Type !== 'fixed-response') continue;
+    const path = writeTempJson('admin-act', [
+      { Type: 'forward', TargetGroupArn: targetGroup },
+    ]);
+    try {
+      aws(
+        `elbv2 modify-rule --rule-arn ${rule.RuleArn} --actions file://${path}`
+      );
+    } finally {
+      unlinkSync(path);
+    }
+    fixed += 1;
+  }
+  return fixed;
 }
 
 export async function doOff(env: string, yes: boolean): Promise<void> {
@@ -579,6 +612,12 @@ export async function doOff(env: string, yes: boolean): Promise<void> {
     console.log(chalk.green('  Bypass rule cleared.'));
   }
   deleteState(env);
+  if (forwardParkedAdminRules(listener) > 0)
+    console.log(
+      chalk.gray(
+        '  Login and admin paths were showing the UAT page; forwarding them again.'
+      )
+    );
   verify(env, false, listener, maint);
 }
 
