@@ -520,10 +520,12 @@ the `maintenance` command's saved OFF state; `wfuwp maintenance status --env uat
 reports them as `uat-asleep` or `uat-waking`. `down` refuses to replace a
 non-UAT maintenance page unless you pass `--force`.
 
-Known gaps until Information Security changes the UAT template: the existing
-weekday 6 AM scale-out still starts the web server behind the asleep page, and
-the nightly 7 PM scale-in stops the web server without putting the asleep page
-up or stopping the worker. Run `wfuwp uat down` after hours to fully sleep it.
+While UAT sleeps, the three rules ahead of the page (login, the maintenance
+dashboard, and admin assets) serve the same page, so no UAT address returns a
+bare 503. The nightly 7 PM sleep puts the page up through the UatWake service in
+app-serverless-aws-wordpress. Until Information Security changes the UAT template,
+the weekday 6 AM scale-out still starts the web server behind the asleep page and
+the worker does not sleep on its own.
 
 ## Quick Start
 

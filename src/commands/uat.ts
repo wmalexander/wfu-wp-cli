@@ -52,6 +52,11 @@ export const UAT_WORKER_ENV = 'wordpress-uat-worker';
 const POLL_SECONDS = 15;
 const APP_REPO = 'git@github.com:wakeforestuniversity/app-web-aws-wp.git';
 const UAT_BUILD_FILE = 'uat-build.json';
+export const ADMIN_PATH_TAGS = [
+  'Allow Maintenance Page',
+  'Allow Maintenance Support',
+  'Allow Maintenance Assets',
+];
 const PROGRESS_EVERY_SECONDS = 60;
 
 export interface AsgState {
@@ -180,6 +185,38 @@ function refreshRule(ctx: UatContext): AlbRule {
   return maint;
 }
 
+export function adminPathActions(
+  body: string | null,
+  targetGroup: string
+): any[] {
+  if (body !== null) return fixedResponseAction(body);
+  return [{ Type: 'forward', TargetGroupArn: targetGroup }];
+}
+
+function setRuleActions(ruleArn: string, actions: any[]): void {
+  const path = join(tmpdir(), `wfuwp-uat-actions-${process.pid}.json`);
+  writeFileSync(path, JSON.stringify(actions));
+  try {
+    aws(`elbv2 modify-rule --rule-arn ${ruleArn} --actions file://${path}`);
+  } finally {
+    unlinkSync(path);
+  }
+}
+
+function setAdminPaths(ctx: UatContext, body: string | null): void {
+  for (const tag of ADMIN_PATH_TAGS) {
+    const rule = findTaggedRule(ctx.listener, tag);
+    if (!rule) continue;
+    setRuleActions(rule.RuleArn, adminPathActions(body, ctx.targetGroup));
+  }
+}
+
+function adminPathsParked(ctx: UatContext): number {
+  return ADMIN_PATH_TAGS.map((tag) => findTaggedRule(ctx.listener, tag)).filter(
+    (rule) => rule?.Actions?.[0]?.Type === 'fixed-response'
+  ).length;
+}
+
 function showPage(ctx: UatContext, body: string): void {
   const maint = refreshRule(ctx);
   if (!isOn(maint) && !readState('uat')) {
@@ -191,6 +228,7 @@ function showPage(ctx: UatContext, body: string): void {
     });
   }
   modifyRuleSourceIp(maint.RuleArn, ['0.0.0.0/0'], fixedResponseAction(body));
+  setAdminPaths(ctx, body);
 }
 
 function restoreUatOff(ctx: UatContext): void {
@@ -207,6 +245,7 @@ function restoreUatOff(ctx: UatContext): void {
     modifyRuleSourceIp(maint.RuleArn, ['152.17.0.0/32'], maint.Actions);
   }
   deleteState('uat');
+  setAdminPaths(ctx, null);
 }
 
 function formatAsg(label: string, s: AsgState): string {
@@ -249,6 +288,9 @@ async function doUatStatus(): Promise<void> {
   console.log(
     `  page: ${page ?? 'off (requests go to WordPress)'}` +
       (page ? ` (source-ip ${currentSourceIps(ctx.maint).join(', ')})` : '')
+  );
+  console.log(
+    `  login and admin paths: ${adminPathsParked(ctx) ? 'showing the page' : 'forwarding to WordPress'}`
   );
   if (phase === 'mixed' && page === null && healthy === 0)
     console.log(

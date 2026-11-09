@@ -6,7 +6,13 @@ import {
   UAT_ASLEEP_URL,
   UAT_WAKING_URL,
 } from '../../src/utils/uat-pages';
-import { classifyPhase, workerReady, AsgState } from '../../src/commands/uat';
+import {
+  classifyPhase,
+  workerReady,
+  adminPathActions,
+  ADMIN_PATH_TAGS,
+  AsgState,
+} from '../../src/commands/uat';
 
 function asg(desired: number, inService: number): AsgState {
   return { name: 'g', min: desired, max: 2, desired, inService };
@@ -91,5 +97,27 @@ describe('workerReady', () => {
 describe('page bodies and the wake button', () => {
   it('reload when the asleep page button posts the wake message', () => {
     expect(uatAsleepBody()).toContain('e.data=="uat-wake"');
+  });
+});
+
+describe('login and admin paths while UAT sleeps', () => {
+  it('covers the three forwarding rules that sit ahead of the page', () => {
+    expect(ADMIN_PATH_TAGS).toEqual([
+      'Allow Maintenance Page',
+      'Allow Maintenance Support',
+      'Allow Maintenance Assets',
+    ]);
+  });
+
+  it('serves the same page while asleep or waking', () => {
+    const actions = adminPathActions(uatAsleepBody(), 'arn:tg');
+    expect(actions[0].Type).toBe('fixed-response');
+    expect(actions[0].FixedResponseConfig.MessageBody).toBe(uatAsleepBody());
+  });
+
+  it('forwards to the servers again once UAT is awake', () => {
+    expect(adminPathActions(null, 'arn:tg')).toEqual([
+      { Type: 'forward', TargetGroupArn: 'arn:tg' },
+    ]);
   });
 });
