@@ -3,7 +3,8 @@ import {
   detectUatPage,
   uatAsleepBody,
   uatWakingBody,
-  DEACON_GIF_URL,
+  UAT_ASLEEP_URL,
+  UAT_WAKING_URL,
 } from '../../src/utils/uat-pages';
 import { classifyPhase, AsgState } from '../../src/commands/uat';
 
@@ -27,9 +28,20 @@ describe('uat pages', () => {
     expect(detectUatPage('<title>Wake Forest University</title>')).toBeNull();
   });
 
-  it('shows the walking deacon only while waking', () => {
-    expect(uatWakingBody()).toContain(DEACON_GIF_URL);
-    expect(uatAsleepBody()).not.toContain(DEACON_GIF_URL);
+  it('frame the branded page for each state', () => {
+    expect(uatAsleepBody()).toContain(`<iframe src="${UAT_ASLEEP_URL}"`);
+    expect(uatWakingBody()).toContain(`<iframe src="${UAT_WAKING_URL}"`);
+  });
+
+  it('keep the branded sources in the repository', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const dir = path.join(__dirname, '../../uat-pages');
+    expect(fs.readFileSync(path.join(dir, 'waking.html'), 'utf8')).toContain(
+      'walking_deacon.gif'
+    );
+    expect(fs.existsSync(path.join(dir, 'asleep.html'))).toBe(true);
+    expect(fs.existsSync(path.join(dir, 'uat-status.css'))).toBe(true);
   });
 
   it('poll for a page whose title differs from their own', () => {

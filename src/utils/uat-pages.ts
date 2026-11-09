@@ -1,13 +1,11 @@
 export const ALB_FIXED_RESPONSE_LIMIT = 1024;
 export const UAT_ASLEEP_TITLE = 'UAT is asleep';
 export const UAT_WAKING_TITLE = 'UAT is waking up';
-export const DEACON_GIF_URL =
-  'https://uat.wp.cdn.aws.wfu.edu/wfu-gutenberg-quarantheme/assets/images/walking_deacon.gif';
-
-const STYLE =
-  '<style>body{font-family:system-ui,sans-serif;text-align:center;' +
-  'padding:12vh 16px;color:#222;background:#fff}h1{font-size:1.6rem}' +
-  'p{max-width:32rem;margin:1rem auto;line-height:1.5}</style>';
+export const UAT_PAGES_BASE_URL = 'https://uat.wp.cdn.aws.wfu.edu/uat-status';
+export const UAT_ASLEEP_URL = `${UAT_PAGES_BASE_URL}/asleep.html`;
+export const UAT_WAKING_URL = `${UAT_PAGES_BASE_URL}/waking.html`;
+export const UAT_PAGES_BUCKET_PREFIX =
+  's3://wfu-cer-wordpress-uat-us-east-1/uat-status';
 
 function pollScript(title: string): string {
   return (
@@ -20,33 +18,23 @@ function pollScript(title: string): string {
   );
 }
 
-function page(title: string, inner: string): string {
+function page(title: string, src: string): string {
   return (
     '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">' +
     '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-    `<title>${title}</title>${STYLE}</head><body>${inner}` +
+    `<title>${title}</title></head><body style="margin:0">` +
+    `<iframe src="${src}" title="${title}" style="position:fixed;inset:0;` +
+    `width:100%;height:100%;border:0">${title}</iframe>` +
     `${pollScript(title)}</body></html>`
   );
 }
 
 export function uatAsleepBody(): string {
-  return page(
-    UAT_ASLEEP_TITLE,
-    `<h1>${UAT_ASLEEP_TITLE}</h1>` +
-      '<p>The UAT test environment sleeps when nobody is using it.</p>' +
-      '<p>The WordPress team can wake it in a few minutes. ' +
-      'This page updates on its own once it starts waking.</p>'
-  );
+  return page(UAT_ASLEEP_TITLE, UAT_ASLEEP_URL);
 }
 
 export function uatWakingBody(): string {
-  return page(
-    UAT_WAKING_TITLE,
-    `<img src="${DEACON_GIF_URL}" alt="" width="160">` +
-      `<h1>${UAT_WAKING_TITLE}</h1>` +
-      '<p>This usually takes a few minutes. Keep this tab open and it will ' +
-      'take you where you were going as soon as UAT is ready.</p>'
-  );
+  return page(UAT_WAKING_TITLE, UAT_WAKING_URL);
 }
 
 export function detectUatPage(body: string): string | null {

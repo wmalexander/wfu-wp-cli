@@ -489,7 +489,22 @@ wfuwp uat up              # waking page ON, ASGs to 1, wait for healthy, page OF
 wfuwp uat up --timeout 30 # wait longer before giving up (minutes, default 25)
 ```
 
-Both pages are ALB fixed responses on the `Maintenance Mode` rule, so they reuse
+The branded pages live in `uat-pages/` and are served from the UAT CDN at
+`https://uat.wp.cdn.aws.wfu.edu/uat-status/`. They share the down page
+stylesheet at `wakealert.wfu.edu/downpage/style.css`, so they follow its
+branding. After editing them, publish with:
+
+```bash
+for f in asleep.html waking.html; do
+  aws s3 cp uat-pages/$f s3://wfu-cer-wordpress-uat-us-east-1/uat-status/$f \
+    --content-type "text/html; charset=utf-8" --cache-control "max-age=60"
+done
+aws s3 cp uat-pages/uat-status.css s3://wfu-cer-wordpress-uat-us-east-1/uat-status/uat-status.css \
+  --content-type text/css --cache-control "max-age=60"
+```
+
+The load balancer shows each page in a full-screen frame, the same way the
+maintenance page is framed. Both frames are ALB fixed responses on the `Maintenance Mode` rule, so they reuse
 the `maintenance` command's saved OFF state; `wfuwp maintenance status --env uat`
 reports them as `uat-asleep` or `uat-waking`. `down` refuses to replace a
 non-UAT maintenance page unless you pass `--force`.
