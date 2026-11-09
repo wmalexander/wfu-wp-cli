@@ -274,7 +274,7 @@ export function writeState(env: string, state: unknown): void {
   }
 }
 
-function deleteState(env: string): void {
+export function deleteState(env: string): void {
   try {
     aws(`s3 rm s3://${STATE_BUCKET}/${stateKey(env)}`);
   } catch {
@@ -356,7 +356,7 @@ function verify(
         encoding: 'utf8',
       });
       curlFailed = false;
-      onPage = body.includes(PAGE_MARKER);
+      onPage = body.includes(PAGE_MARKER) || detectUatPage(body) !== null;
     } catch {
       curlFailed = true;
     }

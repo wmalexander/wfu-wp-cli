@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import {
   existsSync,
   mkdtempSync,
@@ -20,7 +20,7 @@ import {
   confirm,
   currentSourceIps,
   defaultTargetGroupArn,
-  doOff,
+  deleteState,
   fail,
   findTaggedRule,
   fixedResponseAction,
@@ -151,7 +151,7 @@ export function classifyPhase(
   if (page === 'uat-waking') return 'waking';
   const computeDown =
     web.desired === 0 && web.inService === 0 && worker.desired === 0;
-  if (computeDown) return 'asleep';
+  if (computeDown && page === 'uat-asleep') return 'asleep';
   const computeUp = healthy > 0 && worker.inService > 0;
   if (computeUp && page === null) return 'awake';
   return 'mixed';
@@ -191,6 +191,22 @@ function showPage(ctx: UatContext, body: string): void {
     });
   }
   modifyRuleSourceIp(maint.RuleArn, ['0.0.0.0/0'], fixedResponseAction(body));
+}
+
+function restoreUatOff(ctx: UatContext): void {
+  const maint = refreshRule(ctx);
+  const state = readState('uat');
+  const stateIps = state?.conditions
+    ? currentSourceIps({ ...maint, Conditions: state.conditions })
+    : [];
+  const usable =
+    state?.actions && stateIps.length > 0 && !stateIps.includes('0.0.0.0/0');
+  if (usable) {
+    modifyRuleSourceIp(maint.RuleArn, stateIps, state.actions);
+  } else {
+    modifyRuleSourceIp(maint.RuleArn, ['152.17.0.0/32'], maint.Actions);
+  }
+  deleteState('uat');
 }
 
 function formatAsg(label: string, s: AsgState): string {
@@ -340,7 +356,7 @@ async function doUatUp(yes: boolean, timeoutMinutes: number): Promise<void> {
       `[uat] Healthy after ${elapsedLabel(startedAt)}. Removing the waking page.`
     )
   );
-  await doOff('uat', true);
+  restoreUatOff(ctx);
   console.log(
     chalk.green(
       `[uat] UAT is awake. Total wake time ${elapsedLabel(startedAt)}.`
@@ -348,11 +364,19 @@ async function doUatUp(yes: boolean, timeoutMinutes: number): Promise<void> {
   );
 }
 
-function git(dir: string, args: string): string {
-  return execSync(`git -C ${dir} ${args}`, {
+function git(dir: string, args: string[]): string {
+  return execFileSync('git', ['-C', dir, ...args], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   }).trim();
+}
+
+function gitUserName(dir: string): string {
+  try {
+    return git(dir, ['config', 'user.name']) || 'unknown';
+  } catch {
+    return 'unknown';
+  }
 }
 
 function packageRepoUrl(devComposer: any, pkg: string): string | null {
@@ -387,7 +411,7 @@ function checkPinnedBranches(
       );
       continue;
     }
-    const heads = execSync(`git ls-remote --heads ${url} ${branch}`, {
+    const heads = execFileSync('git', ['ls-remote', '--heads', url, branch], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trim();
@@ -412,19 +436,27 @@ async function doUatBuild(opts: {
   const dir = mkdtempSync(join(tmpdir(), 'wfuwp-uat-build-'));
   try {
     console.log(chalk.gray(`  Cloning the uat branch of ${APP_REPO}...`));
-    execSync(`git clone --quiet --branch uat ${APP_REPO} ${dir}`, {
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    execFileSync(
+      'git',
+      ['clone', '--quiet', '--branch', 'uat', APP_REPO, dir],
+      {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }
+    );
     const devComposer = JSON.parse(
       readFileSync(join(dir, 'composer-dev.json'), 'utf8')
     );
     checkPinnedBranches(devComposer, pinned);
     if (opts.base === 'main') {
       try {
-        git(
-          dir,
-          'merge --no-ff --no-edit -m "Merging main into uat for a UAT build." origin/main'
-        );
+        git(dir, [
+          'merge',
+          '--no-ff',
+          '--no-edit',
+          '-m',
+          'Merging main into uat for a UAT build.',
+          'origin/main',
+        ]);
       } catch {
         fail(
           'Merging main into uat conflicts. Resolve it on the uat branch by hand, then rerun.'
@@ -435,7 +467,7 @@ async function doUatBuild(opts: {
     const request: UatBuildRequest = {
       base: opts.base,
       with: pinned,
-      requestedBy: git(dir, 'config user.name') || 'unknown',
+      requestedBy: gitUserName(dir),
       requestedAt: new Date().toISOString(),
     };
     if (isDefaultRequest(request)) {
@@ -443,11 +475,11 @@ async function doUatBuild(opts: {
     } else {
       writeFileSync(requestPath, JSON.stringify(request, null, 2) + '\n');
     }
-    const tracked = git(dir, `ls-files ${UAT_BUILD_FILE}`);
+    const tracked = git(dir, ['ls-files', UAT_BUILD_FILE]);
     if (existsSync(requestPath) || tracked)
-      git(dir, `add -A -- ${UAT_BUILD_FILE}`);
-    const staged = git(dir, 'diff --cached --name-only');
-    const ahead = git(dir, 'log --oneline origin/uat..HEAD');
+      git(dir, ['add', '-A', '--', UAT_BUILD_FILE]);
+    const staged = git(dir, ['diff', '--cached', '--name-only']);
+    const ahead = git(dir, ['log', '--oneline', 'origin/uat..HEAD']);
     if (!staged && !ahead) {
       console.log(
         chalk.green(
@@ -477,11 +509,13 @@ async function doUatBuild(opts: {
       }
     }
     if (staged)
-      git(
-        dir,
-        `commit --quiet -m "Building UAT from ${describeRequest(request).replace(/"/g, "'")}."`
-      );
-    git(dir, 'push --quiet origin HEAD:uat');
+      git(dir, [
+        'commit',
+        '--quiet',
+        '-m',
+        `Building UAT from ${describeRequest(request)}.`,
+      ]);
+    git(dir, ['push', '--quiet', 'origin', 'HEAD:uat']);
     console.log(
       chalk.green(
         '[uat] Pushed. Jenkins is building UAT; follow it in #ait-wp-jenkins.'

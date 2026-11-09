@@ -69,6 +69,10 @@ describe('classifyPhase', () => {
     expect(classifyPhase('uat-asleep', asg(1, 1), asg(1, 1), 1)).toBe('mixed');
   });
 
+  it('does not call UAT asleep when no page is up in front of it', () => {
+    expect(classifyPhase(null, asg(0, 0), asg(0, 0), 0)).toBe('mixed');
+  });
+
   it('reports mixed for the nightly scale-in with the worker still running', () => {
     expect(classifyPhase(null, asg(0, 0), asg(1, 1), 0)).toBe('mixed');
   });
