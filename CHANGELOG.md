@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-11-09
+
+### Added
+
+- Adding `wfuwp uat status | down | up` so the rarely used UAT environment can sleep until someone needs it and wake in a few minutes. `down` puts an "asleep" page on every UAT address and scales the web and worker Auto Scaling groups to zero. `up` swaps in a "waking" page with the walking deacon, scales both groups to one, waits for a healthy web target and an in-service worker, then removes the page and reports the total wake time. Both pages are fixed responses on the existing `Maintenance Mode` load balancer rule, kept under the 1,024 character limit, and reload on their own when the rule changes, so a visitor waiting on the waking page lands on the page they asked for. Waking never redeploys code. (WP-9190, part of WP-9189 on-demand UAT)
+- Reporting the UAT pages as `uat-asleep` and `uat-waking` in `wfuwp maintenance status`.
+
 ## [0.33.1] - 2026-10-19
 
 ### Fixed

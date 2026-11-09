@@ -12,9 +12,10 @@ import { join, dirname } from 'path';
 import * as readline from 'readline';
 import * as https from 'https';
 import chalk from 'chalk';
+import { detectUatPage } from '../utils/uat-pages';
 
 const VALID_ENVIRONMENTS = ['dev', 'uat', 'pprd', 'prod'];
-const MAINT_TAG = 'Maintenance Mode';
+export const MAINT_TAG = 'Maintenance Mode';
 const BYPASS_TAG = 'Maintenance Bypass';
 const LOOPBACK_TAG = 'Allow Wordpress Loopback';
 const LOOPBACK_CIDR = '34.192.207.124/32';
@@ -26,12 +27,12 @@ const MAINTENANCE_URL =
   'https://wakealert.wfu.edu/downpage/maintenance-mode.html';
 const DOWN_URL = 'https://wakealert.wfu.edu/downpage/downpage.html';
 
-interface EnvConfig {
+export interface EnvConfig {
   offSentinel: string;
   verifyUrl: string;
 }
 
-const ENV_CONFIG: Record<string, EnvConfig> = {
+export const ENV_CONFIG: Record<string, EnvConfig> = {
   dev: {
     offSentinel: '152.17.0.0/32',
     verifyUrl: 'https://www.dev.wfu.edu',
@@ -50,7 +51,7 @@ const ENV_CONFIG: Record<string, EnvConfig> = {
   },
 };
 
-function fail(message: string): never {
+export function fail(message: string): never {
   console.error(chalk.red(`Error: ${message}`));
   process.exit(1);
 }
@@ -63,7 +64,7 @@ function validateEnvironment(env: string): void {
   }
 }
 
-function checkAwsCli(): void {
+export function checkAwsCli(): void {
   try {
     execSync('aws --version', { stdio: 'ignore' });
   } catch {
@@ -71,19 +72,19 @@ function checkAwsCli(): void {
   }
 }
 
-function aws(args: string): string {
+export function aws(args: string): string {
   return execSync(`aws ${args} --region ${REGION}`, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   }).trim();
 }
 
-function awsJson<T = any>(args: string): T {
+export function awsJson<T = any>(args: string): T {
   const out = aws(`${args} --output json`);
   return JSON.parse(out) as T;
 }
 
-function confirm(question: string): Promise<boolean> {
+export function confirm(question: string): Promise<boolean> {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -109,7 +110,7 @@ function requireExactConfirm(expected: string): Promise<boolean> {
   });
 }
 
-function resolveAlbArn(env: string): string {
+export function resolveAlbArn(env: string): string {
   const wanted = `wordpress-${env}`;
   const lbs = awsJson<{ LoadBalancers: { LoadBalancerArn: string }[] }>(
     'elbv2 describe-load-balancers'
@@ -139,7 +140,7 @@ function resolveAlbArn(env: string): string {
   );
 }
 
-function get443ListenerArn(albArn: string): string {
+export function get443ListenerArn(albArn: string): string {
   const listeners = awsJson<{
     Listeners: { Port: number; ListenerArn: string }[];
   }>(`elbv2 describe-listeners --load-balancer-arn ${albArn}`).Listeners;
@@ -148,14 +149,14 @@ function get443ListenerArn(albArn: string): string {
   return https.ListenerArn;
 }
 
-interface AlbRule {
+export interface AlbRule {
   RuleArn: string;
   Priority: string;
   Conditions: any[];
   Actions: any[];
 }
 
-function listRules(listenerArn: string): AlbRule[] {
+export function listRules(listenerArn: string): AlbRule[] {
   return awsJson<{ Rules: AlbRule[] }>(
     `elbv2 describe-rules --listener-arn ${listenerArn}`
   ).Rules;
@@ -179,7 +180,10 @@ function ruleTagName(ruleArns: string[]): Record<string, string> {
   return result;
 }
 
-function findTaggedRule(listenerArn: string, tagName: string): AlbRule | null {
+export function findTaggedRule(
+  listenerArn: string,
+  tagName: string
+): AlbRule | null {
   const rules = listRules(listenerArn).filter((r) => r.Priority !== 'default');
   const names = ruleTagName(rules.map((r) => r.RuleArn));
   const found = rules.filter((r) => names[r.RuleArn] === tagName);
@@ -211,7 +215,7 @@ function writeTempJson(name: string, value: unknown): string {
   return path;
 }
 
-function modifyRuleSourceIp(
+export function modifyRuleSourceIp(
   ruleArn: string,
   values: string[],
   actions: any[]
@@ -232,7 +236,7 @@ function modifyRuleSourceIp(
   }
 }
 
-function fixedResponseAction(body: string): any[] {
+export function fixedResponseAction(body: string): any[] {
   return [
     {
       Type: 'fixed-response',
@@ -249,7 +253,7 @@ function stateKey(env: string): string {
   return `maintenance-state/${env}.json`;
 }
 
-function readState(env: string): any | null {
+export function readState(env: string): any | null {
   try {
     const out = aws(`s3 cp s3://${STATE_BUCKET}/${stateKey(env)} -`);
     return JSON.parse(out);
@@ -258,7 +262,7 @@ function readState(env: string): any | null {
   }
 }
 
-function writeState(env: string, state: unknown): void {
+export function writeState(env: string, state: unknown): void {
   const path = writeTempJson(`state-${env}`, state);
   try {
     aws(
@@ -288,6 +292,8 @@ function getMyIp(): string {
 }
 
 function detectPage(body: string): string {
+  const uatPage = detectUatPage(body);
+  if (uatPage) return uatPage;
   if (body.includes(MAINTENANCE_URL)) return 'maintenance';
   if (body.includes(DOWN_URL)) return 'down';
   return 'unknown';
@@ -398,12 +404,12 @@ function verify(
   );
 }
 
-function currentSourceIps(rule: AlbRule): string[] {
+export function currentSourceIps(rule: AlbRule): string[] {
   const cond = rule.Conditions.find((c) => c.Field === 'source-ip');
   return cond?.SourceIpConfig?.Values ?? [];
 }
 
-function isOn(rule: AlbRule): boolean {
+export function isOn(rule: AlbRule): boolean {
   return currentSourceIps(rule).includes('0.0.0.0/0');
 }
 
@@ -518,7 +524,7 @@ async function doOn(
   verify(env, true, listener, maint);
 }
 
-async function doOff(env: string, yes: boolean): Promise<void> {
+export async function doOff(env: string, yes: boolean): Promise<void> {
   validateEnvironment(env);
   checkAwsCli();
   const listener = get443ListenerArn(resolveAlbArn(env));
@@ -599,7 +605,7 @@ async function doBypass(env: string, add: boolean): Promise<void> {
   console.log(chalk.green(`[${env}] Bypass cleared.`));
 }
 
-function defaultTargetGroupArn(rules: AlbRule[]): string {
+export function defaultTargetGroupArn(rules: AlbRule[]): string {
   const def = rules.find((r) => r.Priority === 'default');
   const action = def?.Actions?.[0];
   const tg =

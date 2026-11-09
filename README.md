@@ -474,6 +474,31 @@ wfuwp maintenance off --env prod
 
 > See the [Commands Reference](docs/commands.md#maintenance---downmaintenance-page-control) for full details and notes.
 
+#### `uat` - Sleep and Wake the UAT Environment
+
+UAT sleeps when nobody needs it and wakes in a few minutes. While it sleeps,
+every UAT address shows an "asleep" page; while it wakes, a "waking" page with
+the walking deacon reloads on its own and lands the visitor where they were
+going once WordPress is healthy. Waking never changes UAT's code; builds still
+go through Jenkins.
+
+```bash
+wfuwp uat status          # ASLEEP, WAKING, AWAKE, or MIXED, with ASG and health detail
+wfuwp uat down            # asleep page ON, web and worker ASGs to 0
+wfuwp uat up              # waking page ON, ASGs to 1, wait for healthy, page OFF
+wfuwp uat up --timeout 30 # wait longer before giving up (minutes, default 25)
+```
+
+Both pages are ALB fixed responses on the `Maintenance Mode` rule, so they reuse
+the `maintenance` command's saved OFF state; `wfuwp maintenance status --env uat`
+reports them as `uat-asleep` or `uat-waking`. `down` refuses to replace a
+non-UAT maintenance page unless you pass `--force`.
+
+Known gaps until Information Security changes the UAT template: the existing
+weekday 6 AM scale-out still starts the web server behind the asleep page, and
+the nightly 7 PM scale-in stops the web server without putting the asleep page
+up or stopping the worker. Run `wfuwp uat down` after hours to fully sleep it.
+
 ## Quick Start
 
 New to wfuwp? Start with the **[Tool Introduction](wp-docs/wfuwp-introduction.md)** and use the built-in documentation system for complete guidance.
