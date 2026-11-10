@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-11-10
+
+### Added
+
+- Adding `wfuwp uat status | down | up` so the rarely used UAT environment can sleep until someone needs it and wake in a few minutes. `down` puts an "asleep" page on every UAT address and scales the web and worker Auto Scaling groups to zero. `up` swaps in a "waking" page with the walking deacon, scales both groups to one, waits for a healthy web target and an in-service worker, then removes the page and reports the total wake time. Both pages are fixed responses on the existing `Maintenance Mode` load balancer rule, kept under the 1,024 character limit, and reload on their own when the rule changes, so a visitor waiting on the waking page lands on the page they asked for. Waking never redeploys code. (WP-9190, part of WP-9189 on-demand UAT)
+- Reporting the UAT pages as `uat-asleep` and `uat-waking` in `wfuwp maintenance status`.
+- Branding the asleep and waking pages like the maintenance and down pages: the university header, the aerial photograph, the card with the shield watermark, and the same type, by sharing the down page stylesheet. The page sources live in `uat-pages/` and are served from the UAT CDN, framed by the load balancer the same way the maintenance page is. The waking page shows the walking deacon and a running wait timer.
+- Adding a "Wake UAT" button to the asleep page. It calls the UatWake service in the serverless app, then tells the framed page to reload so the visitor sees the waking page within seconds. Errors from the service, such as an off-campus caller, appear under the button with the email fallback.
+- Waiting in `wfuwp uat up` until Elastic Beanstalk reports the worker Green or Yellow, so UAT is not called awake while the worker is still being set up and background jobs are not running yet.
+- Serving the asleep and waking pages on the login page, the maintenance dashboard, and the admin style and script files too. Three load balancer rules send those paths to the servers ahead of the page, so while UAT slept they returned a bare 503. `down` now points those rules at the page, `up` points them back at the servers, and `status` shows which.
+- Returning the login and admin paths to WordPress in `wfuwp maintenance on` and `off` when a sleeping UAT left them on its page, since real maintenance needs those paths reachable.
+- Adding `wfuwp uat build --base uat|dev|main [--with package:branch ...]` to choose the code UAT builds from. It clones the app repository's uat branch, merges main for a main base, records the choice in `uat-build.json`, checks that each pinned branch exists, previews the change, and pushes to uat after confirmation so Jenkins rebuilds UAT. `--dry-run` previews without pushing, and `--base uat` with no pins returns UAT to building from the uat branches. Requires the matching Jenkinsfile change in app-web-aws-wp.
+
 ## [0.33.1] - 2026-10-19
 
 ### Fixed

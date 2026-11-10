@@ -20,6 +20,7 @@ import { localCommand } from './commands/local';
 import { cleanupCommand } from './commands/cleanup';
 import { releaseCommand } from './commands/release';
 import { maintenanceCommand } from './commands/maintenance';
+import { uatCommand } from './commands/uat';
 import { registerDoctorCommand } from './commands/doctor';
 import { registerDocsCommand } from './commands/docs';
 import { registerInstallDepsCommand } from './commands/install-deps';
@@ -78,6 +79,7 @@ program.addCommand(localCommand);
 program.addCommand(cleanupCommand);
 program.addCommand(releaseCommand);
 program.addCommand(maintenanceCommand);
+program.addCommand(uatCommand);
 
 // Add new commands
 registerDoctorCommand(program);
@@ -164,6 +166,10 @@ program
     console.log(
       chalk.green('  maintenance') +
         ' - Control the wfu.edu down/maintenance page (ALB switch)'
+    );
+    console.log(
+      chalk.green('  uat') +
+        '         - Put the UAT environment to sleep or wake it up'
     );
     console.log('\n' + chalk.bold('💡 Database Migration:'));
     console.log(

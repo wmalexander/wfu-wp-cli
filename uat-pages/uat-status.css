@@ -1,0 +1,63 @@
+/*
+Additions for the UAT asleep and waking pages. Everything else (header, aerial
+background, card, shield watermark, type) comes from the shared down page
+stylesheet at wakealert.wfu.edu/downpage/style.css, so these pages follow any
+brand change made there.
+*/
+.text-container .uat-status__eyebrow {
+	color: #555;
+	font-size: 14px;
+	font-weight: 700;
+	letter-spacing: .08em;
+	margin: 0;
+	text-transform: uppercase;
+}
+.uat-status__deacon {
+	display: block;
+	height: 150px;
+	margin: 0 0 8px -20px;
+	width: 150px;
+}
+.text-container .uat-status__elapsed {
+	color: #555;
+	font-size: 15px;
+	font-variant-numeric: tabular-nums;
+}
+@media screen and (min-width: 40em) {
+	.text-container .uat-status__eyebrow {
+		font-size: 14px;
+	}
+	.text-container .uat-status__elapsed {
+		font-size: 15px;
+	}
+}
+.uat-status__wake {
+	background: #8c6d2c;
+	border: 0;
+	border-radius: 4px;
+	color: #fff;
+	cursor: pointer;
+	font-family: "Open Sans", "Helvetica Neue", Helvetica, sans-serif;
+	font-size: 18px;
+	font-weight: 700;
+	padding: 12px 28px;
+	transition: background .2s ease-in-out;
+}
+.uat-status__wake:hover, .uat-status__wake:focus-visible {
+	background: #755a23;
+}
+.uat-status__wake:focus-visible {
+	outline: 3px solid #1a1a1a;
+	outline-offset: 2px;
+}
+.uat-status__wake:disabled {
+	background: #8a8a8a;
+	cursor: wait;
+}
+.text-container .uat-status__message:empty {
+	display: none;
+}
+.text-container .uat-status__fallback {
+	color: #555;
+	font-size: 15px;
+}

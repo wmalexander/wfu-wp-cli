@@ -474,6 +474,59 @@ wfuwp maintenance off --env prod
 
 > See the [Commands Reference](docs/commands.md#maintenance---downmaintenance-page-control) for full details and notes.
 
+#### `uat` - Sleep and Wake the UAT Environment
+
+UAT sleeps when nobody needs it and wakes in a few minutes. While it sleeps,
+every UAT address shows an "asleep" page; while it wakes, a "waking" page with
+the walking deacon reloads on its own and lands the visitor where they were
+going once WordPress is healthy. Waking never changes UAT's code; builds still
+go through Jenkins.
+
+```bash
+wfuwp uat status          # ASLEEP, WAKING, AWAKE, or MIXED, with ASG and health detail
+wfuwp uat down            # asleep page ON, web and worker ASGs to 0
+wfuwp uat up              # waking page ON, ASGs to 1, wait for healthy, page OFF
+wfuwp uat up --timeout 30 # wait longer before giving up (minutes, default 25)
+wfuwp uat build --base main --with wfu-golinks:feature-wp-1234-x --dry-run
+wfuwp uat build --base dev                      # UAT gets each package's dev branch
+wfuwp uat build                                 # back to the uat branches
+```
+
+`uat build` chooses the code UAT builds from: `uat` (each package's uat
+branch, the default), `dev` (each package's dev branch, a shared playground,
+so not for sign-off), or `main` (released versions). `--with` pins one WFU
+package to a branch and can be repeated. The choice is committed to the app
+repository's uat branch as `uat-build.json`, so the baseline is recorded and
+reproducible, and Jenkins rebuilds UAT from it. Building is always separate
+from waking; a wake never changes UAT's code.
+
+The branded pages live in `uat-pages/` and are served from the UAT CDN at
+`https://uat.wp.cdn.aws.wfu.edu/uat-status/`. They share the down page
+stylesheet at `wakealert.wfu.edu/downpage/style.css`, so they follow its
+branding. After editing them, publish with:
+
+```bash
+for f in asleep.html waking.html; do
+  aws s3 cp uat-pages/$f s3://wfu-cer-wordpress-uat-us-east-1/uat-status/$f \
+    --content-type "text/html; charset=utf-8" --cache-control "max-age=60"
+done
+aws s3 cp uat-pages/uat-status.css s3://wfu-cer-wordpress-uat-us-east-1/uat-status/uat-status.css \
+  --content-type text/css --cache-control "max-age=60"
+```
+
+The load balancer shows each page in a full-screen frame, the same way the
+maintenance page is framed. Both frames are ALB fixed responses on the `Maintenance Mode` rule, so they reuse
+the `maintenance` command's saved OFF state; `wfuwp maintenance status --env uat`
+reports them as `uat-asleep` or `uat-waking`. `down` refuses to replace a
+non-UAT maintenance page unless you pass `--force`.
+
+While UAT sleeps, the three rules ahead of the page (login, the maintenance
+dashboard, and admin assets) serve the same page, so no UAT address returns a
+bare 503. The nightly 7 PM sleep puts the page up through the UatWake service in
+app-serverless-aws-wordpress. Until Information Security changes the UAT template,
+the weekday 6 AM scale-out still starts the web server behind the asleep page and
+the worker does not sleep on its own.
+
 ## Quick Start
 
 New to wfuwp? Start with the **[Tool Introduction](wp-docs/wfuwp-introduction.md)** and use the built-in documentation system for complete guidance.
